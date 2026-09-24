@@ -1,0 +1,11 @@
+# Backend (Java/Maven)
+target/
+*.class
+
+# Variables de entorno y credenciales
+.env
+
+# Editor / sistema operativo
+.vscode/
+.DS_Store
+node_modules/
