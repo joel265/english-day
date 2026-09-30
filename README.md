@@ -8,6 +8,7 @@ Si es tu primera vez aquí, ve directo a **[Paso a paso a prueba de bobos](#paso
 
 ```
 english-day/
+├── UIUX/        (Archivos de Diseño Web)
 ├── backend/     (Spring Boot)
 ├── frontend/    (HTML/CSS/JS)
 ├── database/    (scripts SQL)
