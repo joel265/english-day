@@ -8,6 +8,8 @@ Si es tu primera vez aquí, ve directo a **[Paso a paso a prueba de bobos](#paso
 
 ```
 english-day/
+├── QA/          (Trabajos de QA / Testing)
+├── UIUX/        (Trabajos de Diseño Web)
 ├── backend/     (Spring Boot)
 ├── frontend/    (HTML/CSS/JS)
 ├── database/    (scripts SQL)
