@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Unirse a la partida | English Day</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <p class="brand">English Day <span>SENA ADSO</span></p>
+    </header>
+
+    <main>
+      <section class="join-card" aria-labelledby="join-title">
+        <p class="eyebrow">English Day · Juego en vivo</p>
+        <h1 id="join-title">¡Únete a la partida!</h1>
+        <p class="intro">Ingresa el PIN que muestra tu instructor y el nombre que usarás en el juego.</p>
+
+        <form id="joinForm">
+          <fieldset class="pin-group" aria-describedby="pin-help">
+            <legend>PIN de la partida</legend>
+            <div class="pin-fields">
+              <input id="pinDigit1" class="pin-digit" type="text" inputmode="numeric"
+                pattern="[0-9]" maxlength="1" aria-label="Dígito 1 del PIN" required>
+              <input id="pinDigit2" class="pin-digit" type="text" inputmode="numeric"
+                pattern="[0-9]" maxlength="1" aria-label="Dígito 2 del PIN" required>
+              <input id="pinDigit3" class="pin-digit" type="text" inputmode="numeric"
+                pattern="[0-9]" maxlength="1" aria-label="Dígito 3 del PIN" required>
+              <input id="pinDigit4" class="pin-digit" type="text" inputmode="numeric"
+                pattern="[0-9]" maxlength="1" aria-label="Dígito 4 del PIN" required>
+              <input id="pinDigit5" class="pin-digit" type="text" inputmode="numeric"
+                pattern="[0-9]" maxlength="1" aria-label="Dígito 5 del PIN" required>
+              <input id="pinDigit6" class="pin-digit" type="text" inputmode="numeric"
+                pattern="[0-9]" maxlength="1" aria-label="Dígito 6 del PIN" required>
+            </div>
+            <p class="field-help" id="pin-help">Escribe los seis dígitos. El PIN puede comenzar por 0.</p>
+          </fieldset>
+
+          <div class="nickname-group">
+            <label for="nickname">Tu nombre o nickname</label>
+            <input id="nickname" type="text" autocomplete="nickname" placeholder="Ejemplo: AlexSENA" required>
+          </div>
+
+          <button class="join-button" type="button">Ingresar a la partida</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
