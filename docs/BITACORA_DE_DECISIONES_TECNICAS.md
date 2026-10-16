@@ -14,7 +14,7 @@ El Contrato de Integración fija lo que ya se decidió (rutas, campos, eventos).
 | **2** | 2026-09-27 | `BASE_POINTS` de la fórmula de puntuación queda en 1000 (no se ajusta por dificultad de la pregunta). | Backend | Backend, Frontend, QA | ✅ Cerrada |
 | **3** | 2026-09-29 | El HTTPS del evento se resuelve únicamente con Cloudflare Tunnel (Manual de Despliegue). El certificado autofirmado mencionado en el DAS §5 queda solo como referencia para pruebas locales, no se usa el día del evento. | Backend | Backend, PM | ✅ Cerrada |
 | **4** | 2026-10-11 | Se define formalmente **MySQL (versión 8.0+)** como el motor de base de datos relacional oficial del proyecto. Backend usará el driver `mysql-connector-j` con Spring Data JPA y se mantiene total compatibilidad con los scripts SQL e InnoDB definidos en la carpeta `database/`. | Backend + Base de Datos | Backend, Base de Datos, QA | ✅ Cerrada |
-| **5** | | | | | ☐ Abierta |
+| **5** | 2026-10-16 | Para `/topic/room/{roomId}/lobby`, el payload es un arreglo JSON `[ { "playerId": "...", "nickname": "...", "joinedAt": "..." } ]` emitido en tiempo real al unirse un jugador. | Backend | Backend, Frontend, UI/UX, QA | ☐ Abierta (Pendiente validar con Frontend/QA) |
 | **6** | | | | | ☐ Abierta |
 | **7** | | | | | ☐ Abierta |
 | **8** | | | | | ☐ Abierta |
