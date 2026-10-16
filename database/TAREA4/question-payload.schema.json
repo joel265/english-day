@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "English Day question WebSocket payload",
+  "description": "Public question payload sent by the server. Never include correctAnswer.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "questionId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "MULTIPLE_CHOICE",
+        "WORD_BLOCKS",
+        "TEXT_INPUT",
+        "VOICE"
+      ]
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "options": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timeLimitSeconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "order": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "serverTimestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "questionId",
+    "type",
+    "prompt",
+    "options",
+    "timeLimitSeconds",
+    "order",
+    "serverTimestamp"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "MULTIPLE_CHOICE"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "WORD_BLOCKS"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "TEXT_INPUT",
+              "VOICE"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "options": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}
