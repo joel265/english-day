@@ -1,36 +1,46 @@
 package com.senadso.englishday.controller;
 
-import com.senadso.englishday.dto.RoomResponse;
+import com.senadso.englishday.dto.CreateRoomResponse;
+import com.senadso.englishday.dto.JoinRoomRequest;
+import com.senadso.englishday.dto.JoinRoomResponse;
 import com.senadso.englishday.service.RoomService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
- * Controlador REST para el recurso /api/rooms.
- * Cumple con Contrato de Integración §3 y Caso de Uso CU-01.
+ * Controlador REST para operaciones síncronas de salas de juego.
+ * Implementa las rutas del Contrato de Integración §3 bajo el prefijo /api/rooms.
  */
 @RestController
 @RequestMapping("/api/rooms")
-@CrossOrigin(origins = "*")
+@RequiredArgsConstructor
 public class RoomController {
 
     private final RoomService roomService;
 
-    public RoomController(RoomService roomService) {
-        this.roomService = roomService;
+    /**
+     * Endpoint para crear una sala y generar el PIN de 6 dígitos.
+     * Ruta: POST /api/rooms (Contrato §3.1 / RF-01 / CU-01).
+     */
+    @PostMapping
+    public ResponseEntity<CreateRoomResponse> createRoom() {
+        CreateRoomResponse response = roomService.createRoom();
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
-     * Endpoint POST /api/rooms:
-     * Crea una sala, genera el PIN de 6 dígitos y retorna HTTP 201 Created.
+     * Endpoint para registrar a un jugador en la sala mediante su PIN.
+     * Ruta: POST /api/rooms/{pin}/join (Contrato §3.2 / RF-02 / CU-02).
      */
-    @PostMapping
-    public ResponseEntity<RoomResponse> createRoom() {
-        RoomResponse response = roomService.createRoom();
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    @PostMapping("/{pin}/join")
+    public ResponseEntity<JoinRoomResponse> joinRoom(
+            @PathVariable String pin,
+            @Valid @RequestBody JoinRoomRequest request) {
+
+        JoinRoomResponse response = roomService.joinRoom(pin, request);
+        return ResponseEntity.ok(response);
     }
 }

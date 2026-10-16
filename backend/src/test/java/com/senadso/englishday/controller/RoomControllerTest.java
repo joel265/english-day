@@ -1,54 +1,96 @@
 package com.senadso.englishday.controller;
 
-import com.senadso.englishday.dto.RoomResponse;
-import com.senadso.englishday.model.enums.RoomStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.senadso.englishday.dto.CreateRoomResponse;
+import com.senadso.englishday.dto.JoinRoomRequest;
 import com.senadso.englishday.service.RoomService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.time.LocalDateTime;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Prueba unitaria para el caso de prueba CP-01 (Crear Sala).
+ * Pruebas de integración del API REST para la gestión de salas y join (Tarea 4).
+ * Valida los casos de prueba CP-01, CP-02 y CP-03 del Plan de Pruebas y QA.
  */
-@WebMvcTest(RoomController.class)
+@SpringBootTest
+@AutoConfigureMockMvc
 class RoomControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @Autowired
     private RoomService roomService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Test
-    @DisplayName("CP-01: POST /api/rooms debe responder 201 Created con estructura del Contrato")
-    void shouldCreateRoomSuccessfully() throws Exception {
-        RoomResponse mockResponse = RoomResponse.builder()
-                .roomId("8f14e45f-1234-4a5b-9c7d-e8f0a1b2c3d4")
-                .pin("048213")
-                .status(RoomStatus.WAITING_LOBBY)
-                .createdAt(LocalDateTime.of(2026, 9, 21, 14, 0, 0))
-                .build();
-
-        Mockito.when(roomService.createRoom()).thenReturn(mockResponse);
-
+    @DisplayName("CP-01: POST /api/rooms debe crear sala y responder 201 Created con PIN de 6 dígitos")
+    void testCreateRoom() throws Exception {
         mockMvc.perform(post("/api/rooms")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.roomId", is("8f14e45f-1234-4a5b-9c7d-e8f0a1b2c3d4")))
-                .andExpect(jsonPath("$.pin", is("048213")))
-                .andExpect(jsonPath("$.pin", hasLength(6)))
+                .andExpect(jsonPath("$.roomId", notNullValue()))
+                .andExpect(jsonPath("$.pin", matchesPattern("^[0-9]{6}$")))
                 .andExpect(jsonPath("$.status", is("WAITING_LOBBY")))
                 .andExpect(jsonPath("$.createdAt", notNullValue()));
+    }
+
+    @Test
+    @DisplayName("CP-02: POST /api/rooms/{pin}/join con PIN válido debe retornar 200 OK y registrar jugador")
+    void testJoinRoomSuccess() throws Exception {
+        // Precondición: Crear una sala real en estado WAITING_LOBBY
+        CreateRoomResponse room = roomService.createRoom();
+
+        JoinRoomRequest request = JoinRoomRequest.builder()
+                .nickname("camilo_dev")
+                .build();
+
+        mockMvc.perform(post("/api/rooms/" + room.getPin() + "/join")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.playerId", notNullValue()))
+                .andExpect(jsonPath("$.roomId", is(room.getRoomId())))
+                .andExpect(jsonPath("$.nickname", is("camilo_dev")))
+                .andExpect(jsonPath("$.joinedAt", notNullValue()));
+    }
+
+    @Test
+    @DisplayName("CP-03: POST /api/rooms/{pin}/join con PIN inexistente debe retornar 404 Not Found y { \"error\": \"PIN no encontrado\" }")
+    void testJoinRoomInvalidPin() throws Exception {
+        JoinRoomRequest request = JoinRoomRequest.builder()
+                .nickname("aprendiz_test")
+                .build();
+
+        // PIN inexistente "000000"
+        mockMvc.perform(post("/api/rooms/000000/join")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", is("PIN no encontrado")));
+    }
+
+    @Test
+    @DisplayName("Validación: POST /api/rooms/{pin}/join con nickname vacío debe retornar 400 Bad Request")
+    void testJoinRoomBlankNickname() throws Exception {
+        JoinRoomRequest request = JoinRoomRequest.builder()
+                .nickname("")
+                .build();
+
+        mockMvc.perform(post("/api/rooms/123456/join")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", notNullValue()));
     }
 }

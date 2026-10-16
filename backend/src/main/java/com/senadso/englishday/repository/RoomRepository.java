@@ -8,19 +8,20 @@ import java.util.Optional;
 
 /**
  * Repositorio Spring Data JPA para la entidad Room.
+ * Gestiona consultas y persistencia de salas de juego.
  */
 @Repository
 public interface RoomRepository extends JpaRepository<Room, String> {
 
     /**
-     * Verifica si ya existe una sala registrada con el PIN dado.
-     * Requerido para garantizar la unicidad del PIN de 6 dígitos en la Tarea 3.
-     */
-    boolean existsByPin(String pin);
-
-    /**
-     * Busca una sala a partir de su PIN de 6 dígitos.
-     * Prerrequisito para la Tarea 4 (POST /api/rooms/{pin}/join) y reconexión.
+     * Busca una sala activa a partir de su PIN de 6 dígitos.
+     * Esencial para el flujo de Join (Contrato §3.2 / RF-02).
      */
     Optional<Room> findByPin(String pin);
+
+    /**
+     * Verifica si ya existe una sala registrada con el PIN especificado.
+     * Utilizado para evitar colisiones al generar nuevos códigos PIN.
+     */
+    boolean existsByPin(String pin);
 }
