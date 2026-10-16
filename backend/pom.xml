@@ -60,11 +60,11 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Base de datos H2 en memoria para pruebas automáticas -->
+        <!-- Base de datos H2 en memoria para pruebas automáticas y desarrollo local -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Pruebas unitarias y de integración -->
