@@ -43,7 +43,7 @@ public class Answer {
     /**
      * Valor enviado por el jugador (opción seleccionada, bloque ordenado o transcripción de voz).
      */
-    @Column(name = "value", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "`value`", columnDefinition = "TEXT", nullable = false)
     private String value;
 
     /**
