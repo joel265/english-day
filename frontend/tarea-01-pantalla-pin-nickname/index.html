@@ -42,12 +42,14 @@
 
           <div class="nickname-group">
             <label for="nickname">Tu nombre o nickname</label>
-            <input id="nickname" type="text" autocomplete="nickname" placeholder="Ejemplo: AlexSENA" required>
+            <input id="nickname" type="text" autocomplete="nickname" minlength="2" maxlength="50" placeholder="Ejemplo: AlexSENA" required>
           </div>
 
-          <button class="join-button" type="button">Ingresar a la partida</button>
+          <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
+          <button class="join-button" type="submit">Ingresar a la partida</button>
         </form>
       </section>
     </main>
+    <script src="./join.js" defer></script>
   </body>
 </html>
