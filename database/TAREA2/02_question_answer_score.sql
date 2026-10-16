@@ -1,7 +1,7 @@
 -- Tarea 2 - Base de Datos
 -- Bloque 2: Question, Answer y Score
--- Nota: se conserva el nombre exacto de cada campo del Contrato de Integración §2.
--- Se interpreta Question.options como JSON para compatibilidad entre MySQL y PostgreSQL.
+-- Nota: motor oficial MySQL 8.0+; se conserva el nombre de cada campo del Contrato §2.
+-- Question.options se almacena como JSON.
 -- Se interpreta Score como clave compuesta (playerId, roomId) para evitar duplicados por sala.
 
 CREATE TABLE Question (
@@ -11,7 +11,7 @@ CREATE TABLE Question (
     options JSON NULL,
     correctAnswer VARCHAR(255) NOT NULL,
     timeLimitSeconds INT NOT NULL,
-    "order" INT NOT NULL,
+    `order` INT NOT NULL,
     PRIMARY KEY (questionId)
 );
 
@@ -38,7 +38,7 @@ CREATE TABLE Score (
     playerId VARCHAR(36) NOT NULL,
     roomId VARCHAR(36) NOT NULL,
     totalPoints INT NOT NULL DEFAULT 0,
-    rank INT NOT NULL DEFAULT 0,
+    `rank` INT NOT NULL DEFAULT 0,
     PRIMARY KEY (playerId, roomId),
     CONSTRAINT fk_score_player
         FOREIGN KEY (playerId) REFERENCES Player(playerId)
