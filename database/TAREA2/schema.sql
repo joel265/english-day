@@ -1,8 +1,6 @@
--- Schema final sugerido para la Tarea 2
+-- Schema final sugerido para la Tarea 2.
+-- Motor oficial del proyecto: MySQL 8.0+.
 -- Mantiene los nombres exactos del Contrato de Integración §2.
--- Nota: los tipos para Question.type, Room.status y Question.options se dejan como
--- VARCHAR/JSON para compatibilidad entre MySQL y PostgreSQL.
--- Si Backend define ENUM real o arrays nativos, ajustar este script.
 
 CREATE TABLE Room (
     roomId VARCHAR(36) NOT NULL,
@@ -34,7 +32,7 @@ CREATE TABLE Question (
     options JSON NULL,
     correctAnswer VARCHAR(255) NOT NULL,
     timeLimitSeconds INT NOT NULL,
-    "order" INT NOT NULL,
+    `order` INT NOT NULL,
     PRIMARY KEY (questionId)
 );
 
@@ -61,7 +59,7 @@ CREATE TABLE Score (
     playerId VARCHAR(36) NOT NULL,
     roomId VARCHAR(36) NOT NULL,
     totalPoints INT NOT NULL DEFAULT 0,
-    rank INT NOT NULL DEFAULT 0,
+    `rank` INT NOT NULL DEFAULT 0,
     PRIMARY KEY (playerId, roomId),
     CONSTRAINT fk_score_player
         FOREIGN KEY (playerId) REFERENCES Player(playerId)
