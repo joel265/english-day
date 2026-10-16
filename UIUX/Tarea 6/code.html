@@ -1,0 +1,371 @@
+<!DOCTYPE html><html lang="es" style=""><svg class="inline-defs-container" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"></svg><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_stack" name="shell-type"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base { html, body { width: 100vw; margin: 0; padding: 0; } body { overscroll-behavior: none; } .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); } .pt-safe { padding-top: env(safe-area-inset-top, 0px); } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "tertiary-fixed": "#ffdf92", "on-tertiary-fixed": "#241a00", "on-background": "#111d22", "surface": "#f3faff", "on-surface": "#111d22", "inverse-on-surface": "#e6f3fa", "secondary-container": "#2fb8ff", "outline-variant": "#becbb1", "outline": "#6f7b64", "surface-container-lowest": "#ffffff", "on-secondary-fixed": "#001e2e", "tertiary-fixed-dim": "#f4bf00", "error": "#ba1a1a", "inverse-primary": "#6be026", "surface-variant": "#d7e5eb", "on-secondary-container": "#004666", "surface-container-highest": "#d7e5eb", "surface-tint": "#2b6c00", "primary-fixed-dim": "#6be026", "on-tertiary": "#ffffff", "secondary-fixed-dim": "#88ceff", "tertiary": "#755b00", "on-primary-container": "#1e5000", "on-primary-fixed-variant": "#1f5100", "on-tertiary-fixed-variant": "#594400", "tertiary-container": "#ddad00", "secondary": "#006590", "on-error": "#ffffff", "surface-container": "#e3f0f7", "surface-bright": "#f3faff", "on-primary": "#ffffff", "secondary-fixed": "#c8e6ff", "on-primary-fixed": "#082100", "surface-container-low": "#e9f6fd", "primary-fixed": "#87fe45", "on-secondary": "#ffffff", "inverse-surface": "#263237", "on-surface-variant": "#3f4a36", "background": "#f3faff", "on-secondary-fixed-variant": "#004c6e", "surface-dim": "#cfdce3", "surface-container-high": "#ddeaf1", "error-container": "#ffdad6", "primary-container": "#58cc02", "on-error-container": "#93000a", "primary": "#2b6c00", "on-tertiary-container": "#574300" }, "borderRadius": { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" }, "spacing": { "space-lg": "1.5rem", "gutter-mobile": "0.75rem", "space-md": "1rem", "space-xs": "0.25rem", "margin-mobile": "1rem", "space-xl": "2rem", "margin": "1.5rem", "space-sm": "0.5rem", "gutter": "1rem" }, "fontFamily": { "display-hero": ["Rubik"], "headline-md": ["Rubik"], "label-md": ["Rubik"], "label-lg": ["Rubik"], "headline-lg-mobile": ["Rubik"], "label-sm": ["Rubik"], "headline-lg": ["Rubik"], "body-md": ["Rubik"], "headline-sm": ["Rubik"], "body-sm": ["Rubik"], "body-lg": ["Rubik"] }, "fontSize": { "display-hero": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "900" }], "headline-md": ["20px", { "lineHeight": "26px", "fontWeight": "800" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "800" }], "label-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "0.05em", "fontWeight": "800" }], "headline-lg-mobile": ["24px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "800" }], "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "700" }], "headline-lg": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "800" }], "body-md": ["15px", { "lineHeight": "22px", "fontWeight": "500" }], "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "700" }], "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "500" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "600" }] } } } };</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-on-surface antialiased flex flex-col min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface/80 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin-mobile flex items-center justify-between"><button aria-label="Cerrar minijuego" class="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-surface-container text-on-surface hover:bg-surface-variant transition-colors" onclick="history.back()" type="button"><span class="material-symbols-outlined text-[24px]">close</span></button><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-tertiary-container text-[24px]">casino</span><h1 class="font-headline-sm text-headline-sm uppercase tracking-tight text-on-surface text-center">Ruleta De La Suerte</h1></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 bg-surface pb-safe"><div class="flex flex-col w-full items-center justify-between px-gutter-mobile py-space-sm select-none overflow-x-hidden relative">
+<!-- HUD STATUS BAR: Streak, Gems & Daily Spins -->
+<div class="w-full flex items-center justify-between gap-space-xs bg-surface-container-lowest px-space-md py-space-xs rounded-full shadow-[0_4px_0_#d7e5eb] mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-tertiary-container text-[20px]" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">5</span>
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider hidden sm:inline">Días</span>
+</div>
+<!-- Daily Spin Pill -->
+<div class="flex items-center gap-space-xs px-space-sm py-1 bg-tertiary-fixed rounded-full shadow-[0_2px_0_#f4bf00]">
+<span class="material-symbols-outlined text-on-tertiary-fixed text-[18px]" style="font-variation-settings: 'FILL' 1;">stars</span>
+<span class="font-label-md text-label-md text-on-tertiary-fixed font-black" id="spin-badge-text">1 GIRO GRATIS</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary-container text-[20px]" style="font-variation-settings: 'FILL' 1;">diamond</span>
+<span class="font-headline-sm text-headline-sm text-on-surface" id="user-xp">1,450</span>
+</div>
+</div>
+<!-- TITLE BANNER & SUBTEXT -->
+<div class="flex flex-col items-center text-center mb-space-xs">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container rounded-full mb-1">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+<span class="font-label-sm text-label-sm text-primary uppercase tracking-widest font-bold">English Day SENA 2025</span>
+</div>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-tight uppercase flex items-center gap-1">
+      Ruleta de la Suerte
+      <span class="material-symbols-outlined text-tertiary-container text-[26px]">celebration</span>
+</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant max-w-[280px]">
+      Gira la rueda, supera el reto y duplica tus insignias bilingües.
+    </p>
+</div>
+<!-- WHEEL WRAPPER & ARENA -->
+<div class="relative w-full flex flex-col items-center justify-center my-space-xs">
+<!-- Confetti & Sparkles Overlay Canvas -->
+<canvas class="pointer-events-none absolute inset-0 z-40 w-full h-full" id="fx-canvas" width="366" height="320"></canvas>
+<!-- Outer Bulb Ring / Frame -->
+<div class="relative w-[320px] h-[320px] sm:w-[350px] sm:h-[350px] flex items-center justify-center">
+<!-- LED Glowing Bulbs Frame -->
+<div class="absolute inset-0 rounded-full bg-surface-variant shadow-[0_8px_0_#cfdce3] flex items-center justify-center p-3">
+<!-- Circular Bulb Lights (16 Arcade Dots) -->
+<div class="absolute inset-1.5 rounded-full pointer-events-none flex items-center justify-center">
+<div class="bulb absolute top-1 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-tertiary-fixed-dim shadow-[0_0_8px_#f4bf00]"></div>
+<div class="bulb absolute top-4 right-1/4 w-3 h-3 rounded-full bg-surface-container-lowest"></div>
+<div class="bulb absolute top-1/4 right-3 w-3 h-3 rounded-full bg-tertiary-fixed-dim shadow-[0_0_8px_#f4bf00]"></div>
+<div class="bulb absolute top-1/2 right-1 -translate-y-1/2 w-3 h-3 rounded-full bg-surface-container-lowest"></div>
+<div class="bulb absolute bottom-1/4 right-3 w-3 h-3 rounded-full bg-tertiary-fixed-dim shadow-[0_0_8px_#f4bf00]"></div>
+<div class="bulb absolute bottom-4 right-1/4 w-3 h-3 rounded-full bg-surface-container-lowest"></div>
+<div class="bulb absolute bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-tertiary-fixed-dim shadow-[0_0_8px_#f4bf00]"></div>
+<div class="bulb absolute bottom-4 left-1/4 w-3 h-3 rounded-full bg-surface-container-lowest"></div>
+<div class="bulb absolute bottom-1/4 left-3 w-3 h-3 rounded-full bg-tertiary-fixed-dim shadow-[0_0_8px_#f4bf00]"></div>
+<div class="bulb absolute top-1/2 left-1 -translate-y-1/2 w-3 h-3 rounded-full bg-surface-container-lowest"></div>
+<div class="bulb absolute top-1/4 left-3 w-3 h-3 rounded-full bg-tertiary-fixed-dim shadow-[0_0_8px_#f4bf00]"></div>
+<div class="bulb absolute top-4 left-1/4 w-3 h-3 rounded-full bg-surface-container-lowest"></div>
+</div>
+<!-- The Spinning SVG Wheel -->
+<div class="relative w-full h-full rounded-full transition-transform duration-[4500ms] will-change-transform shadow-[inset_0_0_12px_rgba(0,0,0,0.15)] overflow-hidden" id="wheel-rotor">
+<svg class="w-full h-full block" viewBox="0 0 400 400">
+<defs>
+<filter height="140%" id="shadow3d" width="140%" x="-20%" y="-20%">
+<feDropShadow dx="0" dy="2" flood-color="#000" flood-opacity="0.25" stdDeviation="1"></feDropShadow>
+</filter>
+</defs>
+<!-- 8 Colorful Segments (45 deg each) -->
+<!-- Seg 0: +500 XP (SENA Green #58cc02) -->
+<path d="M200,200 L200,10 A190,190 0 0,1 334.35,65.65 Z" fill="#58cc02"></path>
+<!-- Seg 1: DOUBLE POINTS (Electric Blue #006590) -->
+<path d="M200,200 L334.35,65.65 A190,190 0 0,1 390,200 Z" fill="#006590"></path>
+<!-- Seg 2: VOCAB BOOST (Arcade Purple) -->
+<path d="M200,200 L390,200 A190,190 0 0,1 334.35,334.35 Z" fill="#755b00"></path>
+<!-- Seg 3: EXTRA LIFE +1 (Coral Red #ba1a1a) -->
+<path d="M200,200 L334.35,334.35 A190,190 0 0,1 200,390 Z" fill="#ba1a1a"></path>
+<!-- Seg 4: MYSTERY BOX (Amber Orange #ddad00) -->
+<path d="M200,200 L200,390 A190,190 0 0,1 65.65,334.35 Z" fill="#ddad00"></path>
+<!-- Seg 5: +250 XP (Cyan / Secondary #2fb8ff) -->
+<path d="M200,200 L65.65,334.35 A190,190 0 0,1 10,200 Z" fill="#2fb8ff"></path>
+<!-- Seg 6: SPEED BONUS (Lime Bright #6be026) -->
+<path d="M200,200 L10,200 A190,190 0 0,1 65.65,65.65 Z" fill="#6be026"></path>
+<!-- Seg 7: JACKPOT 1000 (Deep Teal / On-secondary #004c6e) -->
+<path d="M200,200 L65.65,65.65 A190,190 0 0,1 200,10 Z" fill="#004c6e"></path>
+<!-- Separator boundary pegs -->
+<g opacity="0.85" stroke="#ffffff" stroke-linecap="round" stroke-width="3">
+<line x1="200" x2="200" y1="200" y2="10"></line>
+<line x1="200" x2="334.35" y1="200" y2="65.65"></line>
+<line x1="200" x2="390" y1="200" y2="200"></line>
+<line x1="200" x2="334.35" y1="200" y2="334.35"></line>
+<line x1="200" x2="200" y1="200" y2="390"></line>
+<line x1="200" x2="65.65" y1="200" y2="334.35"></line>
+<line x1="200" x2="10" y1="200" y2="200"></line>
+<line x1="200" x2="65.65" y1="200" y2="65.65"></line>
+</g>
+<!-- Icons and Labels placed radially -->
+<!-- 0: +500 XP (center angle: 22.5 deg) -->
+<g transform="rotate(22.5, 200, 200) translate(0, -65)">
+<text fill="#ffffff" filter="url(#shadow3d)" font-family="Rubik" font-size="13" font-weight="900" text-anchor="middle" x="200" y="112">+500 XP</text>
+<circle cx="200" cy="85" fill="#ffffff" opacity="0.25" r="14"></circle>
+<text fill="#ffffff" font-family="'Material Symbols Outlined'" font-size="18" text-anchor="middle" x="200" y="90">hotel_class</text>
+</g>
+<!-- 1: 2X POINTS (center angle: 67.5 deg) -->
+<g transform="rotate(67.5, 200, 200) translate(0, -65)">
+<text fill="#ffffff" filter="url(#shadow3d)" font-family="Rubik" font-size="12" font-weight="900" text-anchor="middle" x="200" y="112">2X POINTS</text>
+<circle cx="200" cy="85" fill="#ffffff" opacity="0.25" r="14"></circle>
+<text fill="#ffffff" font-family="'Material Symbols Outlined'" font-size="18" x="200" y="90">bolt</text>
+</g>
+<!-- 2: VOCAB (center angle: 112.5 deg) -->
+<g transform="rotate(112.5, 200, 200) translate(0, -65)">
+<text fill="#ffffff" filter="url(#shadow3d)" font-family="Rubik" font-size="12" font-weight="900" text-anchor="middle" x="200" y="112">VOCAB</text>
+<circle cx="200" cy="85" fill="#ffffff" opacity="0.25" r="14"></circle>
+<text fill="#ffffff" font-family="'Material Symbols Outlined'" font-size="18" x="200" y="90">menu_book</text>
+</g>
+<!-- 3: LIFE +1 (center angle: 157.5 deg) -->
+<g transform="rotate(157.5, 200, 200) translate(0, -65)">
+<text fill="#ffffff" filter="url(#shadow3d)" font-family="Rubik" font-size="12" font-weight="900" text-anchor="middle" x="200" y="112">LIFE +1</text>
+<circle cx="200" cy="85" fill="#ffffff" opacity="0.25" r="14"></circle>
+<text fill="#ffffff" font-family="'Material Symbols Outlined'" font-size="18" x="200" y="90">favorite</text>
+</g>
+<!-- 4: MYSTERY (center angle: 202.5 deg) -->
+<g transform="rotate(202.5, 200, 200) translate(0, -65)">
+<text fill="#ffffff" filter="url(#shadow3d)" font-family="Rubik" font-size="11" font-weight="900" text-anchor="middle" x="200" y="112">MYSTERY</text>
+<circle cx="200" cy="85" fill="#ffffff" opacity="0.25" r="14"></circle>
+<text fill="#ffffff" font-family="'Material Symbols Outlined'" font-size="18" x="200" y="90">inventory_2</text>
+</g>
+<!-- 5: +250 XP (center angle: 247.5 deg) -->
+<g transform="rotate(247.5, 200, 200) translate(0, -65)">
+<text fill="#004666" filter="url(#shadow3d)" font-family="Rubik" font-size="13" font-weight="900" text-anchor="middle" x="200" y="112">+250 XP</text>
+<circle cx="200" cy="85" fill="#ffffff" opacity="0.4" r="14"></circle>
+<text fill="#004666" font-family="'Material Symbols Outlined'" font-size="18" x="200" y="90">diamond</text>
+</g>
+<!-- 6: SPEED (center angle: 292.5 deg) -->
+<g transform="rotate(292.5, 200, 200) translate(0, -65)">
+<text fill="#082100" filter="url(#shadow3d)" font-family="Rubik" font-size="12" font-weight="900" text-anchor="middle" x="200" y="112">SPEED</text>
+<circle cx="200" cy="85" fill="#ffffff" opacity="0.35" r="14"></circle>
+<text fill="#082100" font-family="'Material Symbols Outlined'" font-size="18" x="200" y="90">timer</text>
+</g>
+<!-- 7: JACKPOT (center angle: 337.5 deg) -->
+<g transform="rotate(337.5, 200, 200) translate(0, -65)">
+<text fill="#ffffff" filter="url(#shadow3d)" font-family="Rubik" font-size="12" font-weight="900" text-anchor="middle" x="200" y="112">JACKPOT</text>
+<circle cx="200" cy="85" fill="#ffffff" opacity="0.25" r="14"></circle>
+<text fill="#f4bf00" font-family="'Material Symbols Outlined'" font-size="18" x="200" y="90">trophy</text>
+</g>
+</svg>
+</div>
+<!-- Center 3D Hub Button / Owl Crest -->
+<div class="pointer-events-none absolute w-16 h-16 rounded-full bg-surface-container-lowest flex items-center justify-center shadow-[0_4px_0_#becbb1] z-20">
+<div class="w-11 h-11 rounded-full bg-primary-container flex items-center justify-center shadow-[inset_0_2px_0_rgba(255,255,255,0.6)]">
+<span class="material-symbols-outlined text-on-primary text-[24px]">school</span>
+</div>
+</div>
+</div>
+<!-- Top 3D Ticker Pin / Pointer Arrow -->
+<div class="pointer-events-none absolute -top-3 z-30 flex flex-col items-center filter drop-shadow-[0_4px_0_rgba(0,0,0,0.2)] transition-transform duration-75 origin-top" id="wheel-pointer">
+<div class="w-6 h-6 rounded-full bg-tertiary-container flex items-center justify-center shadow-[0_2px_0_#755b00]">
+<div class="w-2.5 h-2.5 rounded-full bg-surface-container-lowest"></div>
+</div>
+<div class="w-0 h-0 -mt-1.5 border-l-[11px] border-l-transparent border-r-[11px] border-r-transparent border-t-[18px] border-t-tertiary-container"></div>
+</div>
+</div>
+</div>
+<!-- REWARD TOAST DRAWER (Hidden Initially, Appears upon Winning) -->
+<div class="w-full max-w-[360px] bg-surface-container-lowest p-space-sm rounded-DEFAULT shadow-[0_4px_0_#d7e5eb] flex items-center gap-space-sm my-space-xs scale-95 opacity-0 pointer-events-none transition-all duration-300" id="reward-banner">
+<div class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shrink-0 shadow-[0_3px_0_#1e5000]" id="reward-icon-box">
+<span class="material-symbols-outlined text-[26px]" id="reward-icon">celebration</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1">
+<span class="font-label-sm text-label-sm text-primary uppercase font-black tracking-wide">¡Excelente!</span>
+<span class="material-symbols-outlined text-tertiary-container text-[14px]">verified</span>
+</div>
+<p class="font-headline-sm text-headline-sm text-on-surface truncate" id="reward-title">Premio Desbloqueado</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate" id="reward-subtitle">Acumulado a tu perfil SENA</p>
+</div>
+</div>
+<!-- PRIMARY 3D INTERACTIVE SPIN BUTTON -->
+<div class="w-full max-w-[360px] flex flex-col items-center gap-space-xs mt-auto pt-space-xs">
+<button class="group relative w-full h-[54px] rounded-full bg-primary-container text-on-primary font-headline-md text-headline-md tracking-wider uppercase transition-all duration-100 shadow-[0_6px_0_#1e5000] active:translate-y-[4px] active:shadow-[0_2px_0_#1e5000] flex items-center justify-center gap-space-sm cursor-pointer disabled:opacity-50 disabled:pointer-events-none" id="spin-btn" type="button">
+<span class="material-symbols-outlined text-[24px] group-hover:rotate-45 transition-transform">casino</span>
+<span class="">¡Girar Ruleta!</span>
+</button>
+<!-- Microcopy / Terms -->
+<div class="flex items-center gap-1.5 text-on-surface-variant font-label-sm text-label-sm">
+
+<span class=""><br></span>
+</div>
+</div>
+</div>
+<!-- INTERACTION & WHEEL RIGGING SCRIPT -->
+<script>
+  (function initLuckyWheel() {
+    const rotor = document.getElementById('wheel-rotor');
+    const spinBtn = document.getElementById('spin-btn');
+    const pointer = document.getElementById('wheel-pointer');
+    const rewardBanner = document.getElementById('reward-banner');
+    const rewardTitle = document.getElementById('reward-title');
+    const rewardSubtitle = document.getElementById('reward-subtitle');
+    const rewardIcon = document.getElementById('reward-icon');
+    const rewardIconBox = document.getElementById('reward-icon-box');
+    const spinBadgeText = document.getElementById('spin-badge-text');
+    const userXp = document.getElementById('user-xp');
+    const canvas = document.getElementById('fx-canvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+
+    // Segment mappings (8 segments, 45 deg each)
+    // Angles align with clockwise wheel when pointer is at TOP (270deg in standard canvas, or 0deg SVG apex)
+    const prizes = [
+      { name: "+500 XP Extra", subtitle: "¡Sumaste 500 XP a tu puntuación!", icon: "hotel_class", color: "bg-primary-container", xp: 500 },
+      { name: "Puntos Dobles 2X", subtitle: "Próximas 3 lecciones duplicadas", icon: "bolt", color: "bg-secondary", xp: 200 },
+      { name: "Vocab Boost", subtitle: "Glosario técnico industrial abierto", icon: "menu_book", color: "bg-tertiary", xp: 150 },
+      { name: "Vida Extra (+1)", subtitle: "¡Un corazón extra de regalo!", icon: "favorite", color: "bg-error", xp: 100 },
+      { name: "Mystery Box", subtitle: "Insignia Secreta desbloqueada", icon: "inventory_2", color: "bg-tertiary-container", xp: 350 },
+      { name: "+250 XP Extra", subtitle: "¡Sumaste 250 XP a tu cuenta!", icon: "diamond", color: "bg-secondary-container", xp: 250 },
+      { name: "Speed Bonus", subtitle: "15 min de bonificación por tiempo", icon: "timer", color: "bg-primary-fixed-dim", xp: 300 },
+      { name: "JACKPOT 1000", subtitle: "¡Premio Mayor de English Day!", icon: "trophy", color: "bg-tertiary-fixed-dim", xp: 1000 }
+    ];
+
+    let currentRotation = 0;
+    let isSpinning = false;
+    let spinsLeft = 1;
+
+    // Resize FX canvas
+    function resizeCanvas() {
+      if (!canvas) return;
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Subtle Particle celebration burst
+    function shootConfetti() {
+      if (!ctx || !canvas) return;
+      const particles = [];
+      const colors = ['#58cc02', '#2fb8ff', '#ddad00', '#ba1a1a', '#ffffff', '#6be026'];
+      for (let i = 0; i < 60; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8 - 2,
+          size: Math.random() * 6 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          vRot: (Math.random() - 0.5) * 10,
+          life: 1
+        });
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        particles.forEach(p => {
+          if (p.life > 0) {
+            alive = true;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.2; // Gravity
+            p.rotation += p.vRot;
+            p.life -= 0.018;
+
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.life);
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+            ctx.restore();
+          }
+        });
+        if (alive) {
+          requestAnimationFrame(render);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      render();
+    }
+
+    // Pointer Ticking Simulation while spinning
+    let tickInterval;
+    function startPointerTicks() {
+      tickInterval = setInterval(() => {
+        if (!pointer) return;
+        pointer.style.transform = `rotate(${Math.random() > 0.5 ? -18 : 12}deg)`;
+        setTimeout(() => {
+          if (pointer) pointer.style.transform = 'rotate(0deg)';
+        }, 45);
+      }, 100);
+    }
+
+    function stopPointerTicks() {
+      clearInterval(tickInterval);
+      if (pointer) pointer.style.transform = 'rotate(0deg)';
+    }
+
+    spinBtn.addEventListener('click', () => {
+      if (isSpinning || spinsLeft <= 0) return;
+      isSpinning = true;
+      spinBtn.disabled = true;
+
+      // Hide prior toast
+      rewardBanner.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+
+      // Random target index (0-7)
+      const targetIndex = Math.floor(Math.random() * prizes.length);
+      // Segment size = 45 deg. Top pointer hits: (360 - index * 45 - 22.5) mod 360
+      const segmentArc = 45;
+      const targetAngleWithinLap = 360 - (targetIndex * segmentArc + segmentArc / 2);
+      
+      // Full extra spin revolutions (between 5 and 7 full laps)
+      const extraLaps = 360 * 6;
+      const finalAngle = currentRotation + extraLaps + (targetAngleWithinLap - (currentRotation % 360));
+      currentRotation = finalAngle;
+
+      // Apply transition & rotation
+      rotor.style.transitionTimingFunction = 'cubic-bezier(0.15, 0.85, 0.15, 1)';
+      rotor.style.transform = `rotate(${finalAngle}deg)`;
+      
+      startPointerTicks();
+
+      // Completion callback
+      setTimeout(() => {
+        stopPointerTicks();
+        isSpinning = false;
+        spinsLeft--;
+
+        const won = prizes[targetIndex];
+
+        // Update User XP Counter visually
+        const currentXPVal = parseInt(userXp.innerText.replace(',', ''), 10) || 1450;
+        userXp.innerText = (currentXPVal + won.xp).toLocaleString();
+
+        // Update reward drawer
+        rewardTitle.innerText = won.name;
+        rewardSubtitle.innerText = won.subtitle;
+        rewardIcon.innerText = won.icon;
+        rewardIconBox.className = `w-12 h-12 rounded-full text-on-primary flex items-center justify-center shrink-0 shadow-[0_3px_0_rgba(0,0,0,0.2)] ${won.color}`;
+
+        // Reveal toast with spring feel
+        rewardBanner.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+        rewardBanner.classList.add('scale-100', 'opacity-100');
+
+        // Play particle burst
+        shootConfetti();
+
+        // Update Button text & state
+        if (spinsLeft === 0) {
+          spinBadgeText.innerText = '0 GIROS';
+          spinBtn.innerHTML = `
+            <span class="material-symbols-outlined text-[22px]">check_circle</span>
+            <span>¡Giro Completado!</span>
+          `;
+          spinBtn.classList.replace('bg-primary-container', 'bg-surface-variant');
+          spinBtn.classList.replace('text-on-primary', 'text-on-surface-variant');
+          spinBtn.classList.remove('active:translate-y-[4px]');
+          spinBtn.style.boxShadow = '0 6px 0 #becbb1';
+        } else {
+          spinBtn.disabled = false;
+        }
+
+      }, 4550);
+    });
+
+  })();
+</script></main>
+
+</body></html>
