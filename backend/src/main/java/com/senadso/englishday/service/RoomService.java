@@ -4,11 +4,16 @@ import com.senadso.englishday.dto.CreateRoomResponse;
 import com.senadso.englishday.dto.JoinRoomRequest;
 import com.senadso.englishday.dto.JoinRoomResponse;
 import com.senadso.englishday.dto.LobbyPlayerResponse;
+import com.senadso.englishday.dto.QuestionBroadcastResponse;
+import com.senadso.englishday.dto.RoomResponse;
 import com.senadso.englishday.exception.PinNotFoundException;
+import com.senadso.englishday.exception.RoomNotFoundException;
 import com.senadso.englishday.model.Player;
+import com.senadso.englishday.model.Question;
 import com.senadso.englishday.model.Room;
 import com.senadso.englishday.model.enums.RoomStatus;
 import com.senadso.englishday.repository.PlayerRepository;
+import com.senadso.englishday.repository.QuestionRepository;
 import com.senadso.englishday.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -16,11 +21,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Servicio de lógica de negocio para la gestión de salas y registro de aprendices.
- * Implementa CU-01 (Crear sala), CU-02 (Unirse a sala con PIN) y difusión en tiempo real al lobby (RF-03).
+ * Implementa CU-01 (Crear sala), CU-02 (Unirse a sala con PIN), difusión en el lobby (RF-03)
+ * e inicio de partida con emisión de pregunta en tiempo real (CU-03 / RF-08).
  */
 @Service
 @RequiredArgsConstructor
@@ -28,6 +37,7 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final PlayerRepository playerRepository;
+    private final QuestionRepository questionRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -118,6 +128,46 @@ public class RoomService {
                         .joinedAt(p.getJoinedAt())
                         .build())
                 .toList();
+    }
+
+    /**
+     * Inicia la partida interactiva (CU-03 / RF-08).
+     * Cambia el estado de la sala a QUESTION_IN_PROGRESS, carga la primera pregunta (order = 1)
+     * y difunde la pregunta vía WebSocket STOMP al canal /topic/room/{roomId}/question
+     * y la actualización de estado a /topic/room/{roomId}/status.
+     *
+     * @param roomId Identificador UUID de la sala a iniciar.
+     * @return Estado actualizado de la sala (HTTP 200 OK).
+     */
+    @Transactional
+    public RoomResponse startGame(String roomId) {
+        // 1. Buscar la sala por roomId
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("Sala no encontrada"));
+
+        // 2. Validar que la sala se encuentre en lobby de espera
+        if (room.getStatus() != RoomStatus.WAITING_LOBBY) {
+            throw new IllegalStateException("La partida ya ha sido iniciada o finalizada");
+        }
+
+        // 3. Obtener la primera pregunta de la partida (order = 1)
+        Question firstQuestion = questionRepository.findByOrder(1)
+                .orElseThrow(() -> new IllegalStateException("No hay preguntas configuradas para iniciar la partida"));
+
+        // 4. Actualizar el estado de la sala y fijar el índice en la primera pregunta
+        room.setStatus(RoomStatus.QUESTION_IN_PROGRESS);
+        room.setCurrentQuestionIndex(1);
+        Room updatedRoom = roomRepository.save(room);
+
+        // 5. Emitir el cambio de estado a /topic/room/{roomId}/status
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/status", Map.of("status", updatedRoom.getStatus().name()));
+
+        // 6. Emitir la primera pregunta al topic en tiempo real /topic/room/{roomId}/question (Contrato §4.3)
+        LocalDateTime serverTimestamp = LocalDateTime.now(ZoneOffset.UTC);
+        QuestionBroadcastResponse broadcastPayload = QuestionBroadcastResponse.fromEntity(firstQuestion, serverTimestamp);
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/question", broadcastPayload);
+
+        return RoomResponse.fromEntity(updatedRoom);
     }
 
     /**

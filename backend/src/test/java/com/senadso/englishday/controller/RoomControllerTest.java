@@ -80,6 +80,9 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.error", is("PIN no encontrado")));
     }
 
+    @Autowired
+    private com.senadso.englishday.repository.QuestionRepository questionRepository;
+
     @Test
     @DisplayName("Validación: POST /api/rooms/{pin}/join con nickname vacío debe retornar 400 Bad Request")
     void testJoinRoomBlankNickname() throws Exception {
@@ -92,5 +95,38 @@ class RoomControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error", notNullValue()));
+    }
+
+    @Test
+    @DisplayName("CU-03 / RF-08: POST /api/rooms/{roomId}/start debe iniciar la partida y responder 200 OK")
+    void testStartGameSuccess() throws Exception {
+        // Asegurar que exista la pregunta order = 1
+        questionRepository.deleteAll();
+        com.senadso.englishday.model.Question question = com.senadso.englishday.model.Question.builder()
+                .type(com.senadso.englishday.model.enums.QuestionType.MULTIPLE_CHOICE)
+                .prompt("Choose the correct answer")
+                .options(java.util.List.of("A", "B", "C", "D"))
+                .correctAnswer("A")
+                .timeLimitSeconds(15)
+                .order(1)
+                .build();
+        questionRepository.save(question);
+
+        CreateRoomResponse room = roomService.createRoom();
+
+        mockMvc.perform(post("/api/rooms/" + room.getRoomId() + "/start")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roomId", is(room.getRoomId())))
+                .andExpect(jsonPath("$.status", is("QUESTION_IN_PROGRESS")));
+    }
+
+    @Test
+    @DisplayName("CU-03: POST /api/rooms/{roomId}/start con roomId inexistente debe retornar 404 Not Found")
+    void testStartGameRoomNotFound() throws Exception {
+        mockMvc.perform(post("/api/rooms/00000000-0000-0000-0000-000000000000/start")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", is("Sala no encontrada")));
     }
 }

@@ -24,6 +24,15 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Intercepta la ausencia de sala por roomId y responde HTTP 404.
+     */
+    @ExceptionHandler(RoomNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleRoomNotFound(RoomNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    /**
      * Intercepta violaciones de estado de sala (ej. sala ya iniciada o finalizada).
      */
     @ExceptionHandler(IllegalStateException.class)
