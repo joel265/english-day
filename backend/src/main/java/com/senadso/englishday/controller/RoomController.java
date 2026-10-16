@@ -3,6 +3,7 @@ package com.senadso.englishday.controller;
 import com.senadso.englishday.dto.CreateRoomResponse;
 import com.senadso.englishday.dto.JoinRoomRequest;
 import com.senadso.englishday.dto.JoinRoomResponse;
+import com.senadso.englishday.dto.RoomResponse;
 import com.senadso.englishday.service.RoomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,16 @@ public class RoomController {
             @Valid @RequestBody JoinRoomRequest request) {
 
         JoinRoomResponse response = roomService.joinRoom(pin, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para que el moderador inicie la partida.
+     * Ruta: POST /api/rooms/{roomId}/start (Contrato §3 / CU-03 / RF-08).
+     */
+    @PostMapping("/{roomId}/start")
+    public ResponseEntity<RoomResponse> startGame(@PathVariable String roomId) {
+        RoomResponse response = roomService.startGame(roomId);
         return ResponseEntity.ok(response);
     }
 }
