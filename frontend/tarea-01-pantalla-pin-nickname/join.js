@@ -10,84 +10,39 @@ const lobbyStatus = document.querySelector("#lobbyStatus");
 const lobbyPlayers = document.querySelector("#lobbyPlayers");
 const playerCount = document.querySelector("#playerCount");
 const questionCard = document.querySelector("#questionCard");
-const questionType = document.querySelector("#questionType");
-const questionOrder = document.querySelector("#questionOrder");
-const questionTimer = document.querySelector("#questionTimer");
-const questionProgress = document.querySelector("#questionProgress");
+const questionMeta = document.querySelector("#questionMeta");
+const questionTitle = document.querySelector("#questionTitle");
 const questionPrompt = document.querySelector("#questionPrompt");
-const questionOptions = document.querySelector("#questionOptions");
-const resultsCard = document.querySelector("#resultsCard");
-const correctAnswer = document.querySelector("#correctAnswer");
-const leaderboardList = document.querySelector("#leaderboardList");
-const leaderboardEmpty = document.querySelector("#leaderboardEmpty");
-const resultsStatus = document.querySelector("#resultsStatus");
-const rouletteCard = document.querySelector("#rouletteCard");
-const roulettePlayerName = document.querySelector("#roulettePlayerName");
-const rouletteAnswer = document.querySelector("#rouletteAnswer");
-const rouletteOutcome = document.querySelector("#rouletteOutcome");
-const rouletteStatus = document.querySelector("#rouletteStatus");
-const podiumCard = document.querySelector("#podiumCard");
-const podiumSummary = document.querySelector("#podiumSummary");
-const podiumWinner = document.querySelector("#podiumWinner");
-const podiumWinnerName = document.querySelector("#podiumWinnerName");
-const podiumWinnerScore = document.querySelector("#podiumWinnerScore");
-const podiumList = document.querySelector("#podiumList");
-const podiumEmpty = document.querySelector("#podiumEmpty");
-const podiumStatus = document.querySelector("#podiumStatus");
-const wordBlocksUI = document.querySelector("#wordBlocksUI");
-const wordBlocksSelected = document.querySelector("#wordBlocksSelected");
-const wordBlocksBank = document.querySelector("#wordBlocksBank");
-const wordBlocksCount = document.querySelector("#wordBlocksCount");
-const wordBlocksReset = document.querySelector("#wordBlocksReset");
-const textInputUI = document.querySelector("#textInputUI");
-const textAnswer = document.querySelector("#textAnswer");
-const textAnswerClear = document.querySelector("#textAnswerClear");
-const questionAnswerHint = document.querySelector("#questionAnswerHint");
-const questionStatus = document.querySelector("#questionStatus");
+const questionTimer = document.querySelector("#questionTimer");
+const answerForm = document.querySelector("#answerForm");
+const answerControls = document.querySelector("#answerControls");
+const answerStatus = document.querySelector("#answerStatus");
+const sendAnswerButton = document.querySelector("#sendAnswerButton");
+const uuidV4Pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const questionTypes = new Set(["MULTIPLE_CHOICE", "WORD_BLOCKS", "TEXT_INPUT", "VOICE"]);
 let lobbySocket;
-let timerInterval;
-let selectedAnswer = null;
+let activeRoomId;
+let activePlayerId;
+let activeQuestion;
 let selectedWordBlocks = [];
-let questionDeadline = 0;
-
-function expireQuestion() {
-  window.clearInterval(timerInterval);
-  questionTimer.textContent = "00:00";
-  questionTimer.setAttribute("aria-label", "0 segundos restantes");
-  questionProgress.value = 0;
-  questionTimer.classList.add("is-expired");
-  questionOptions.querySelectorAll("button").forEach((option) => {
-    option.disabled = true;
-  });
-  wordBlocksUI.querySelectorAll("button").forEach((option) => {
-    option.disabled = true;
-  });
-  textAnswer.disabled = true;
-  textAnswerClear.disabled = true;
-  questionStatus.textContent = "¡Se acabó el tiempo!";
-  questionStatus.dataset.state = "expired";
-}
-
-function clearTextAnswer() {
-  if (Date.now() >= questionDeadline || textAnswer.disabled) return;
-  textAnswer.value = "";
-  textAnswerClear.hidden = true;
-  textAnswer.focus();
-}
-
-textAnswer.addEventListener("input", () => {
-  if (Date.now() >= questionDeadline) {
-    expireQuestion();
-    return;
-  }
-
-  textAnswerClear.hidden = textAnswer.value.length === 0;
-});
-textAnswerClear.addEventListener("click", clearTextAnswer);
+let voiceTranscript = "";
+let voiceCaptureToken = 0;
+let answerSent = false;
+let questionExpired = false;
+let questionTimerInterval;
 
 function setLobbyStatus(message, state) {
   lobbyStatus.textContent = message;
   lobbyStatus.dataset.state = state;
+}
+
+function setAnswerStatus(message, state) {
+  answerStatus.textContent = message;
+  if (state) {
+    answerStatus.dataset.state = state;
+  } else {
+    delete answerStatus.dataset.state;
+  }
 }
 
 function renderLobbyPlayers(players, currentPlayerId) {
@@ -111,501 +66,361 @@ function renderLobbyPlayers(players, currentPlayerId) {
   playerCount.textContent = String(players.length);
 }
 
-function validateQuestion(question) {
-  const supportedTypes = ["MULTIPLE_CHOICE", "WORD_BLOCKS", "TEXT_INPUT", "VOICE"];
-  const hasOptions = question?.type === "MULTIPLE_CHOICE" || question?.type === "WORD_BLOCKS";
+function parseQuestion(body) {
+  let question;
+  try {
+    question = JSON.parse(body);
+  } catch {
+    throw new Error("El servidor envió una pregunta con JSON inválido.");
+  }
 
-  if (!question || typeof question !== "object" || Array.isArray(question)
-    || Object.prototype.hasOwnProperty.call(question, "correctAnswer")
-    || typeof question.questionId !== "string"
-    || !/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(question.questionId)
-    || !supportedTypes.includes(question.type)
-    || typeof question.prompt !== "string" || !question.prompt.trim()
-    || !Number.isSafeInteger(question.timeLimitSeconds) || question.timeLimitSeconds < 1
-    || !Number.isSafeInteger(question.order) || question.order < 1
-    || typeof question.serverTimestamp !== "string"
-    || !Number.isFinite(Date.parse(question.serverTimestamp))) {
+  if (!question || typeof question !== "object" || Array.isArray(question)) {
     throw new Error("El servidor envió una pregunta inválida.");
   }
 
-  if (hasOptions) {
-    if (!Array.isArray(question.options) || question.options.length < 2
-      || question.options.some((option) => typeof option !== "string" || !option.trim())) {
-      throw new Error("El servidor envió opciones de pregunta inválidas.");
-    }
-  } else if (question.options !== null) {
-    throw new Error("El servidor envió opciones incompatibles con el tipo de pregunta.");
+  if (Object.prototype.hasOwnProperty.call(question, "correctAnswer")) {
+    throw new Error("La pregunta incluyó correctAnswer, que no debe mostrarse al jugador.");
+  }
+
+  if (typeof question.questionId !== "string" || !uuidV4Pattern.test(question.questionId)) {
+    throw new Error("La pregunta no contiene un questionId UUID v4 válido.");
+  }
+
+  if (!questionTypes.has(question.type) || typeof question.prompt !== "string" || !question.prompt.trim()) {
+    throw new Error("La pregunta no contiene el type o prompt definidos en el Contrato.");
+  }
+
+  if (!Number.isInteger(question.timeLimitSeconds) || question.timeLimitSeconds <= 0 ||
+      !Number.isInteger(question.order) || question.order <= 0) {
+    throw new Error("La pregunta contiene timeLimitSeconds u order inválidos.");
+  }
+
+  const utcTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+  if (typeof question.serverTimestamp !== "string" ||
+      !utcTimestampPattern.test(question.serverTimestamp) ||
+      !Number.isFinite(Date.parse(question.serverTimestamp))) {
+    throw new Error("La pregunta no contiene un serverTimestamp ISO-8601 UTC válido.");
+  }
+
+  if (question.options !== null &&
+      (!Array.isArray(question.options) || question.options.some((option) => typeof option !== "string"))) {
+    throw new Error("La pregunta contiene options con una estructura inválida.");
+  }
+
+  if ((question.type === "MULTIPLE_CHOICE" || question.type === "WORD_BLOCKS") &&
+      (!Array.isArray(question.options) || question.options.length === 0)) {
+    throw new Error(`La pregunta ${question.type} debe contener opciones.`);
   }
 
   return question;
 }
 
-function selectMultipleChoiceAnswer(button) {
-  if (selectedAnswer !== null || Date.now() >= questionDeadline || button.disabled) {
-    return;
+function createWordBlockControls(question) {
+  selectedWordBlocks = [];
+  const instructions = document.createElement("p");
+  instructions.className = "field-help";
+  instructions.textContent = "Selecciona los bloques en el orden de tu respuesta.";
+
+  const selection = document.createElement("p");
+  selection.className = "word-block-selection";
+  selection.setAttribute("aria-live", "polite");
+  selection.textContent = "Tu respuesta ordenada aparecerá aquí.";
+
+  const options = document.createElement("div");
+  options.className = "word-block-options";
+
+  // Supuesto pendiente de validar con Backend/QA: options contiene los bloques como strings para WORD_BLOCKS.
+  question.options.forEach((word, index) => {
+    const button = document.createElement("button");
+    button.className = "word-block-option";
+    button.type = "button";
+    button.textContent = word;
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", () => {
+      const selectedIndex = selectedWordBlocks.indexOf(index);
+      if (selectedIndex === -1) {
+        selectedWordBlocks.push(index);
+      } else {
+        selectedWordBlocks.splice(selectedIndex, 1);
+      }
+
+      button.setAttribute("aria-pressed", String(selectedWordBlocks.includes(index)));
+      selection.textContent = selectedWordBlocks.length
+        ? selectedWordBlocks.map((blockIndex) => question.options[blockIndex]).join(" ")
+        : "Tu respuesta ordenada aparecerá aquí.";
+      sendAnswerButton.disabled = answerSent || questionExpired || selectedWordBlocks.length === 0;
+    });
+    options.append(button);
+  });
+
+  answerControls.append(instructions, selection, options);
+}
+
+function createVoiceControls() {
+  const captureToken = ++voiceCaptureToken;
+  voiceTranscript = "";
+  const status = document.createElement("p");
+  status.className = "answer-status";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  status.textContent = "Inicia el micrófono y habla en inglés.";
+
+  const transcriptLabel = document.createElement("p");
+  transcriptLabel.className = "field-help";
+  transcriptLabel.textContent = "Transcripción detectada:";
+
+  const transcript = document.createElement("p");
+  transcript.className = "word-block-selection";
+  transcript.setAttribute("aria-live", "polite");
+  transcript.textContent = "Tu transcripción aparecerá aquí.";
+
+  const buttons = document.createElement("div");
+  buttons.className = "voice-controls";
+
+  const startButton = document.createElement("button");
+  startButton.className = "voice-button";
+  startButton.type = "button";
+  startButton.textContent = "Iniciar micrófono";
+
+  const stopButton = document.createElement("button");
+  stopButton.className = "voice-button secondary";
+  stopButton.type = "button";
+  stopButton.textContent = "Detener micrófono";
+  stopButton.disabled = true;
+
+  const setListening = (isListening) => {
+    startButton.disabled = isListening || answerSent;
+    stopButton.disabled = !isListening || answerSent;
+    startButton.setAttribute("aria-pressed", String(isListening));
+  };
+
+  if (!window.isSecureContext) {
+    startButton.disabled = true;
+    status.textContent = "Para usar el micrófono, abre esta página en HTTPS o localhost.";
+    status.dataset.state = "error";
+  } else if (!window.speechService?.isSupported) {
+    startButton.disabled = true;
+    status.textContent = "Este navegador no ofrece reconocimiento de voz compatible.";
+    status.dataset.state = "error";
+  } else {
+    startButton.addEventListener("click", () => {
+      transcript.textContent = "Aún no se ha detectado voz.";
+      status.textContent = "Solicitando acceso al micrófono…";
+      delete status.dataset.state;
+      startButton.disabled = true;
+
+      window.speechService.startListening({
+        onStart: () => {
+          if (captureToken !== voiceCaptureToken) return;
+          setListening(true);
+          status.textContent = "Escuchando. Habla ahora en inglés.";
+        },
+        onInterim: (text) => {
+          if (captureToken !== voiceCaptureToken) return;
+          transcript.textContent = text;
+        },
+        onTranscript: (text) => {
+          if (captureToken !== voiceCaptureToken) return;
+          voiceTranscript = text;
+          transcript.textContent = text;
+          sendAnswerButton.disabled = answerSent || questionExpired || !voiceTranscript;
+          status.textContent = "Transcripción lista. Aún no se ha enviado.";
+        },
+        onEnd: () => {
+          if (captureToken !== voiceCaptureToken) return;
+          setListening(false);
+          if (!status.dataset.state) {
+            status.textContent = voiceTranscript
+              ? "Transcripción lista. Puedes enviarla."
+              : "No se reconoció voz. Puedes intentarlo de nuevo.";
+          }
+        },
+        onError: (message) => {
+          if (captureToken !== voiceCaptureToken) return;
+          setListening(false);
+          status.textContent = message;
+          status.dataset.state = "error";
+        }
+      });
+    });
+
+    stopButton.addEventListener("click", () => {
+      window.speechService.stopListening();
+    });
   }
 
-  selectedAnswer = button.dataset.answer;
-  questionOptions.querySelectorAll("button[data-answer]").forEach((option) => {
-    const isSelected = option === button;
-    option.disabled = true;
-    option.setAttribute("aria-pressed", String(isSelected));
-    option.classList.toggle("is-selected", isSelected);
-  });
-  questionStatus.textContent = "Respuesta seleccionada. Espera el resultado.";
-  questionStatus.dataset.state = "selected";
-}
-
-function renderWordBlocks(question) {
-  const selectedIndices = new Set(selectedWordBlocks);
-  wordBlocksSelected.replaceChildren();
-  wordBlocksBank.replaceChildren();
-  wordBlocksCount.textContent = `${selectedWordBlocks.length} ${selectedWordBlocks.length === 1 ? "bloque" : "bloques"}`;
-  selectedAnswer = selectedWordBlocks.map((index) => question.options[index]);
-
-  selectedWordBlocks.forEach((wordIndex, position) => {
-    const item = document.createElement("li");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "word-block word-block--selected";
-    button.setAttribute("aria-label", `Quitar ${question.options[wordIndex]}, posición ${position + 1}`);
-
-    const positionLabel = document.createElement("span");
-    positionLabel.className = "word-block-position";
-    positionLabel.setAttribute("aria-hidden", "true");
-    positionLabel.textContent = String(position + 1);
-
-    const word = document.createElement("span");
-    word.textContent = question.options[wordIndex];
-    button.append(positionLabel, word);
-    button.addEventListener("click", () => {
-      if (Date.now() >= questionDeadline) return;
-      selectedWordBlocks = selectedWordBlocks.filter((index) => index !== wordIndex);
-      renderWordBlocks(question);
-    });
-    item.append(button);
-    wordBlocksSelected.append(item);
-  });
-
-  question.options.forEach((option, index) => {
-    if (selectedIndices.has(index)) return;
-
-    const item = document.createElement("li");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "word-block";
-    button.setAttribute("aria-label", `Agregar bloque: ${option}`);
-    button.textContent = option;
-    button.addEventListener("click", () => {
-      if (Date.now() >= questionDeadline) return;
-      selectedWordBlocks.push(index);
-      renderWordBlocks(question);
-    });
-    item.append(button);
-    wordBlocksBank.append(item);
-  });
-}
-
-function resetWordBlocks(question) {
-  if (Date.now() >= questionDeadline) return;
-  selectedWordBlocks = [];
-  selectedAnswer = [];
-  questionStatus.textContent = "";
-  questionStatus.dataset.state = "";
-  renderWordBlocks(question);
+  buttons.append(startButton, stopButton);
+  answerControls.append(status, transcriptLabel, transcript, buttons);
 }
 
 function renderQuestion(question) {
-  validateQuestion(question);
-  window.clearInterval(timerInterval);
-  resultsCard.hidden = true;
-  rouletteCard.hidden = true;
-  podiumCard.hidden = true;
-  questionCard.hidden = false;
-  selectedAnswer = null;
-  selectedWordBlocks = [];
-
-  const typeLabels = {
-    MULTIPLE_CHOICE: "Selección múltiple",
-    WORD_BLOCKS: "Ordena los bloques",
-    TEXT_INPUT: "Respuesta escrita",
-    VOICE: "Respuesta por voz",
-  };
-
-  questionType.textContent = typeLabels[question.type];
-  questionOrder.textContent = `Pregunta ${question.order}`;
-  questionPrompt.textContent = question.prompt;
-  questionStatus.textContent = "";
-  questionStatus.dataset.state = "";
-  questionOptions.replaceChildren();
-  questionOptions.hidden = question.type !== "MULTIPLE_CHOICE" && question.type !== "WORD_BLOCKS";
-  wordBlocksUI.hidden = question.type !== "WORD_BLOCKS";
-  wordBlocksReset.disabled = false;
-  textInputUI.hidden = question.type !== "TEXT_INPUT";
-  textAnswer.value = "";
-  textAnswer.disabled = false;
-  textAnswerClear.hidden = true;
-  textAnswerClear.disabled = false;
-  questionAnswerHint.hidden = question.options !== null || question.type === "TEXT_INPUT";
-
-  if (question.type === "MULTIPLE_CHOICE") {
-    question.options.forEach((option, index) => {
-      const item = document.createElement("li");
-      item.className = "question-option question-option--multiple";
-
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `multiple-choice-option option-color-${index % 4}`;
-      button.dataset.answer = option;
-      button.setAttribute("aria-pressed", "false");
-
-      const marker = document.createElement("span");
-      marker.className = "multiple-choice-marker";
-      marker.setAttribute("aria-hidden", "true");
-      marker.textContent = index < 26 ? String.fromCharCode(65 + index) : String(index + 1);
-
-      const answer = document.createElement("span");
-      answer.textContent = option;
-
-      button.append(marker, answer);
-      button.addEventListener("click", () => selectMultipleChoiceAnswer(button));
-      item.append(button);
-      questionOptions.append(item);
-    });
-  } else if (question.type === "WORD_BLOCKS") {
-    renderWordBlocks(question);
-    wordBlocksReset.onclick = () => resetWordBlocks(question);
-  } else if (question.options !== null) {
-    question.options.forEach((option) => {
-      const item = document.createElement("li");
-      item.className = "question-option";
-      item.textContent = option;
-      questionOptions.append(item);
-    });
-  } else {
-    questionAnswerHint.textContent = question.type === "VOICE"
-      ? "Prepara tu respuesta en voz alta."
-      : "Prepara tu respuesta escrita.";
+  if (activeQuestion?.questionId === question.questionId) {
+    return;
   }
 
-  questionDeadline = Date.parse(question.serverTimestamp) + question.timeLimitSeconds * 1000;
-  questionProgress.max = question.timeLimitSeconds;
-  questionProgress.value = question.timeLimitSeconds;
-  questionTimer.classList.remove("is-expired");
+  clearInterval(questionTimerInterval);
+  voiceCaptureToken += 1;
+  if (window.speechService?.isListening) {
+    window.speechService.stopListening();
+  }
+
+  activeQuestion = question;
+  selectedWordBlocks = [];
+  voiceTranscript = "";
+  answerSent = false;
+  questionExpired = false;
+  questionMeta.textContent = `Pregunta ${question.order} · ${question.type} · ${question.timeLimitSeconds} s`;
+  questionTitle.textContent = "Responde";
+  questionPrompt.textContent = question.prompt;
+  answerControls.replaceChildren();
+  sendAnswerButton.disabled = true;
+  sendAnswerButton.textContent = "Enviar respuesta";
+  setAnswerStatus("", "");
+
+  if (question.type === "MULTIPLE_CHOICE") {
+    question.options.forEach((option) => {
+      const label = document.createElement("label");
+      label.className = "answer-option";
+
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "answerOption";
+      input.value = option;
+      input.addEventListener("change", () => {
+        sendAnswerButton.disabled = answerSent || questionExpired || !input.checked;
+      });
+
+      const text = document.createElement("span");
+      text.textContent = option;
+      label.append(input, text);
+      answerControls.append(label);
+    });
+  } else if (question.type === "WORD_BLOCKS") {
+    createWordBlockControls(question);
+  } else if (question.type === "TEXT_INPUT") {
+    const label = document.createElement("label");
+    label.className = "text-answer-label";
+    label.htmlFor = "textAnswerInput";
+    label.textContent = "Escribe tu respuesta";
+
+    const input = document.createElement("input");
+    input.className = "text-answer-input";
+    input.id = "textAnswerInput";
+    input.name = "answer";
+    input.type = "text";
+    input.autocomplete = "off";
+    input.autocapitalize = "off";
+    input.autocorrect = "off";
+    input.spellcheck = false;
+    input.addEventListener("input", () => {
+      sendAnswerButton.disabled = answerSent || questionExpired || !input.value.trim();
+    });
+
+    label.append(input);
+    answerControls.append(label);
+  } else if (question.type === "VOICE") {
+    createVoiceControls();
+  }
+
+  questionCard.hidden = false;
+  setLobbyStatus("Pregunta recibida. Envía una sola respuesta.", "connected");
+  startQuestionTimer(question.timeLimitSeconds);
+}
+
+function startQuestionTimer(timeLimitSeconds) {
+  const deadline = Date.now() + timeLimitSeconds * 1000;
 
   const updateTimer = () => {
-    const secondsLeft = Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000));
-    const minutes = Math.floor(secondsLeft / 60);
-    const seconds = secondsLeft % 60;
-    questionTimer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    questionTimer.setAttribute("aria-label", `${secondsLeft} segundos restantes`);
-    questionProgress.value = secondsLeft;
+    const remainingSeconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    questionTimer.textContent = `Tiempo restante: ${remainingSeconds} s`;
+    questionTimer.dataset.state = remainingSeconds <= 5 ? "urgent" : "";
 
-    if (secondsLeft === 0) {
-      expireQuestion();
+    if (remainingSeconds === 0) {
+      clearInterval(questionTimerInterval);
+      questionExpired = true;
+      voiceCaptureToken += 1;
+      if (window.speechService?.isListening) {
+        window.speechService.stopListening();
+      }
+      answerControls.querySelectorAll("input, button").forEach((control) => {
+        control.disabled = true;
+      });
+      sendAnswerButton.disabled = true;
+      setAnswerStatus("Tiempo agotado. No se envió ninguna respuesta.", "error");
     }
   };
 
   updateTimer();
-  if (questionProgress.value > 0) {
-    timerInterval = window.setInterval(updateTimer, 1000);
+  questionTimerInterval = setInterval(updateTimer, 250);
+}
+
+function parseLobbyPlayers(body, currentPlayerId) {
+  let players;
+  try {
+    players = JSON.parse(body);
+  } catch {
+    throw new Error("El servidor envió una lista de aprendices inválida.");
   }
 
-  lobbyCard.hidden = true;
-  document.title = `Pregunta ${question.order} | English Day`;
-  questionPrompt.focus();
-}
-
-function validateResults(results) {
-  if (!results || typeof results !== "object" || Array.isArray(results)
-    || typeof results.correctAnswer !== "string" || !results.correctAnswer.trim()
-    || !Array.isArray(results.top5) || results.top5.length > 5
-    || results.top5.some((entry) =>
-      !entry || typeof entry.nickname !== "string" || !entry.nickname.trim()
-      || !Number.isSafeInteger(entry.score) || entry.score < 0
-    )) {
-    throw new Error("El servidor envió resultados inválidos.");
+  if (!Array.isArray(players) || players.some((player) =>
+    !player || typeof player.playerId !== "string" || typeof player.nickname !== "string"
+  )) {
+    throw new Error("El servidor envió una lista de aprendices inválida.");
   }
 
-  return results;
+  renderLobbyPlayers(players, currentPlayerId);
 }
 
-function renderResults(results) {
-  validateResults(results);
-  window.clearInterval(timerInterval);
-  questionOptions.querySelectorAll("button").forEach((option) => {
-    option.disabled = true;
-  });
-  wordBlocksUI.querySelectorAll("button").forEach((option) => {
-    option.disabled = true;
-  });
-  textAnswer.disabled = true;
-  textAnswerClear.disabled = true;
-  questionStatus.textContent = "La pregunta ha finalizado.";
-  questionStatus.dataset.state = "";
-  rouletteCard.hidden = true;
-  podiumCard.hidden = true;
-
-  correctAnswer.textContent = results.correctAnswer;
-  leaderboardList.replaceChildren();
-  leaderboardEmpty.hidden = results.top5.length > 0;
-  resultsStatus.textContent = "";
-  resultsStatus.dataset.state = "";
-
-  results.top5.forEach((entry, index) => {
-    const item = document.createElement("li");
-    item.className = `leaderboard-entry leaderboard-entry--rank-${Math.min(index + 1, 3)}`;
-
-    const rank = document.createElement("span");
-    rank.className = "leaderboard-rank";
-    rank.setAttribute("aria-label", `Puesto ${index + 1}`);
-    rank.textContent = String(index + 1);
-
-    const nickname = document.createElement("span");
-    nickname.className = "leaderboard-nickname";
-    nickname.textContent = entry.nickname;
-
-    const score = document.createElement("span");
-    score.className = "leaderboard-score";
-    score.textContent = `${entry.score.toLocaleString("es-CO")} pts`;
-
-    item.append(rank, nickname, score);
-    leaderboardList.append(item);
-  });
-
-  questionCard.hidden = true;
-  lobbyCard.hidden = true;
-  resultsStatus.textContent = "Espera a que el instructor continúe con la siguiente pregunta.";
-  resultsCard.hidden = false;
-  document.title = "Resultados de la ronda | English Day";
-  document.querySelector("#resultsTitle").focus();
-}
-
-function validateRouletteResult(result, roomId) {
-  if (!result || typeof result !== "object" || Array.isArray(result)
-    || result.roomId !== roomId
-    || typeof result.playerId !== "string"
-    || !/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(result.playerId)
-    || typeof result.nickname !== "string" || !result.nickname.trim()
-    || typeof result.questionId !== "string"
-    || !/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(result.questionId)
-    || (result.value !== null && typeof result.value !== "string")
-    || typeof result.isCorrect !== "boolean"
-    || typeof result.timestamp !== "string"
-    || !Number.isFinite(Date.parse(result.timestamp))) {
-    throw new Error("El servidor envió un resultado de ruleta inválido.");
-  }
-
-  return result;
-}
-
-function renderRouletteResult(result, roomId) {
-  validateRouletteResult(result, roomId);
-  window.clearInterval(timerInterval);
-  questionCard.hidden = true;
-  resultsCard.hidden = true;
-  podiumCard.hidden = true;
-  lobbyCard.hidden = true;
-
-  questionOptions.querySelectorAll("button").forEach((option) => {
-    option.disabled = true;
-  });
-  wordBlocksUI.querySelectorAll("button").forEach((option) => {
-    option.disabled = true;
-  });
-  textAnswer.disabled = true;
-  textAnswerClear.disabled = true;
-
-  roulettePlayerName.textContent = result.nickname;
-  const hasAnswer = typeof result.value === "string" && result.value.trim().length > 0;
-  rouletteAnswer.textContent = hasAnswer
-    ? result.value
-    : "No respondió antes de que terminara el tiempo.";
-  rouletteOutcome.textContent = !hasAnswer
-    ? "No alcanzó a responder."
-    : result.isCorrect
-      ? "¡Respuesta correcta!"
-      : "Respuesta incorrecta.";
-  rouletteOutcome.dataset.state = result.isCorrect ? "correct" : "incorrect";
-  rouletteStatus.textContent = "";
-  rouletteStatus.dataset.state = "";
-  rouletteCard.hidden = false;
-  document.title = "Ruleta de retroalimentación | English Day";
-  document.querySelector("#rouletteTitle").focus();
-}
-
-function validatePodium(podium, roomId) {
-  const entries = podium?.top3 ?? podium?.podium;
-
-  if (!podium || typeof podium !== "object" || Array.isArray(podium)
-    || podium.roomId !== roomId
-    || podium.status !== "FINISHED"
-    || !Array.isArray(entries) || entries.length > 3
-    || !Number.isSafeInteger(podium.totalPlayers) || podium.totalPlayers < 0
-    || typeof podium.timestamp !== "string"
-    || !Number.isFinite(Date.parse(podium.timestamp))
-    || entries.length > podium.totalPlayers
-    || entries.some((entry) =>
-      !entry || typeof entry.nickname !== "string" || !entry.nickname.trim()
-      || !Number.isSafeInteger(entry.score) || entry.score < 0
-    )) {
-    throw new Error("El servidor envió un podio final inválido.");
-  }
-
-  return entries;
-}
-
-function renderPodium(podium, roomId) {
-  const entries = validatePodium(podium, roomId);
-  window.clearInterval(timerInterval);
-  questionCard.hidden = true;
-  resultsCard.hidden = true;
-  rouletteCard.hidden = true;
-  lobbyCard.hidden = true;
-
-  questionOptions.querySelectorAll("button").forEach((option) => {
-    option.disabled = true;
-  });
-  wordBlocksUI.querySelectorAll("button").forEach((option) => {
-    option.disabled = true;
-  });
-  textAnswer.disabled = true;
-  textAnswerClear.disabled = true;
-
-  podiumSummary.textContent = `Gracias por jugar. Participaron ${podium.totalPlayers} ${podium.totalPlayers === 1 ? "aprendiz" : "aprendices"}.`;
-  podiumList.replaceChildren();
-  podiumWinner.hidden = entries.length === 0;
-  podiumEmpty.hidden = entries.length > 0;
-  podiumStatus.textContent = "";
-  podiumStatus.dataset.state = "";
-
-  if (entries.length > 0) {
-    podiumWinnerName.textContent = entries[0].nickname;
-    podiumWinnerScore.textContent = `${entries[0].score.toLocaleString("es-CO")} pts`;
-  }
-
-  entries.forEach((entry, index) => {
-    const item = document.createElement("li");
-    item.className = `podium-entry podium-entry--rank-${index + 1}`;
-
-    const rank = document.createElement("span");
-    rank.className = "podium-rank";
-    rank.setAttribute("aria-label", `Puesto ${index + 1}`);
-    rank.textContent = String(index + 1);
-
-    const nickname = document.createElement("span");
-    nickname.className = "podium-nickname";
-    nickname.textContent = entry.nickname;
-
-    const score = document.createElement("span");
-    score.className = "podium-score";
-    score.textContent = `${entry.score.toLocaleString("es-CO")} pts`;
-
-    item.append(rank, nickname, score);
-    podiumList.append(item);
-  });
-
-  podiumCard.hidden = false;
-  document.title = "Podio final | English Day";
-  document.querySelector("#podiumTitle").focus();
-}
-
-function parseStompMessage(frame) {
+function handleStompFrame(frame) {
   const separator = frame.indexOf("\n\n");
   if (separator === -1) {
     throw new Error("El servidor envió una trama STOMP inválida.");
   }
 
   const lines = frame.slice(0, separator).split("\n");
+  const command = lines.shift().trim();
   const headers = new Map();
-  lines.slice(1).forEach((line) => {
-    const colon = line.indexOf(":");
-    if (colon !== -1) headers.set(line.slice(0, colon), line.slice(colon + 1));
+  lines.forEach((line) => {
+    const headerSeparator = line.indexOf(":");
+    if (headerSeparator !== -1) {
+      headers.set(line.slice(0, headerSeparator), line.slice(headerSeparator + 1));
+    }
   });
-
-  return {
-    command: lines[0].trim(),
-    headers,
-    body: frame.slice(separator + 2),
-  };
-}
-
-function handleStompFrame(frame, roomId, currentPlayerId) {
-  const { command, headers, body } = parseStompMessage(frame);
+  const body = frame.slice(separator + 2);
 
   if (command === "CONNECTED") {
-    lobbySocket.send(`SUBSCRIBE\nid:lobby-${roomId}\ndestination:/topic/room/${roomId}/lobby\nack:auto\n\n\0`);
-    lobbySocket.send(`SUBSCRIBE\nid:question-${roomId}\ndestination:/topic/room/${roomId}/question\nack:auto\n\n\0`);
-    lobbySocket.send(`SUBSCRIBE\nid:results-${roomId}\ndestination:/topic/room/${roomId}/results\nack:auto\n\n\0`);
-    lobbySocket.send(`SUBSCRIBE\nid:roulette-${roomId}\ndestination:/topic/room/${roomId}/roulette\nack:auto\n\n\0`);
-    lobbySocket.send(`SUBSCRIBE\nid:podium-${roomId}\ndestination:/topic/room/${roomId}/podium\nack:auto\n\n\0`);
-    setLobbyStatus("Conectado. Actualizando aprendices en tiempo real.", "connected");
+    lobbySocket.send(`SUBSCRIBE\nid:lobby-${activeRoomId}\ndestination:/topic/room/${activeRoomId}/lobby\nack:auto\n\n\0`);
+    lobbySocket.send(`SUBSCRIBE\nid:question-${activeRoomId}\ndestination:/topic/room/${activeRoomId}/question\nack:auto\n\n\0`);
+    setLobbyStatus("Conectado. Esperando jugadores y preguntas en tiempo real.", "connected");
     return;
   }
 
   if (command === "MESSAGE") {
-    let payload;
-    try {
-      payload = JSON.parse(body);
-    } catch {
-      throw new Error("El servidor envió un mensaje JSON inválido.");
-    }
-
     const destination = headers.get("destination");
-    if (destination === `/topic/room/${roomId}/lobby`) {
-      if (!Array.isArray(payload) || payload.some((player) =>
-        !player || typeof player.playerId !== "string" || typeof player.nickname !== "string"
-      )) {
-        throw new Error("El servidor envió una lista de aprendices inválida.");
-      }
-
-      renderLobbyPlayers(payload, currentPlayerId);
-    } else if (destination === `/topic/room/${roomId}/question`) {
-      renderQuestion(payload);
-    } else if (destination === `/topic/room/${roomId}/results`) {
-      renderResults(payload);
-    } else if (destination === `/topic/room/${roomId}/roulette`) {
-      renderRouletteResult(payload, roomId);
-    } else if (destination === `/topic/room/${roomId}/podium`) {
-      renderPodium(payload, roomId);
-    } else {
-      throw new Error("El servidor envió un mensaje desde un canal no esperado.");
+    if (destination === `/topic/room/${activeRoomId}/lobby`) {
+      parseLobbyPlayers(body, activePlayerId);
+    } else if (destination === `/topic/room/${activeRoomId}/question`) {
+      renderQuestion(parseQuestion(body));
     }
     return;
   }
 
   if (command === "ERROR") {
-    throw new Error(body.trim() || "El servidor rechazó la conexión al lobby.");
+    throw new Error(body.trim() || "El servidor rechazó la conexión STOMP.");
   }
 }
 
-function showConnectionError(message) {
-  if (!podiumCard.hidden) {
-    podiumStatus.textContent = message;
-    podiumStatus.dataset.state = "error";
-  } else if (!rouletteCard.hidden) {
-    rouletteStatus.textContent = message;
-    rouletteStatus.dataset.state = "error";
-  } else if (!resultsCard.hidden) {
-    resultsStatus.textContent = message;
-    resultsStatus.dataset.state = "error";
-  } else if (questionCard.hidden) {
-    setLobbyStatus(message, "error");
-  } else {
-    questionStatus.textContent = message;
-    questionStatus.dataset.state = "error";
-  }
-}
+function connectToRoom(roomId, playerId, currentPlayer) {
+  activeRoomId = roomId;
+  activePlayerId = playerId;
+  renderLobbyPlayers([currentPlayer], playerId);
+  setLobbyStatus("Conectando a la sala en tiempo real...", "loading");
 
-function subscribeToLobby(roomId, currentPlayer) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const url = `${protocol}//${window.location.host}/ws-englishday`;
-
-  renderLobbyPlayers([currentPlayer], currentPlayer.playerId);
-  setLobbyStatus("Conectando al lobby en tiempo real...", "loading");
   lobbySocket = new WebSocket(url);
-
   let incoming = "";
+
   lobbySocket.addEventListener("open", () => {
     lobbySocket.send(`CONNECT\naccept-version:1.2,1.1,1.0\nhost:${window.location.host}\nheart-beat:0,0\n\n\0`);
   });
@@ -619,7 +434,7 @@ function subscribeToLobby(roomId, currentPlayer) {
 
       if (frame) {
         try {
-          handleStompFrame(frame, roomId, currentPlayer.playerId);
+          handleStompFrame(frame);
         } catch (error) {
           showConnectionError(error.message);
           lobbySocket.close();
@@ -631,21 +446,90 @@ function subscribeToLobby(roomId, currentPlayer) {
     }
   });
   lobbySocket.addEventListener("error", () => {
-    showConnectionError("No se pudo conectar a la partida en tiempo real.");
+    setLobbyStatus("No se pudo conectar a la sala en tiempo real.", "error");
   });
   lobbySocket.addEventListener("close", () => {
-    if (lobbyStatus.dataset.state !== "error"
-      && questionStatus.dataset.state !== "error"
-      && resultsStatus.dataset.state !== "error"
-      && rouletteStatus.dataset.state !== "error"
-      && podiumStatus.dataset.state !== "error") {
-      showConnectionError("Se perdió la conexión con la partida. Actualiza la página para volver a ingresar.");
+    if (lobbyStatus.dataset.state !== "error") {
+      setLobbyStatus("Se perdió la conexión con la sala. No se pueden enviar respuestas.", "error");
     }
+    sendAnswerButton.disabled = true;
   });
 }
 
+function readAnswerValue() {
+  if (activeQuestion.type === "MULTIPLE_CHOICE") {
+    return answerForm.querySelector('input[name="answerOption"]:checked')?.value || "";
+  }
+
+  if (activeQuestion.type === "WORD_BLOCKS") {
+    return selectedWordBlocks.map((index) => activeQuestion.options[index]);
+  }
+
+  if (activeQuestion.type === "TEXT_INPUT") {
+    return answerForm.querySelector("#textAnswerInput")?.value.trim() || "";
+  }
+
+  if (activeQuestion.type === "VOICE") {
+    return voiceTranscript;
+  }
+
+  throw new Error("No se puede preparar una respuesta para este tipo de pregunta.");
+}
+
+answerForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!activeQuestion || answerSent) {
+    return;
+  }
+
+  if (questionExpired) {
+    setAnswerStatus("El tiempo terminó. La respuesta no se envió.", "error");
+    return;
+  }
+
+  if (!lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
+    setAnswerStatus("No hay conexión activa. La respuesta no se envió.", "error");
+    return;
+  }
+
+  const value = readAnswerValue();
+  if ((typeof value !== "string" && !Array.isArray(value)) ||
+      (typeof value === "string" && !value.trim()) ||
+      (Array.isArray(value) && (!value.length || value.some((item) => typeof item !== "string")))) {
+    setAnswerStatus("Completa tu respuesta antes de enviarla.", "error");
+    return;
+  }
+
+  const payload = {
+    playerId: activePlayerId,
+    questionId: activeQuestion.questionId,
+    value,
+    clientTimestamp: new Date().toISOString()
+  };
+  const destination = `/app/room/${activeRoomId}/answer`;
+
+  try {
+    lobbySocket.send(
+      `SEND\ndestination:${destination}\ncontent-type:application/json\n\n${JSON.stringify(payload)}\0`
+    );
+    if (window.speechService?.isListening) {
+      window.speechService.stopListening();
+    }
+    answerSent = true;
+    clearInterval(questionTimerInterval);
+    sendAnswerButton.disabled = true;
+    sendAnswerButton.textContent = "Respuesta enviada";
+    answerControls.querySelectorAll("input, button").forEach((control) => {
+      control.disabled = true;
+    });
+    setAnswerStatus("Mensaje transmitido. La validación corresponde al servidor.", "success");
+  } catch (error) {
+    setAnswerStatus(`No se pudo transmitir la respuesta: ${error.message}`, "error");
+  }
+});
+
 window.addEventListener("beforeunload", () => {
-  window.clearInterval(timerInterval);
+  clearInterval(questionTimerInterval);
   if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
     lobbySocket.close();
   }
@@ -692,16 +576,18 @@ joinForm.addEventListener("submit", async (event) => {
       throw new Error(result.error || `No se pudo ingresar (HTTP ${response.status}).`);
     }
 
-    formMessage.dataset.state = "success";
-    formMessage.textContent = `Te uniste a la partida como ${result.nickname}.`;
-    if (typeof result.roomId !== "string" || typeof result.playerId !== "string") {
-      throw new Error("El servidor no devolvió los datos de la sala necesarios para abrir el lobby.");
+    if (!result || typeof result.roomId !== "string" || !uuidV4Pattern.test(result.roomId) ||
+        typeof result.playerId !== "string" || !uuidV4Pattern.test(result.playerId) ||
+        typeof result.nickname !== "string") {
+      throw new Error("El servidor no devolvió roomId, playerId UUID v4 y nickname válidos.");
     }
 
+    formMessage.dataset.state = "success";
+    formMessage.textContent = `Te uniste a la partida como ${result.nickname}.`;
     joinCard.hidden = true;
     lobbyCard.hidden = false;
     lobbyPin.textContent = `PIN de la partida: ${pin}`;
-    subscribeToLobby(result.roomId, {
+    connectToRoom(result.roomId, result.playerId, {
       playerId: result.playerId,
       nickname: result.nickname,
     });
