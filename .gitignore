@@ -9,4 +9,7 @@ target/
 .vscode/
 .DS_Store
 node_modules/
+
+# Herramientas y binarios locales
+tools/
 ~$*

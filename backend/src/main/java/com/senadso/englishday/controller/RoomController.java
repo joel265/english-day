@@ -3,8 +3,12 @@ package com.senadso.englishday.controller;
 import com.senadso.englishday.dto.CreateRoomResponse;
 import com.senadso.englishday.dto.JoinRoomRequest;
 import com.senadso.englishday.dto.JoinRoomResponse;
+import com.senadso.englishday.dto.PodiumResponse;
 import com.senadso.englishday.dto.RoomResponse;
+import com.senadso.englishday.dto.RouletteResultResponse;
 import com.senadso.englishday.service.RoomService;
+import com.senadso.englishday.service.RouletteService;
+import com.senadso.englishday.service.ScoreService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +25,8 @@ import org.springframework.web.bind.annotation.*;
 public class RoomController {
 
     private final RoomService roomService;
+    private final RouletteService rouletteService;
+    private final ScoreService scoreService;
 
     /**
      * Endpoint para crear una sala y generar el PIN de 6 dígitos.
@@ -52,6 +58,36 @@ public class RoomController {
     @PostMapping("/{roomId}/start")
     public ResponseEntity<RoomResponse> startGame(@PathVariable String roomId) {
         RoomResponse response = roomService.startGame(roomId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para que el moderador active la ruleta de retroalimentación interactiva.
+     * Ruta: POST /api/rooms/{roomId}/roulette (Contrato §3 / RF-11 / CU-05).
+     */
+    @PostMapping("/{roomId}/roulette")
+    public ResponseEntity<RouletteResultResponse> spinRoulette(@PathVariable String roomId) {
+        RouletteResultResponse response = rouletteService.spinRoulette(roomId, null);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para obtener el podio final (Top 3) al culminar la partida.
+     * Ruta: GET /api/rooms/{roomId}/results (Contrato §3 / RF-10 / CU-06).
+     */
+    @GetMapping("/{roomId}/results")
+    public ResponseEntity<PodiumResponse> getFinalResults(@PathVariable String roomId) {
+        PodiumResponse response = scoreService.getPodiumResults(roomId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para que el moderador finalice la partida y emita el podio final al topic /topic/room/{roomId}/podium.
+     * Ruta: POST /api/rooms/{roomId}/finish (Contrato §3 / RF-10 / CU-06 / CP-11).
+     */
+    @PostMapping("/{roomId}/finish")
+    public ResponseEntity<PodiumResponse> finishGame(@PathVariable String roomId) {
+        PodiumResponse response = scoreService.finalizeGameAndBroadcastPodium(roomId);
         return ResponseEntity.ok(response);
     }
 }

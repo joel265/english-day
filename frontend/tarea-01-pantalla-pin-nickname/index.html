@@ -74,6 +74,109 @@
           </form>
         </section>
       </section>
+
+      <section class="question-card" id="questionCard" aria-labelledby="questionPrompt" hidden>
+        <div class="question-header">
+          <div>
+            <p class="eyebrow" id="questionType"></p>
+            <p class="question-order" id="questionOrder"></p>
+          </div>
+          <div class="question-timer">
+            <span>Tiempo restante</span>
+            <strong id="questionTimer" role="timer" aria-live="off">00:00</strong>
+          </div>
+        </div>
+        <progress class="question-progress" id="questionProgress" value="0" max="1" aria-label="Tiempo restante"></progress>
+        <h1 class="question-prompt" id="questionPrompt" tabindex="-1"></h1>
+        <ul class="question-options" id="questionOptions" aria-label="Opciones disponibles" hidden></ul>
+        <div class="word-blocks-ui" id="wordBlocksUI" hidden>
+          <section class="word-blocks-section" aria-labelledby="wordBlocksSentenceTitle">
+            <div class="word-blocks-heading">
+              <h2 id="wordBlocksSentenceTitle">Tu oración</h2>
+              <span id="wordBlocksCount" aria-live="polite">0 bloques</span>
+            </div>
+            <ul class="word-blocks-selected" id="wordBlocksSelected" aria-label="Bloques seleccionados en orden"></ul>
+            <p class="word-blocks-help">Toca un bloque de la oración para devolverlo al banco.</p>
+          </section>
+          <section class="word-blocks-section" aria-labelledby="wordBlocksBankTitle">
+            <div class="word-blocks-heading">
+              <h2 id="wordBlocksBankTitle">Banco de palabras</h2>
+              <span>Toca para agregar</span>
+            </div>
+            <ul class="word-blocks-bank" id="wordBlocksBank" aria-label="Bloques disponibles"></ul>
+          </section>
+          <button class="word-blocks-reset" id="wordBlocksReset" type="button">Reiniciar oración</button>
+        </div>
+        <div class="text-input-ui" id="textInputUI" hidden>
+          <label class="text-input-label" for="textAnswer">Escribe tu respuesta</label>
+          <div class="text-input-field">
+            <span class="text-input-icon" aria-hidden="true">✎</span>
+            <input
+              id="textAnswer"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              placeholder="Escribe tu respuesta aquí..."
+              aria-describedby="textInputHelp"
+            >
+            <button class="text-input-clear" id="textAnswerClear" type="button" aria-label="Limpiar respuesta" hidden>×</button>
+          </div>
+          <p class="text-input-help" id="textInputHelp">Escribe tu respuesta en inglés. Puedes corregirla mientras el tiempo esté activo.</p>
+        </div>
+        <p class="question-answer-hint" id="questionAnswerHint" hidden></p>
+        <p class="question-status" id="questionStatus" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="results-card" id="resultsCard" aria-labelledby="resultsTitle" hidden>
+        <p class="eyebrow">English Day · Resultados de la ronda</p>
+        <h1 id="resultsTitle" tabindex="-1">¡Pregunta finalizada!</h1>
+        <div class="correct-answer-panel">
+          <span class="correct-answer-label">Respuesta correcta</span>
+          <p id="correctAnswer"></p>
+        </div>
+        <div class="leaderboard-heading">
+          <h2>Top 5 de la sala</h2>
+          <span>Clasificación actual</span>
+        </div>
+        <ol class="leaderboard-list" id="leaderboardList" aria-label="Clasificación de los cinco mejores aprendices"></ol>
+        <p class="leaderboard-empty" id="leaderboardEmpty" hidden>Aún no hay puntajes para mostrar.</p>
+        <p class="results-status" id="resultsStatus" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="roulette-card" id="rouletteCard" aria-labelledby="rouletteTitle" hidden>
+        <p class="eyebrow">English Day · Ruleta de retroalimentación</p>
+        <h1 id="rouletteTitle" tabindex="-1">¡La ruleta ha elegido!</h1>
+        <div class="roulette-result">
+          <span class="roulette-player-icon" aria-hidden="true">★</span>
+          <p class="roulette-result-label">Aprendiz seleccionado</p>
+          <p class="roulette-player-name" id="roulettePlayerName"></p>
+        </div>
+        <div class="roulette-answer-panel">
+          <span class="roulette-answer-label">Respuesta registrada</span>
+          <p id="rouletteAnswer"></p>
+        </div>
+        <p class="roulette-outcome" id="rouletteOutcome" role="status" aria-live="polite"></p>
+        <p class="roulette-status" id="rouletteStatus" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="podium-card" id="podiumCard" aria-labelledby="podiumTitle" hidden>
+        <p class="eyebrow">English Day · Partida finalizada</p>
+        <h1 id="podiumTitle" tabindex="-1">¡Juego terminado!</h1>
+        <p class="podium-intro" id="podiumSummary"></p>
+        <div class="podium-winner" id="podiumWinner" hidden>
+          <span class="podium-crown" aria-hidden="true">★</span>
+          <span class="podium-place-label">Campeón</span>
+          <p class="podium-winner-name" id="podiumWinnerName"></p>
+          <p class="podium-winner-score" id="podiumWinnerScore"></p>
+        </div>
+        <h2 class="podium-heading">Podio final</h2>
+        <ol class="podium-list" id="podiumList" aria-label="Podio final de los tres mejores aprendices"></ol>
+        <p class="podium-empty" id="podiumEmpty" hidden>No hay participantes con puntaje para mostrar.</p>
+        <p class="podium-status" id="podiumStatus" role="status" aria-live="polite"></p>
+      </section>
     </main>
     <script src="../js/speech.js" defer></script>
     <script src="./join.js" defer></script>

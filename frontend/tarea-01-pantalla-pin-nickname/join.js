@@ -436,7 +436,7 @@ function connectToRoom(roomId, playerId, currentPlayer) {
         try {
           handleStompFrame(frame);
         } catch (error) {
-          setLobbyStatus(error.message, "error");
+          showConnectionError(error.message);
           lobbySocket.close();
           return;
         }

@@ -48,7 +48,11 @@ main {
 }
 
 .join-card,
-.lobby-card {
+.lobby-card,
+.question-card,
+.results-card,
+.roulette-card,
+.podium-card {
   padding: 1.25rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
@@ -445,7 +449,15 @@ h1 {
   }
 
   .join-card,
-  .lobby-card {
+  .lobby-card,
+  .question-card,
+  .results-card,
+  .roulette-card,
+  .podium-card {
     padding: 2rem;
+  }
+
+  .question-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
