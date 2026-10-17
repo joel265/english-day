@@ -1,0 +1,1222 @@
+/* ==========================================================================
+   SENA ADSO - ENGLISH DAY: GAMIFICATION PLATFORM
+   Design System: Modern Dark Mode, Glassmorphism, Micro-interactions
+   ========================================================================== */
+
+:root {
+    /* Paleta Institucional SENA & Gamer */
+    --sena-green: #39A900;
+    --sena-green-glow: rgba(57, 169, 0, 0.35);
+    --sena-accent: #00E676;
+    
+    /* Fondos y Glassmorphism */
+    --bg-dark: #0A0E17;
+    --bg-darker: #06090F;
+    --surface-card: rgba(18, 26, 43, 0.85);
+    --surface-hover: rgba(30, 41, 69, 0.9);
+    --surface-border: rgba(255, 255, 255, 0.1);
+    --surface-border-focus: rgba(57, 169, 0, 0.6);
+    
+    /* Kahoot Colors & Shapes */
+    --kahoot-red: #E11D48;
+    --kahoot-red-shadow: #9F1239;
+    --kahoot-blue: #0284C7;
+    --kahoot-blue-shadow: #0369A1;
+    --kahoot-yellow: #D97706;
+    --kahoot-yellow-shadow: #B45309;
+    --kahoot-green: #10B981;
+    --kahoot-green-shadow: #047857;
+
+    /* Duolingo Token Styles */
+    --duo-btn-bg: #1E293B;
+    --duo-btn-border: #334155;
+    --duo-btn-text: #F8FAFC;
+    --duo-btn-active: #39A900;
+
+    /* Textos */
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    
+    /* Feedback */
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+    --info: #38BDF8;
+
+    /* Radios & Sombras */
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 22px;
+    --radius-full: 9999px;
+    --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 25px var(--sena-green-glow);
+
+    /* Tipografía */
+    --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Reset & Base */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background-color: var(--bg-dark);
+    background-image: 
+        radial-gradient(circle at 15% 20%, rgba(57, 169, 0, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(2, 132, 199, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(10, 14, 23, 0.95) 0%, var(--bg-darker) 100%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+/* Selector de Modo / Barra Superior de Demostración */
+.top-nav-bar {
+    background: rgba(10, 14, 23, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--surface-border);
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.brand-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.brand-logo-glow {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--sena-green), #00E676);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 900;
+    font-size: 1rem;
+    box-shadow: 0 0 12px var(--sena-green-glow);
+}
+
+.brand-sub {
+    font-size: 0.72rem;
+    color: var(--sena-accent);
+    display: block;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mode-toggle-group {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-full);
+    padding: 3px;
+    display: flex;
+    border: 1px solid var(--surface-border);
+}
+
+.mode-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mode-btn.active {
+    background: var(--sena-green);
+    color: white;
+    box-shadow: 0 2px 8px var(--sena-green-glow);
+}
+
+.btn-icon-round {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--surface-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.btn-icon-round:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(1.05);
+}
+
+/* Contenedor Principal (Mobile-First por defecto) */
+.main-viewport {
+    flex: 1;
+    width: 100%;
+    max-width: 480px; /* Ancho Mobile-First estándar RNF-01 */
+    margin: 0 auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Cuando se activa la vista Host / Proyector */
+body.host-mode-active .main-viewport {
+    max-width: 1100px; /* Ancho optimizado para proyector de aula */
+}
+
+/* Tarjetas y Contenedores */
+.glass-panel {
+    background: var(--surface-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+/* Pantallas (Vistas que se ocultan y muestran) */
+.view-screen {
+    display: none;
+    flex-direction: column;
+    gap: 20px;
+    animation: fadeInSlide 0.35s ease-out;
+}
+
+.view-screen.active {
+    display: flex;
+}
+
+@keyframes fadeInSlide {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================================================
+   1. PANTALLA DE INGRESO (LOGIN / JOIN)
+   ========================================================================== */
+.join-hero-header {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.hero-title {
+    font-family: var(--font-heading);
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1.2;
+    background: linear-gradient(135deg, #FFFFFF 30%, #A7F3D0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+}
+
+.hero-subtitle {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+}
+
+.input-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.input-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.label-hint, .char-counter {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-prefix-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 1.1rem;
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.form-control-gamified {
+    width: 100%;
+    min-height: 52px;
+    background: rgba(10, 14, 23, 0.7);
+    border: 2px solid var(--surface-border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.04em;
+    padding: 10px 16px 10px 42px;
+    transition: all 0.25s ease;
+    outline: none;
+}
+
+.form-control-gamified.pin-input {
+    font-family: 'Outfit', monospace;
+    font-size: 1.5rem;
+    letter-spacing: 0.25em;
+    font-weight: 900;
+    color: #00E676;
+}
+
+.form-control-gamified:focus {
+    border-color: var(--sena-green);
+    box-shadow: 0 0 15px var(--sena-green-glow);
+    background: rgba(15, 23, 42, 0.9);
+}
+
+.input-field-group.has-error .form-control-gamified {
+    border-color: var(--danger);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    animation: shakeError 0.4s ease-in-out;
+}
+
+.field-error-msg {
+    color: #F87171;
+    font-size: 0.78rem;
+    font-weight: 600;
+    min-height: 16px;
+    padding-left: 4px;
+    transition: opacity 0.2s;
+}
+
+@keyframes shakeError {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+}
+
+.join-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.avatar-selector {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.avatar-opt {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.avatar-opt:hover {
+    transform: scale(1.1);
+}
+
+.avatar-opt.selected {
+    border-color: var(--sena-green);
+    background: var(--sena-green-glow);
+    transform: scale(1.08);
+}
+
+/* Botones Principales (Gamer Touch Buttons) */
+.btn-primary-gamified {
+    width: 100%;
+    min-height: 54px;
+    background: linear-gradient(180deg, #39A900 0%, #297A00 100%);
+    box-shadow: 0 4px 0 #1b5400, 0 8px 20px var(--sena-green-glow);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    position: relative;
+    top: 0;
+}
+
+.btn-primary-gamified:hover {
+    filter: brightness(1.08);
+}
+
+.btn-primary-gamified:active {
+    top: 4px;
+    box-shadow: 0 0 0 #1b5400, 0 2px 10px var(--sena-green-glow);
+}
+
+.btn-secondary-gamified {
+    width: 100%;
+    min-height: 48px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.btn-secondary-gamified:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* ==========================================================================
+   2. LOBBY DE ESPERA (RF-03)
+   ========================================================================== */
+.lobby-header {
+    text-align: center;
+}
+
+.room-pin-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(57, 169, 0, 0.15);
+    border: 2px dashed var(--sena-green);
+    border-radius: var(--radius-md);
+    padding: 10px 24px;
+    margin: 12px 0;
+}
+
+.pin-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.pin-digits {
+    font-family: var(--font-heading);
+    font-size: 2.2rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: #00E676;
+    text-shadow: 0 0 14px var(--sena-green-glow);
+}
+
+.players-badge-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.players-grid-lobby {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.player-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+    from { transform: scale(0.6); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.pulse-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--sena-green);
+    box-shadow: 0 0 8px var(--sena-green);
+    animation: blink 1.2s infinite ease-in-out;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* ==========================================================================
+   3. ÁREA DE PREGUNTA & TEMPORIZADOR (RF-08)
+   ========================================================================== */
+.question-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.badge-category {
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--info);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 5px 12px;
+    border-radius: var(--radius-full);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.badge-question-idx {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+/* Temporizador con barra de progreso */
+.timer-container {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    height: 10px;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 14px;
+}
+
+.timer-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #10B981, #39A900);
+    border-radius: var(--radius-full);
+    transition: width 1s linear, background-color 0.3s;
+}
+
+.timer-fill.warning {
+    background: linear-gradient(90deg, #F59E0B, #D97706);
+}
+
+.timer-fill.urgent {
+    background: linear-gradient(90deg, #EF4444, #DC2626);
+    animation: timerPulse 0.4s infinite alternate;
+}
+
+@keyframes timerPulse {
+    from { opacity: 0.7; }
+    to { opacity: 1; }
+}
+
+.timer-number-bubble {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.question-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md);
+    padding: 18px;
+    margin-bottom: 18px;
+    text-align: center;
+}
+
+.question-main-text {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #FFFFFF;
+}
+
+/* ==========================================================================
+   4. MECÁNICA 1: SELECCIÓN MÚLTIPLE (KAHOOT STYLE - RF-04)
+   ========================================================================== */
+.multiple-choice-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+@media (min-width: 600px) {
+    .multiple-choice-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.kahoot-card-btn {
+    min-height: 70px;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: white;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: left;
+    position: relative;
+    top: 0;
+    transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.kahoot-card-btn .shape-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.kahoot-card-btn.red {
+    background: var(--kahoot-red);
+    box-shadow: 0 5px 0 var(--kahoot-red-shadow);
+}
+
+.kahoot-card-btn.blue {
+    background: var(--kahoot-blue);
+    box-shadow: 0 5px 0 var(--kahoot-blue-shadow);
+}
+
+.kahoot-card-btn.yellow {
+    background: var(--kahoot-yellow);
+    box-shadow: 0 5px 0 var(--kahoot-yellow-shadow);
+}
+
+.kahoot-card-btn.green {
+    background: var(--kahoot-green);
+    box-shadow: 0 5px 0 var(--kahoot-green-shadow);
+}
+
+.kahoot-card-btn:active:not(:disabled) {
+    top: 5px;
+    box-shadow: 0 0 0 transparent;
+}
+
+.kahoot-card-btn.selected-answer {
+    filter: brightness(1.2);
+    outline: 4px solid #FFFFFF;
+}
+
+.kahoot-card-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.kahoot-card-btn.correct-reveal {
+    opacity: 1 !important;
+    animation: flashGreen 0.6s infinite alternate;
+}
+
+@keyframes flashGreen {
+    from { transform: scale(1); }
+    to { transform: scale(1.02); }
+}
+
+/* ==========================================================================
+   5. MECÁNICA 2: BANCO DE PALABRAS (DUOLINGO STYLE - RF-05)
+   ========================================================================== */
+.word-bank-container {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.construction-zone {
+    min-height: 110px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px dashed rgba(255, 255, 255, 0.25);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 8px;
+    transition: border-color 0.2s;
+}
+
+.construction-zone:empty::before {
+    content: "Tap the word blocks below to build the sentence...";
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-style: italic;
+    margin: auto;
+}
+
+.words-reservoir {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--radius-md);
+}
+
+.word-block-chip {
+    background: var(--duo-btn-bg);
+    border: 2px solid var(--duo-btn-border);
+    border-bottom: 4px solid var(--duo-btn-border);
+    border-radius: var(--radius-sm);
+    color: var(--duo-btn-text);
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s, opacity 0.2s;
+    min-height: 48px; /* RNF-03 */
+    display: inline-flex;
+    align-items: center;
+}
+
+.word-block-chip:hover {
+    border-color: #475569;
+}
+
+.word-block-chip:active {
+    transform: translateY(2px);
+    border-bottom-width: 2px;
+}
+
+.word-block-chip.in-construction {
+    background: #0284C7;
+    border-color: #38BDF8;
+    border-bottom-color: #0369A1;
+    color: white;
+}
+
+/* ==========================================================================
+   6. MECÁNICA 3: ESCRITURA DIRECTA / SPELLING (RF-06)
+   ========================================================================== */
+.text-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.text-input-field {
+    width: 100%;
+    min-height: 60px;
+    background: rgba(10, 14, 23, 0.85);
+    border: 2px solid var(--surface-border);
+    border-radius: var(--radius-md);
+    color: #FFFFFF;
+    font-size: 1.25rem;
+    font-weight: 700;
+    padding: 12px 18px;
+    text-align: center;
+    transition: all 0.25s ease;
+    outline: none;
+}
+
+.text-input-field:focus {
+    border-color: #38BDF8;
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.4);
+}
+
+/* ==========================================================================
+   7. MECÁNICA 4: RECONOCIMIENTO DE VOZ (SPEECH-TO-TEXT - RF-07)
+   ========================================================================== */
+.speech-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+}
+
+.target-speech-box {
+    background: rgba(57, 169, 0, 0.1);
+    border: 1px solid var(--sena-green);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    width: 100%;
+}
+
+.target-speech-phrase {
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #00E676;
+    margin-bottom: 6px;
+}
+
+.target-speech-hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
+.btn-listen-sample {
+    margin-top: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-full);
+    color: var(--text-primary);
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Botón Grande de Micrófono con Onda Pulsante */
+.mic-action-area {
+    position: relative;
+    margin: 10px 0;
+}
+
+.btn-mic-gamified {
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+    box-shadow: 0 6px 0 #991B1B, 0 10px 25px rgba(239, 68, 68, 0.4);
+    color: white;
+    font-size: 2.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    transition: transform 0.2s, background 0.3s;
+}
+
+.btn-mic-gamified.recording {
+    background: linear-gradient(135deg, #39A900 0%, #00E676 100%);
+    box-shadow: 0 6px 0 #1b5400, 0 10px 25px var(--sena-green-glow);
+    animation: micPulse 1s infinite alternate;
+}
+
+@keyframes micPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.08); }
+}
+
+.mic-wave-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid #00E676;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.btn-mic-gamified.recording + .mic-wave-ring {
+    animation: waveExpand 1.5s infinite ease-out;
+}
+
+@keyframes waveExpand {
+    0% { width: 86px; height: 86px; opacity: 0.9; }
+    100% { width: 160px; height: 160px; opacity: 0; }
+}
+
+.speech-transcript-box {
+    width: 100%;
+    min-height: 48px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #38BDF8;
+}
+
+/* ==========================================================================
+   8. MODAL / PANTALLA DE LA RULETA DE RETROALIMENTACIÓN ACTIVA (RF-11)
+   ========================================================================== */
+.roulette-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+}
+
+.roulette-title-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #F87171;
+    padding: 6px 16px;
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.roulette-canvas-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#rouletteCanvas {
+    width: 100%;
+    height: 100%;
+}
+
+/* Modal del Aprendiz Seleccionado para Speaking */
+.speaking-challenge-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(6, 9, 15, 0.88);
+    backdrop-filter: blur(12px);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.speaking-challenge-modal.active {
+    display: flex;
+}
+
+.speaking-card {
+    background: var(--surface-card);
+    border: 2px solid var(--sena-green);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 35px var(--sena-green-glow);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+    animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPop {
+    from { transform: scale(0.7); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.selected-student-avatar {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--sena-green), #0284C7);
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4rem;
+    box-shadow: 0 0 20px var(--sena-green-glow);
+}
+
+.selected-student-name {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #FFFFFF;
+}
+
+.challenge-question-summary {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin: 16px 0;
+    text-align: left;
+    font-size: 0.88rem;
+}
+
+.challenge-prompt-text {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #FDE047;
+    margin-bottom: 20px;
+    line-height: 1.35;
+}
+
+/* ==========================================================================
+   9. TABLA DE POSICIONES & PODIO FINAL (RF-10)
+   ========================================================================== */
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.leaderboard-item {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.leaderboard-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.leaderboard-item.rank-1 {
+    border-color: rgba(250, 204, 21, 0.5);
+    background: rgba(250, 204, 21, 0.1);
+}
+
+.leaderboard-rank {
+    font-family: var(--font-heading);
+    font-weight: 900;
+    font-size: 1.2rem;
+    width: 32px;
+}
+
+.leaderboard-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    font-weight: 700;
+}
+
+.leaderboard-score {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    color: #00E676;
+    font-size: 1.1rem;
+}
+
+/* Estructura del Podio Final */
+.podium-container {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 14px;
+    margin: 30px 0 20px;
+    height: 230px;
+}
+
+.podium-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.podium-pillar {
+    width: 100%;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-weight: 900;
+    font-size: 1.8rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+}
+
+.podium-step.gold .podium-pillar {
+    height: 150px;
+    background: linear-gradient(180deg, #F59E0B 0%, #B45309 100%);
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
+}
+
+.podium-step.silver .podium-pillar {
+    height: 110px;
+    background: linear-gradient(180deg, #94A3B8 0%, #475569 100%);
+}
+
+.podium-step.bronze .podium-pillar {
+    height: 80px;
+    background: linear-gradient(180deg, #D97706 0%, #78350F 100%);
+}
+
+.podium-avatar {
+    font-size: 2rem;
+    margin-bottom: 6px;
+}
+
+.podium-name {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: #FFFFFF;
+    margin-bottom: 2px;
+}
+
+.podium-pts {
+    font-size: 0.76rem;
+    color: var(--sena-accent);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+/* ==========================================================================
+   10. FEEDBACK INSTANTÁNEO & OVERLAYS
+   ========================================================================== */
+.answer-feedback-overlay {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(15, 23, 42, 0.95);
+    border: 2px solid var(--surface-border);
+    backdrop-filter: blur(14px);
+    border-radius: var(--radius-lg);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 1500;
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: var(--shadow-card);
+    width: calc(100% - 32px);
+    max-width: 440px;
+}
+
+.answer-feedback-overlay.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.answer-feedback-overlay.correct {
+    border-color: var(--sena-green);
+    box-shadow: 0 0 30px var(--sena-green-glow);
+}
+
+.answer-feedback-overlay.incorrect {
+    border-color: var(--danger);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
+}
+
+.feedback-icon {
+    font-size: 2.2rem;
+    line-height: 1;
+}
+
+.feedback-title {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.feedback-subtitle {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+/* Footer & Atribución */
+.footer-credits {
+    text-align: center;
+    padding: 16px;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    margin-top: auto;
+}
+
+.footer-credits a {
+    color: var(--sena-green);
+    text-decoration: none;
+    font-weight: 700;
+}
