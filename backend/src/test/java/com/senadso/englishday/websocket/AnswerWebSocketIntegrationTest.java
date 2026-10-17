@@ -55,6 +55,9 @@ class AnswerWebSocketIntegrationTest {
     @Autowired
     private AnswerRepository answerRepository;
 
+    @Autowired
+    private com.senadso.englishday.repository.ScoreRepository scoreRepository;
+
     private WebSocketStompClient stompClient;
 
     @BeforeEach
@@ -73,8 +76,9 @@ class AnswerWebSocketIntegrationTest {
     @DisplayName("Tarea 8 / CU-04: Enviar respuesta por /app/room/{roomId}/answer persiste la entidad Answer con isCorrect=true")
     void testSubmitAnswerViaWebSocket() throws Exception {
         // 1. Crear pregunta
-        questionRepository.deleteAll();
+        scoreRepository.deleteAll();
         answerRepository.deleteAll();
+        questionRepository.deleteAll();
 
         Question question = Question.builder()
                 .type(QuestionType.MULTIPLE_CHOICE)

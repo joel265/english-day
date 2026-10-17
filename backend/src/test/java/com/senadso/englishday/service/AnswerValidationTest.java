@@ -22,7 +22,7 @@ class AnswerValidationTest {
 
     @BeforeEach
     void setUp() {
-        answerService = new AnswerService(null, null, null);
+        answerService = new AnswerService(null, null, null, null);
         objectMapper = new ObjectMapper();
     }
 

@@ -17,5 +17,6 @@ El Contrato de Integración fija lo que ya se decidió (rutas, campos, eventos).
 | **5** | 2026-10-16 | Para `/topic/room/{roomId}/lobby`, el payload es un arreglo JSON `[ { "playerId": "...", "nickname": "...", "joinedAt": "..." } ]` emitido en tiempo real al unirse un jugador. | Backend | Backend, Frontend, UI/UX, QA | ☐ Abierta (Pendiente validar con Frontend/QA) |
 | **6** | 2026-10-16 | `POST /api/rooms/{roomId}/start` retorna `RoomResponse` (HTTP 200 OK); asíncronamente emite el estado a `/topic/room/{roomId}/status` y la pregunta a `/topic/room/{roomId}/question` (sin `correctAnswer`). | Backend | Backend, Frontend, UI/UX, QA | ☐ Abierta (Pendiente validar con Frontend/QA) |
 | **7** | 2026-10-16 | En `/app/room/{roomId}/answer`, `value` acepta texto plano o arreglo de tokens (para `WORD_BLOCKS`). Se previene el duplicado: solo se procesa y persiste la primera respuesta recibida por jugador y pregunta. | Backend | Backend, Frontend, QA | ☐ Abierta (Pendiente validar con Frontend/QA) |
-| **8** | | | | | ☐ Abierta |
+| **8** | 2026-10-16 | Para Tarea 9 (RF-09/RF-10), el algoritmo de puntuación acumula puntos en `Player.totalScore` y sincroniza la tabla `Score` (`totalPoints` y `rank`). El cierre de pregunta y emisión del Top 5 (`QuestionResultsResponse` con `correctAnswer` y `top5`) se difunde a `/topic/room/{roomId}/results` y puede ser disparado vía STOMP en `/app/room/{roomId}/results`. | Backend | Backend, Frontend, UI/UX, QA | ☐ Abierta (Pendiente validar con Frontend/QA) |
 | **9** | | | | | ☐ Abierta |
+
