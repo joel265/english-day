@@ -13,6 +13,7 @@ class EnglishDayGame {
         this.totalQuestionTime = 20;
         this.hasAnswered = false;
         this.selectedAvatar = '🚀';
+        this.voiceTranscript = '';
 
         // Estado del jugador local
         this.player = {
@@ -353,8 +354,8 @@ class EnglishDayGame {
             this.setupWordBank(q);
         } else if (q.type === 'text_input') {
             this.setupTextInput(q);
-        } else if (q.type === 'speech_recognition') {
-            this.setupSpeechRecognition(q);
+        } else if (q.type === 'VOICE') {
+            this.setupSpeechRecognition();
         }
 
         // Iniciar temporizador
@@ -522,55 +523,70 @@ class EnglishDayGame {
     /* ----------------------------------------------------
        Mecánica 4: Reconocimiento de Voz (RF-07)
     ---------------------------------------------------- */
-    setupSpeechRecognition(q) {
+    setupSpeechRecognition() {
         const container = document.getElementById('mechSpeech');
-        if (!container) return;
+        if (!container) {
+            console.error('VOICE question is missing the #mechSpeech container.');
+            return;
+        }
         container.style.display = 'flex';
 
-        const phraseEl = document.getElementById('speechTargetPhrase');
-        const hintEl = document.getElementById('speechTargetHint');
         const transcriptEl = document.getElementById('speechLiveTranscript');
         const btnMic = document.getElementById('btnMicRecord');
-        const btnListenSample = document.getElementById('btnListenSpeechSample');
+        if (!transcriptEl || !btnMic) {
+            console.error('VOICE question is missing its microphone or transcript element.');
+            return;
+        }
+        if (!window.speechService) {
+            console.error('VOICE question requires the speech.js service.');
+            return;
+        }
 
-        phraseEl.textContent = q.targetText;
-        hintEl.textContent = q.phoneticHint || '';
+        this.voiceTranscript = '';
         transcriptEl.textContent = 'Press the mic and speak in English...';
         btnMic.classList.remove('recording');
+        btnMic.setAttribute('aria-pressed', 'false');
+        btnMic.disabled = !window.isSecureContext || !window.speechService.isSupported;
 
-        // Síntesis auditiva del modelo
-        btnListenSample.onclick = () => {
-            if (window.speechService) {
-                window.speechService.speakModel(q.targetText);
-            }
-        };
+        if (!window.isSecureContext) {
+            transcriptEl.textContent = 'Open this page over HTTPS or localhost to use the microphone.';
+            return;
+        }
+
+        if (!window.speechService.isSupported) {
+            transcriptEl.textContent = 'This browser does not support speech recognition.';
+            return;
+        }
 
         btnMic.onclick = () => {
             if (this.hasAnswered) return;
 
             if (btnMic.classList.contains('recording')) {
                 window.speechService.stopListening();
-                btnMic.classList.remove('recording');
                 return;
             }
 
             btnMic.classList.add('recording');
+            btnMic.setAttribute('aria-pressed', 'true');
             transcriptEl.textContent = 'Listening... Speak clearly now!';
             if (window.soundFx) window.soundFx.playClick();
 
             window.speechService.startListening({
-                targetText: q.targetText,
                 onInterim: (text) => {
-                    transcriptEl.textContent = `🎙️ "${text}..."`;
+                    transcriptEl.textContent = text;
                 },
-                onResult: (res) => {
-                    btnMic.classList.remove('recording');
-                    transcriptEl.textContent = `🗣️ "${res.transcript}" (${res.similarity}% match)`;
-                    this.submitAnswer(res.transcript, res.isMatch, q);
+                onTranscript: (transcript) => {
+                    this.voiceTranscript = transcript;
+                    transcriptEl.textContent = transcript;
                 },
-                onError: (err) => {
+                onEnd: () => {
                     btnMic.classList.remove('recording');
-                    transcriptEl.textContent = `⚠️ Mic error: ${err}. You can retry or simulate.`;
+                    btnMic.setAttribute('aria-pressed', 'false');
+                },
+                onError: (message) => {
+                    btnMic.classList.remove('recording');
+                    btnMic.setAttribute('aria-pressed', 'false');
+                    transcriptEl.textContent = message;
                 }
             });
         };
@@ -582,6 +598,9 @@ class EnglishDayGame {
     submitAnswer(userAnswer, isCorrect, q) {
         if (this.hasAnswered) return;
         this.hasAnswered = true;
+        if (window.speechService?.isListening) {
+            window.speechService.stopListening();
+        }
         this.stopTimer();
 
         // Calcular puntaje dinámico por velocidad

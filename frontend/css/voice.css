@@ -1,0 +1,142 @@
+:root {
+  color-scheme: light;
+  font-family: Rubik, Arial, sans-serif;
+  color: #111d22;
+  background: #f3faff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  padding: 1rem;
+  background: #f3faff;
+}
+
+main {
+  display: grid;
+  min-height: calc(100vh - 2rem);
+  place-items: center;
+}
+
+#voiceSection {
+  width: min(100%, 30rem);
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: #ffffff;
+  box-shadow: 0 4px 0 #d7e5eb;
+}
+
+#voiceSection > p:first-child {
+  margin-top: 0;
+  color: #2b6c00;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  line-height: 1.2;
+}
+
+h1 {
+  margin-bottom: 0.5rem;
+  font-size: clamp(1.5rem, 7vw, 2rem);
+}
+
+#voicePrompt {
+  color: #3f4a36;
+  line-height: 1.5;
+}
+
+#voiceSection > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+button {
+  min-width: 44px;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#startListeningButton {
+  flex: 1 1 12rem;
+  color: #1e5000;
+  background: #58cc02;
+  box-shadow: 0 4px 0 #2b6c00;
+}
+
+#stopListeningButton {
+  flex: 1 1 10rem;
+  color: #ffffff;
+  background: #006590;
+  box-shadow: 0 4px 0 #004c6e;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 currentColor;
+}
+
+button:focus-visible {
+  outline: 3px solid #111d22;
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+#voiceStatus {
+  min-height: 1.5em;
+  color: #3f4a36;
+  font-weight: 600;
+}
+
+#voiceStatus[data-state="error"] {
+  color: #93000a;
+}
+
+#transcriptTitle {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+#speechTranscript {
+  min-height: 3.5rem;
+  margin: 0;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #e9f6fd;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.is-listening #startListeningButton {
+  background: #ddad00;
+  box-shadow: 0 4px 0 #755b00;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

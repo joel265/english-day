@@ -4,7 +4,7 @@
  * 1. multiple_choice (Kahoot)
  * 2. word_bank (Duolingo)
  * 3. text_input (Spelling/Writing)
- * 4. speech_recognition (Speaking)
+ * 4. VOICE (Speaking)
  */
 
 const QUESTION_BANK = [
@@ -48,13 +48,11 @@ const QUESTION_BANK = [
     },
     {
         id: 4,
-        type: 'speech_recognition',
+        type: 'VOICE',
         category: 'Object-Oriented Programming (OOP)',
         timeLimit: 30,
         title: 'English Pronunciation Challenge',
         prompt: 'Press the microphone and clearly pronounce this core OOP concept in English:',
-        targetText: 'Polymorphism and inheritance',
-        phoneticHint: '/ˌpɒl.iˈmɔː.fɪ.zəm ænd ɪnˈher.ɪ.təns/',
         explanation: 'Polymorphism allows objects to take multiple forms, while inheritance enables code reuse from parent classes.'
     },
     {
@@ -97,13 +95,11 @@ const QUESTION_BANK = [
     },
     {
         id: 8,
-        type: 'speech_recognition',
+        type: 'VOICE',
         category: 'DevOps & CI/CD',
         timeLimit: 30,
         title: 'Technical Speaking in English',
         prompt: 'Activate the mic and pronounce this modern DevOps workflow:',
-        targetText: 'Asynchronous JavaScript and WebSockets',
-        phoneticHint: '/eɪˈsɪŋ.krə.nəs ˈdʒɑː.və.skrɪpt ænd ˈwebˌsɒk.ɪts/',
         explanation: 'Asynchronous programming and WebSockets enable responsive, non-blocking real-time web applications.'
     }
 ];
