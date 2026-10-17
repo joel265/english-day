@@ -138,11 +138,11 @@ public class AnswerService {
     }
 
     /**
-     * Normalización avanzada (Bitácora Decisión #1):
-     * - Remueve acentos y tildes (ej. 'canción' -> 'cancion')
-     * - Convierte a minúsculas
-     * - Reduce secuencias de espacios a uno solo
-     * - Elimina signos de puntuación periféricos comunes
+     * Normalización avanzada (Bitácora Decisión #1 y Contrato Anexo B.6):
+     * 1. Quita espacios al inicio y al final, y reduce varios espacios seguidos a uno.
+     * 2. Pasa todo a minúsculas.
+     * 3. Quita tildes y otros signos diacríticos (ej. 'canción' -> 'cancion').
+     * 4. Quita la puntuación . , ; : ! ? ¿ ¡ y las comillas dobles. Se conservan el apóstrofo y el guion.
      */
     public String normalizeText(String text) {
         if (text == null) {
@@ -151,12 +151,12 @@ public class AnswerService {
         String normalized = Normalizer.normalize(text, Normalizer.Form.NFD);
         // Elimina caracteres diacríticos (tildes)
         normalized = normalized.replaceAll("\\p{M}", "");
-        // Convierte a minúsculas y limpia espacios
-        normalized = normalized.trim().toLowerCase().replaceAll("\\s+", " ");
-        // Remueve punto final si el usuario o speech-to-text lo insertó
-        if (normalized.endsWith(".")) {
-            normalized = normalized.substring(0, normalized.length() - 1).trim();
-        }
+        // Convierte a minúsculas
+        normalized = normalized.toLowerCase();
+        // Quita puntuación . , ; : ! ? ¿ ¡ y comillas dobles (conservando apóstrofo y guion)
+        normalized = normalized.replaceAll("[.,;:!?¿¡\"]", "");
+        // Limpia y reduce secuencias de espacios a uno solo
+        normalized = normalized.trim().replaceAll("\\s+", " ");
         return normalized;
     }
 
