@@ -49,7 +49,10 @@ main {
 
 .join-card,
 .lobby-card,
-.question-card {
+.question-card,
+.results-card,
+.roulette-card,
+.podium-card {
   padding: 1.25rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
@@ -708,6 +711,443 @@ h1 {
   color: #ba1a1a;
 }
 
+.results-card h1:focus-visible {
+  outline: 3px solid var(--secondary);
+  outline-offset: 4px;
+}
+
+.correct-answer-panel {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 2px solid #58cc02;
+  border-radius: 0.75rem;
+  background: #ddf4c5;
+  box-shadow: 0 4px 0 #46a302;
+}
+
+.correct-answer-label {
+  color: #1f5100;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.correct-answer-panel p {
+  margin: 0;
+  color: #1f5100;
+  font-size: 1.125rem;
+  font-weight: 800;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.leaderboard-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1.75rem 0 0.75rem;
+}
+
+.leaderboard-heading h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.leaderboard-heading > span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.leaderboard-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: leaderboard;
+}
+
+.leaderboard-entry {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  background: var(--surface);
+}
+
+.leaderboard-entry--rank-1 {
+  border-color: #ddad00;
+  background: #fff5d6;
+}
+
+.leaderboard-entry--rank-2 {
+  border-color: #becbb1;
+  background: #f2f6f0;
+}
+
+.leaderboard-entry--rank-3 {
+  border-color: #d6a17d;
+  background: #fff0e4;
+}
+
+.leaderboard-rank {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.leaderboard-entry--rank-1 .leaderboard-rank {
+  background: #ddad00;
+  color: #ffffff;
+}
+
+.leaderboard-entry--rank-2 .leaderboard-rank {
+  background: #6f7b64;
+  color: #ffffff;
+}
+
+.leaderboard-entry--rank-3 .leaderboard-rank {
+  background: #a8582a;
+  color: #ffffff;
+}
+
+.leaderboard-nickname {
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.leaderboard-score {
+  color: var(--primary-dark);
+  font-size: 0.875rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.leaderboard-empty {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 0.625rem;
+  background: var(--surface);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.results-status {
+  margin: 1.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.results-status[data-state="error"] {
+  color: #ba1a1a;
+}
+
+.roulette-card h1:focus-visible {
+  outline: 3px solid var(--secondary);
+  outline-offset: 4px;
+}
+
+.roulette-result {
+  display: grid;
+  justify-items: center;
+  margin-top: 1.5rem;
+  padding: 1.5rem 1rem;
+  border: 2px solid #ddad00;
+  border-radius: 1rem;
+  background: #fff5d6;
+  box-shadow: 0 5px 0 #ddad00;
+  text-align: center;
+  animation: roulette-reveal 450ms ease-out both;
+}
+
+.roulette-player-icon {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: 0.75rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #ddad00;
+  color: #ffffff;
+  font-size: 1.75rem;
+  box-shadow: 0 3px 0 #755b00;
+}
+
+.roulette-result-label,
+.roulette-answer-label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.roulette-player-name {
+  max-width: 100%;
+  margin: 0.35rem 0 0;
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.roulette-answer-panel {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.roulette-answer-panel p {
+  margin: 0.4rem 0 0;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.roulette-outcome {
+  margin: 1.25rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.625rem;
+  font-size: 1.125rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.roulette-outcome[data-state="correct"] {
+  background: #ddf4c5;
+  color: #1f5100;
+}
+
+.roulette-outcome[data-state="incorrect"] {
+  background: #ffdad6;
+  color: #93000a;
+}
+
+.roulette-status {
+  margin: 1rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.roulette-status[data-state="error"] {
+  color: #ba1a1a;
+}
+
+.podium-card h1:focus-visible {
+  outline: 3px solid var(--secondary);
+  outline-offset: 4px;
+}
+
+.podium-intro {
+  margin: 0.75rem 0 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.podium-winner {
+  display: grid;
+  justify-items: center;
+  margin-top: 1.5rem;
+  padding: 1.5rem 1rem;
+  border: 2px solid #ddad00;
+  border-radius: 1rem;
+  background: #fff5d6;
+  box-shadow: 0 5px 0 #ddad00;
+  text-align: center;
+  animation: roulette-reveal 450ms ease-out both;
+}
+
+.podium-crown {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: 0.75rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #ddad00;
+  box-shadow: 0 3px 0 #755b00;
+  color: #ffffff;
+  font-size: 1.75rem;
+}
+
+.podium-place-label {
+  color: #755b00;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.podium-winner-name {
+  max-width: 100%;
+  margin: 0.35rem 0 0;
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.podium-winner-score {
+  margin: 0.5rem 0 0;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: #ddad00;
+  color: #241a00;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.podium-heading {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.podium-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.podium-entry {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  background: var(--surface);
+}
+
+.podium-entry--rank-1 {
+  border-color: #ddad00;
+  background: #fff5d6;
+}
+
+.podium-entry--rank-2 {
+  border-color: #becbb1;
+  background: #f2f6f0;
+}
+
+.podium-entry--rank-3 {
+  border-color: #d6a17d;
+  background: #fff0e4;
+}
+
+.podium-rank {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.podium-entry--rank-1 .podium-rank {
+  background: #ddad00;
+  color: #ffffff;
+}
+
+.podium-entry--rank-2 .podium-rank {
+  background: #6f7b64;
+  color: #ffffff;
+}
+
+.podium-entry--rank-3 .podium-rank {
+  background: #a8582a;
+  color: #ffffff;
+}
+
+.podium-nickname {
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.podium-score {
+  color: var(--primary-dark);
+  font-size: 0.875rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.podium-empty {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 0.625rem;
+  background: var(--surface);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.podium-status {
+  margin: 1.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.podium-status[data-state="error"] {
+  color: #ba1a1a;
+}
+
+@keyframes roulette-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roulette-result,
+  .podium-winner {
+    animation: none;
+  }
+}
+
 @media (min-width: 36rem) {
   main {
     margin-top: 3rem;
@@ -715,7 +1155,10 @@ h1 {
 
   .join-card,
   .lobby-card,
-  .question-card {
+  .question-card,
+  .results-card,
+  .roulette-card,
+  .podium-card {
     padding: 2rem;
   }
 
