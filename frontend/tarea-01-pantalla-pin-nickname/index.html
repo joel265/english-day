@@ -74,6 +74,24 @@
         <progress class="question-progress" id="questionProgress" value="0" max="1" aria-label="Tiempo restante"></progress>
         <h1 class="question-prompt" id="questionPrompt" tabindex="-1"></h1>
         <ul class="question-options" id="questionOptions" aria-label="Opciones disponibles" hidden></ul>
+        <div class="word-blocks-ui" id="wordBlocksUI" hidden>
+          <section class="word-blocks-section" aria-labelledby="wordBlocksSentenceTitle">
+            <div class="word-blocks-heading">
+              <h2 id="wordBlocksSentenceTitle">Tu oración</h2>
+              <span id="wordBlocksCount" aria-live="polite">0 bloques</span>
+            </div>
+            <ul class="word-blocks-selected" id="wordBlocksSelected" aria-label="Bloques seleccionados en orden"></ul>
+            <p class="word-blocks-help">Toca un bloque de la oración para devolverlo al banco.</p>
+          </section>
+          <section class="word-blocks-section" aria-labelledby="wordBlocksBankTitle">
+            <div class="word-blocks-heading">
+              <h2 id="wordBlocksBankTitle">Banco de palabras</h2>
+              <span>Toca para agregar</span>
+            </div>
+            <ul class="word-blocks-bank" id="wordBlocksBank" aria-label="Bloques disponibles"></ul>
+          </section>
+          <button class="word-blocks-reset" id="wordBlocksReset" type="button">Reiniciar oración</button>
+        </div>
         <p class="question-answer-hint" id="questionAnswerHint" hidden></p>
         <p class="question-status" id="questionStatus" role="status" aria-live="polite"></p>
       </section>

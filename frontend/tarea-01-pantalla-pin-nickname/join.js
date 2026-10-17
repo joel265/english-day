@@ -16,10 +16,18 @@ const questionTimer = document.querySelector("#questionTimer");
 const questionProgress = document.querySelector("#questionProgress");
 const questionPrompt = document.querySelector("#questionPrompt");
 const questionOptions = document.querySelector("#questionOptions");
+const wordBlocksUI = document.querySelector("#wordBlocksUI");
+const wordBlocksSelected = document.querySelector("#wordBlocksSelected");
+const wordBlocksBank = document.querySelector("#wordBlocksBank");
+const wordBlocksCount = document.querySelector("#wordBlocksCount");
+const wordBlocksReset = document.querySelector("#wordBlocksReset");
 const questionAnswerHint = document.querySelector("#questionAnswerHint");
 const questionStatus = document.querySelector("#questionStatus");
 let lobbySocket;
 let timerInterval;
+let selectedAnswer = null;
+let selectedWordBlocks = [];
+let questionDeadline = 0;
 
 function setLobbyStatus(message, state) {
   lobbyStatus.textContent = message;
@@ -76,9 +84,86 @@ function validateQuestion(question) {
   return question;
 }
 
+function selectMultipleChoiceAnswer(button) {
+  if (selectedAnswer !== null || Date.now() >= questionDeadline || button.disabled) {
+    return;
+  }
+
+  selectedAnswer = button.dataset.answer;
+  questionOptions.querySelectorAll("button[data-answer]").forEach((option) => {
+    const isSelected = option === button;
+    option.disabled = true;
+    option.setAttribute("aria-pressed", String(isSelected));
+    option.classList.toggle("is-selected", isSelected);
+  });
+  questionStatus.textContent = "Respuesta seleccionada. Espera el resultado.";
+  questionStatus.dataset.state = "selected";
+}
+
+function renderWordBlocks(question) {
+  const selectedIndices = new Set(selectedWordBlocks);
+  wordBlocksSelected.replaceChildren();
+  wordBlocksBank.replaceChildren();
+  wordBlocksCount.textContent = `${selectedWordBlocks.length} ${selectedWordBlocks.length === 1 ? "bloque" : "bloques"}`;
+  selectedAnswer = selectedWordBlocks.map((index) => question.options[index]);
+
+  selectedWordBlocks.forEach((wordIndex, position) => {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "word-block word-block--selected";
+    button.setAttribute("aria-label", `Quitar ${question.options[wordIndex]}, posición ${position + 1}`);
+
+    const positionLabel = document.createElement("span");
+    positionLabel.className = "word-block-position";
+    positionLabel.setAttribute("aria-hidden", "true");
+    positionLabel.textContent = String(position + 1);
+
+    const word = document.createElement("span");
+    word.textContent = question.options[wordIndex];
+    button.append(positionLabel, word);
+    button.addEventListener("click", () => {
+      if (Date.now() >= questionDeadline) return;
+      selectedWordBlocks = selectedWordBlocks.filter((index) => index !== wordIndex);
+      renderWordBlocks(question);
+    });
+    item.append(button);
+    wordBlocksSelected.append(item);
+  });
+
+  question.options.forEach((option, index) => {
+    if (selectedIndices.has(index)) return;
+
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "word-block";
+    button.setAttribute("aria-label", `Agregar bloque: ${option}`);
+    button.textContent = option;
+    button.addEventListener("click", () => {
+      if (Date.now() >= questionDeadline) return;
+      selectedWordBlocks.push(index);
+      renderWordBlocks(question);
+    });
+    item.append(button);
+    wordBlocksBank.append(item);
+  });
+}
+
+function resetWordBlocks(question) {
+  if (Date.now() >= questionDeadline) return;
+  selectedWordBlocks = [];
+  selectedAnswer = [];
+  questionStatus.textContent = "";
+  questionStatus.dataset.state = "";
+  renderWordBlocks(question);
+}
+
 function renderQuestion(question) {
   validateQuestion(question);
   window.clearInterval(timerInterval);
+  selectedAnswer = null;
+  selectedWordBlocks = [];
 
   const typeLabels = {
     MULTIPLE_CHOICE: "Selección múltiple",
@@ -93,10 +178,38 @@ function renderQuestion(question) {
   questionStatus.textContent = "";
   questionStatus.dataset.state = "";
   questionOptions.replaceChildren();
-  questionOptions.hidden = question.options === null;
+  questionOptions.hidden = question.type !== "MULTIPLE_CHOICE" && question.type !== "WORD_BLOCKS";
+  wordBlocksUI.hidden = question.type !== "WORD_BLOCKS";
   questionAnswerHint.hidden = question.options !== null;
 
-  if (question.options !== null) {
+  if (question.type === "MULTIPLE_CHOICE") {
+    question.options.forEach((option, index) => {
+      const item = document.createElement("li");
+      item.className = "question-option question-option--multiple";
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `multiple-choice-option option-color-${index % 4}`;
+      button.dataset.answer = option;
+      button.setAttribute("aria-pressed", "false");
+
+      const marker = document.createElement("span");
+      marker.className = "multiple-choice-marker";
+      marker.setAttribute("aria-hidden", "true");
+      marker.textContent = index < 26 ? String.fromCharCode(65 + index) : String(index + 1);
+
+      const answer = document.createElement("span");
+      answer.textContent = option;
+
+      button.append(marker, answer);
+      button.addEventListener("click", () => selectMultipleChoiceAnswer(button));
+      item.append(button);
+      questionOptions.append(item);
+    });
+  } else if (question.type === "WORD_BLOCKS") {
+    renderWordBlocks(question);
+    wordBlocksReset.onclick = () => resetWordBlocks(question);
+  } else if (question.options !== null) {
     question.options.forEach((option) => {
       const item = document.createElement("li");
       item.className = "question-option";
@@ -109,13 +222,13 @@ function renderQuestion(question) {
       : "Prepara tu respuesta escrita.";
   }
 
-  const deadline = Date.parse(question.serverTimestamp) + question.timeLimitSeconds * 1000;
+  questionDeadline = Date.parse(question.serverTimestamp) + question.timeLimitSeconds * 1000;
   questionProgress.max = question.timeLimitSeconds;
   questionProgress.value = question.timeLimitSeconds;
   questionTimer.classList.remove("is-expired");
 
   const updateTimer = () => {
-    const secondsLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    const secondsLeft = Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000));
     const minutes = Math.floor(secondsLeft / 60);
     const seconds = secondsLeft % 60;
     questionTimer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
@@ -125,6 +238,12 @@ function renderQuestion(question) {
     if (secondsLeft === 0) {
       window.clearInterval(timerInterval);
       questionTimer.classList.add("is-expired");
+      questionOptions.querySelectorAll("button[data-answer]").forEach((option) => {
+        option.disabled = true;
+      });
+      wordBlocksUI.querySelectorAll("button").forEach((option) => {
+        option.disabled = true;
+      });
       questionStatus.textContent = "¡Se acabó el tiempo!";
       questionStatus.dataset.state = "expired";
     }
