@@ -98,4 +98,13 @@ public class GameWebSocketController {
         log.info("Mensaje WebSocket recibido en /app/room/{}/podium para emitir podio final", roomId);
         scoreService.finalizeGameAndBroadcastPodium(roomId);
     }
+
+    /**
+     * Sincroniza la lista completa de aprendices conectados en el lobby cuando un nuevo cliente
+     * termina de suscribirse al tópico /topic/room/{roomId}/lobby.
+     */
+    @MessageMapping("/room/{roomId}/lobby/sync")
+    public void syncLobby(@DestinationVariable String roomId) {
+        roomService.broadcastLobbyUpdate(roomId);
+    }
 }

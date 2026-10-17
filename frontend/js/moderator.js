@@ -71,6 +71,7 @@ function updateRoomStatusBadge(status) {
   modRoomStatus.textContent = labels[status] || status || "Sin sala activa";
 
   const hasRoom = Boolean(currentRoom?.roomId);
+  btnCreateRoom.disabled = hasRoom && status !== "FINISHED";
   btnStartGame.disabled = !hasRoom || status !== "WAITING_LOBBY";
   btnCloseQuestion.disabled = !hasRoom || status === "WAITING_LOBBY" || status === "FINISHED";
   btnActivateRoulette.disabled = !hasRoom || status === "WAITING_LOBBY" || status === "FINISHED";
@@ -318,6 +319,7 @@ function connectModeratorWebSocket(roomId) {
               `SUBSCRIBE\nid:mod-${topic}-${roomId}\ndestination:/topic/room/${roomId}/${topic}\nack:auto\n\n\0`
             );
           });
+          modSocket.send(`SEND\ndestination:/app/room/${roomId}/lobby/sync\n\n\0`);
           setFeedback("Canal WebSocket STOMP del moderador conectado en tiempo real.", "ok");
         } else if (parsed?.command === "MESSAGE") {
           try {
@@ -352,6 +354,14 @@ function attachRoomSession(roomData) {
   modPinValue.textContent = roomData.pin;
   const playerJoinLink = `${window.location.origin}/index.html?pin=${roomData.pin}`;
   modJoinUrl.textContent = `Enlace aprendices: ${playerJoinLink}`;
+  modRankingTitle.textContent = "Clasificación en Vivo";
+  modCorrectAnswerBanner.hidden = true;
+  modCorrectAnswerText.textContent = "";
+  modRankingList.replaceChildren();
+  const emptyRank = document.createElement("li");
+  emptyRank.className = "ranking-row";
+  emptyRank.textContent = "Los puntajes aparecerán al finalizar la primera pregunta.";
+  modRankingList.append(emptyRank);
   updateRoomStatusBadge(roomData.status);
   stagePhaseBadge.textContent = `Sala activa · PIN ${roomData.pin}`;
   stageMainHeading.textContent = `Únete en tu móvil con el PIN ${roomData.pin}`;
@@ -370,10 +380,9 @@ btnCreateRoom.addEventListener("click", async () => {
     }
     renderLobbyPlayers([]);
     attachRoomSession(data);
-    setFeedback(`Sala creada con éxito. PIN: ${data.pin}`, "ok");
+    setFeedback(`Sala creada con éxito (PIN: ${data.pin}). El botón 'Crear Sala' se reactivará al finalizar la partida.`, "ok");
   } catch (error) {
     setFeedback(error.message, "error");
-  } finally {
     btnCreateRoom.disabled = false;
   }
 });

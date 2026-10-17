@@ -75,6 +75,13 @@
           </div>
         </div>
         <progress class="question-progress" id="questionProgress" value="0" max="1" aria-label="Tiempo restante"></progress>
+        <div class="question-topic-banner" id="questionTopicBanner">
+          <div class="question-topic-tags">
+            <span class="topic-pill topic-pill--theme" id="questionThemeTag">📘 Grammar & Vocabulary</span>
+            <span class="topic-pill topic-pill--points" id="questionPointsTag">⚡ Hasta 1,000 pts</span>
+          </div>
+          <p class="question-mechanic-guide" id="questionMechanicGuide"></p>
+        </div>
         <h1 class="question-prompt" id="questionPrompt" tabindex="-1"></h1>
         <ul class="question-options" id="questionOptions" aria-label="Opciones disponibles" hidden></ul>
 
@@ -182,10 +189,29 @@
       </section>
 
       <section class="question-transition-card" id="questionTransitionCard" aria-live="polite" hidden>
-        <p class="eyebrow" id="transitionMechanicBadge">Nueva ronda</p>
-        <div class="transition-badge-circle" id="transitionQuestionNumber">1</div>
-        <h1 id="transitionHeading">¡Prepárate!</h1>
-        <p class="intro" id="transitionSubtext">Cargando pregunta en pantalla...</p>
+        <div class="transition-top-row">
+          <p class="eyebrow" id="transitionMechanicBadge">English Day · Nueva ronda</p>
+          <div class="transition-timer-chip">
+            <span>Iniciando en</span>
+            <strong id="transitionCountdownTimer">00:03</strong>
+          </div>
+        </div>
+        <progress class="question-progress transition-progress" id="transitionProgressBar" value="3" max="3" aria-label="Cuenta regresiva de introducción"></progress>
+        <div class="transition-badge-circle" id="transitionQuestionNumber">#1</div>
+        <h1 id="transitionHeading">¡Pregunta 1!</h1>
+        <p class="transition-subtext" id="transitionSubtext">Selección múltiple · 15 segundos</p>
+
+        <div class="transition-info-box">
+          <div class="transition-info-pills">
+            <span class="topic-pill topic-pill--theme" id="transitionThemePill">📘 Temática: Simple Present</span>
+            <span class="topic-pill topic-pill--time" id="transitionTimePill">⏱ 15s para responder</span>
+            <span class="topic-pill topic-pill--points">⚡ Máx. 1,000 pts</span>
+          </div>
+          <h2 class="transition-mechanic-title" id="transitionMechanicTitle">🔘 Dinámica: Selección Múltiple</h2>
+          <p class="transition-mechanic-desc" id="transitionMechanicDesc">
+            Lee la oración en inglés y selecciona la única opción correcta entre las 4 alternativas.
+          </p>
+        </div>
       </section>
 
       <section class="roulette-card" id="rouletteCard" aria-labelledby="rouletteTitle" hidden>

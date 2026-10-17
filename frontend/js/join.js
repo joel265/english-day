@@ -49,10 +49,20 @@ const playerVerdictDetail = document.querySelector("#playerVerdictDetail");
 const resultsTitle = document.querySelector("#resultsTitle");
 const resultsCorrectAnswer = document.querySelector("#resultsCorrectAnswer");
 const resultsTop5List = document.querySelector("#resultsTop5List");
+const questionTopicBanner = document.querySelector("#questionTopicBanner");
+const questionThemeTag = document.querySelector("#questionThemeTag");
+const questionPointsTag = document.querySelector("#questionPointsTag");
+const questionMechanicGuide = document.querySelector("#questionMechanicGuide");
 const questionTransitionCard = document.querySelector("#questionTransitionCard");
 const transitionMechanicBadge = document.querySelector("#transitionMechanicBadge");
+const transitionCountdownTimer = document.querySelector("#transitionCountdownTimer");
+const transitionProgressBar = document.querySelector("#transitionProgressBar");
 const transitionQuestionNumber = document.querySelector("#transitionQuestionNumber");
 const transitionHeading = document.querySelector("#transitionHeading");
+const transitionThemePill = document.querySelector("#transitionThemePill");
+const transitionTimePill = document.querySelector("#transitionTimePill");
+const transitionMechanicTitle = document.querySelector("#transitionMechanicTitle");
+const transitionMechanicDesc = document.querySelector("#transitionMechanicDesc");
 const transitionSubtext = document.querySelector("#transitionSubtext");
 const rouletteCard = document.querySelector("#rouletteCard");
 const rouletteTitle = document.querySelector("#rouletteTitle");
@@ -71,6 +81,7 @@ let lobbySocket;
 let timerInterval;
 let autoCloseTimeout;
 let transitionTimeout;
+let transitionInterval;
 let selectedAnswer = null;
 let selectedWordBlocks = [];
 let questionDeadline = 0;
@@ -129,6 +140,7 @@ if (urlPin && /^\d{6}$/.test(urlPin)) {
 function showOnlyCard(activeCard) {
   if (activeCard !== questionTransitionCard && activeCard !== questionCard) {
     window.clearTimeout(transitionTimeout);
+    window.clearInterval(transitionInterval);
   }
   [
     joinCard,
@@ -683,11 +695,65 @@ function resetWordBlocks(question) {
   renderWordBlocks(question);
 }
 
+function getQuestionThematicMetadata(question) {
+  const promptLower = (question.prompt || "").toLowerCase();
+  let themeLabel = "Grammar & Vocabulary · Inglés A2–B1";
+
+  if (promptLower.includes("yesterday") || promptLower.includes("last ") || promptLower.includes("went") || promptLower.includes("did")) {
+    themeLabel = "Past Simple · Eventos Pasados";
+  } else if (promptLower.includes("right now") || promptLower.includes("at the moment") || promptLower.includes("currently") || promptLower.includes("studying")) {
+    themeLabel = "Present Continuous · Acciones en Progreso";
+  } else if (promptLower.includes("every ") || promptLower.includes("always") || promptLower.includes("usually") || promptLower.includes("she ") || promptLower.includes("he ")) {
+    themeLabel = "Simple Present · Rutinas y Hábitos";
+  } else if (question.type === "WORD_BLOCKS") {
+    themeLabel = "Sentence Structure · Orden Gramatical";
+  } else if (question.type === "VOICE") {
+    themeLabel = "Speaking & Pronunciation · Expresión Oral";
+  } else if (question.type === "TEXT_INPUT") {
+    themeLabel = "Written Production · Escritura Precisa";
+  }
+
+  const mechanicsByType = {
+    MULTIPLE_CHOICE: {
+      badge: "Selección múltiple",
+      title: "🎯 Mecánica: Selección Múltiple (4 Opciones)",
+      desc: "Lee el enunciado y toca una de las 4 tarjetas (A, B, C o D). Tu respuesta se enviará inmediatamente al tocar la opción elegida.",
+      shortGuide: "💡 Cómo responder: Analiza el contexto gramatical y toca una sola tarjeta (A, B, C o D). ¡Entre más rápido aciertes, más puntos ganas!",
+    },
+    WORD_BLOCKS: {
+      badge: "Ordena los bloques",
+      title: "🧩 Mecánica: Construcción con Bloques (Word Blocks)",
+      desc: "Toca las palabras del banco inferior en el orden gramatical correcto para armar la oración en inglés y pulsa «Enviar oración».",
+      shortGuide: "💡 Cómo responder: Toca cada palabra en orden (Sujeto + Verbo + Complemento). Si te equivocas, toca un bloque superior para quitarlo y luego pulsa «Enviar oración».",
+    },
+    TEXT_INPUT: {
+      badge: "Respuesta escrita",
+      title: "✍️ Mecánica: Completar Texto en Inglés (Text Input)",
+      desc: "Escribe la palabra o forma verbal exacta que completa la oración en el campo de texto y presiona «Enviar respuesta» o Enter.",
+      shortGuide: "💡 Cómo responder: Escribe únicamente la palabra o verbo faltante en inglés (sin repetir toda la oración) y pulsa «Enviar respuesta».",
+    },
+    VOICE: {
+      badge: "Respuesta por voz",
+      title: "🎙️ Mecánica: Pronunciación por Voz (Speaking en-US)",
+      desc: "Toca el botón del micrófono, pronuncia la frase en inglés con claridad y confirma con «Enviar respuesta por voz» (o usa el teclado si no tienes micrófono).",
+      shortGuide: "💡 Cómo responder: Toca el micrófono 🎙️, pronuncia la oración en inglés y pulsa «Enviar respuesta por voz». Si deseas repetir, toca «Repetir».",
+    },
+  };
+
+  const mechanic = mechanicsByType[question.type] || mechanicsByType.MULTIPLE_CHOICE;
+
+  return {
+    themeLabel,
+    ...mechanic,
+  };
+}
+
 function renderQuestion(question) {
   validateQuestion(question);
   window.clearInterval(timerInterval);
   window.clearTimeout(autoCloseTimeout);
   window.clearTimeout(transitionTimeout);
+  window.clearInterval(transitionInterval);
   stopVoiceRecognition();
   currentQuestion = question;
   hasSubmittedAnswer = false;
@@ -695,16 +761,20 @@ function renderQuestion(question) {
   selectedAnswer = null;
   selectedWordBlocks = [];
 
-  const typeLabels = {
-    MULTIPLE_CHOICE: "Selección múltiple",
-    WORD_BLOCKS: "Ordena los bloques",
-    TEXT_INPUT: "Respuesta escrita",
-    VOICE: "Respuesta por voz",
-  };
+  const thematicMeta = getQuestionThematicMetadata(question);
 
-  questionType.textContent = typeLabels[question.type];
+  questionType.textContent = thematicMeta.badge;
   questionOrder.textContent = `Pregunta ${question.order}`;
   questionPrompt.textContent = question.prompt;
+  if (questionThemeTag) {
+    questionThemeTag.textContent = `📚 Temática: ${thematicMeta.themeLabel}`;
+  }
+  if (questionPointsTag) {
+    questionPointsTag.textContent = `⚡ Hasta 1000 pts · ${question.timeLimitSeconds}s`;
+  }
+  if (questionMechanicGuide) {
+    questionMechanicGuide.textContent = thematicMeta.shortGuide;
+  }
   questionStatus.textContent = "";
   questionStatus.dataset.state = "";
   questionOptions.replaceChildren();
@@ -760,38 +830,44 @@ function renderQuestion(question) {
     ? remainingFromServer
     : question.timeLimitSeconds;
 
-  questionDeadline = Date.now() + effectiveSeconds * 1000;
-  questionProgress.max = question.timeLimitSeconds;
-  questionProgress.value = Math.min(question.timeLimitSeconds, effectiveSeconds);
-  questionTimer.classList.remove("is-expired");
+  const startQuestionMainTimer = (secondsForQuestion) => {
+    window.clearInterval(timerInterval);
+    questionDeadline = Date.now() + secondsForQuestion * 1000;
+    questionProgress.max = question.timeLimitSeconds;
+    questionProgress.value = Math.min(question.timeLimitSeconds, secondsForQuestion);
+    questionTimer.classList.remove("is-expired");
 
-  const updateTimer = () => {
-    const secondsLeft = Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000));
-    const minutes = Math.floor(secondsLeft / 60);
-    const seconds = secondsLeft % 60;
-    const formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    questionTimer.textContent = formattedTime;
-    questionTimer.setAttribute("aria-label", `${secondsLeft} segundos restantes`);
-    questionProgress.value = secondsLeft;
-    if (waitingTimerValue) {
-      waitingTimerValue.textContent = formattedTime;
-    }
+    const updateTimer = () => {
+      const secondsLeft = Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000));
+      const minutes = Math.floor(secondsLeft / 60);
+      const seconds = secondsLeft % 60;
+      const formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      questionTimer.textContent = formattedTime;
+      questionTimer.setAttribute("aria-label", `${secondsLeft} segundos restantes`);
+      questionProgress.value = secondsLeft;
+      if (waitingTimerValue) {
+        waitingTimerValue.textContent = formattedTime;
+      }
 
-    if (secondsLeft === 0) {
-      expireQuestion();
+      if (secondsLeft === 0) {
+        expireQuestion();
+      }
+    };
+
+    updateTimer();
+    if (questionProgress.value > 0) {
+      timerInterval = window.setInterval(updateTimer, 1000);
     }
   };
-
-  updateTimer();
-  if (questionProgress.value > 0) {
-    timerInterval = window.setInterval(updateTimer, 1000);
-  }
 
   document.title = `Pregunta ${question.order} | English Day`;
 
   if (questionTransitionCard && effectiveSeconds >= 4) {
+    const introDurationSeconds = 3;
+    let introStep = introDurationSeconds;
+
     if (transitionMechanicBadge) {
-      transitionMechanicBadge.textContent = `English Day · ${typeLabels[question.type]}`;
+      transitionMechanicBadge.textContent = `English Day · ${thematicMeta.badge}`;
     }
     if (transitionQuestionNumber) {
       transitionQuestionNumber.textContent = `#${question.order}`;
@@ -799,17 +875,56 @@ function renderQuestion(question) {
     if (transitionHeading) {
       transitionHeading.textContent = `¡Pregunta ${question.order}!`;
     }
-    if (transitionSubtext) {
-      transitionSubtext.textContent = `${typeLabels[question.type]} · ${question.timeLimitSeconds} segundos`;
+    if (transitionThemePill) {
+      transitionThemePill.textContent = `📚 ${thematicMeta.themeLabel}`;
     }
+    if (transitionTimePill) {
+      transitionTimePill.textContent = `⏱ ${question.timeLimitSeconds}s para responder · 1000 pts máx.`;
+    }
+    if (transitionMechanicTitle) {
+      transitionMechanicTitle.textContent = thematicMeta.title;
+    }
+    if (transitionMechanicDesc) {
+      transitionMechanicDesc.textContent = thematicMeta.desc;
+    }
+    if (transitionSubtext) {
+      transitionSubtext.textContent = `Comenzando en ${introStep} segundos...`;
+    }
+    if (transitionCountdownTimer) {
+      transitionCountdownTimer.textContent = `00:0${introStep}`;
+    }
+    if (transitionProgressBar) {
+      transitionProgressBar.max = introDurationSeconds;
+      transitionProgressBar.value = introStep;
+    }
+
+    // Inicializar deadline temporalmente para permitir envíos inmediatos si un cliente automatizado responde durante la transición
+    startQuestionMainTimer(effectiveSeconds);
     showOnlyCard(questionTransitionCard);
+
+    transitionInterval = window.setInterval(() => {
+      introStep = Math.max(1, introStep - 1);
+      if (transitionCountdownTimer) {
+        transitionCountdownTimer.textContent = `00:0${introStep}`;
+      }
+      if (transitionProgressBar) {
+        transitionProgressBar.value = introStep;
+      }
+      if (transitionSubtext) {
+        transitionSubtext.textContent = `Comenzando en ${introStep} ${introStep === 1 ? "segundo" : "segundos"}...`;
+      }
+    }, 900);
+
     transitionTimeout = window.setTimeout(() => {
+      window.clearInterval(transitionInterval);
       if (!resultsReceivedForCurrentQuestion && !hasSubmittedAnswer) {
+        startQuestionMainTimer(question.timeLimitSeconds);
         showOnlyCard(questionCard);
         questionPrompt.focus();
       }
-    }, 850);
+    }, 2700);
   } else {
+    startQuestionMainTimer(effectiveSeconds);
     showOnlyCard(questionCard);
     questionPrompt.focus();
   }
@@ -829,6 +944,7 @@ function renderResultsScreen(payload) {
   window.clearInterval(timerInterval);
   window.clearTimeout(autoCloseTimeout);
   window.clearTimeout(transitionTimeout);
+  window.clearInterval(transitionInterval);
   stopVoiceRecognition();
 
   if (playerVerdictBanner) {
@@ -912,6 +1028,7 @@ function renderRouletteScreen(payload) {
   window.clearInterval(timerInterval);
   window.clearTimeout(autoCloseTimeout);
   window.clearTimeout(transitionTimeout);
+  window.clearInterval(transitionInterval);
   stopVoiceRecognition();
 
   const isChosen = currentPlayer && (
@@ -993,6 +1110,7 @@ function renderPodiumScreen(payload) {
   window.clearInterval(timerInterval);
   window.clearTimeout(autoCloseTimeout);
   window.clearTimeout(transitionTimeout);
+  window.clearInterval(transitionInterval);
   stopVoiceRecognition();
 
   podiumTop3List.replaceChildren();
@@ -1068,6 +1186,7 @@ function handleStompFrame(frame, roomId, currentPlayerId) {
     topics.forEach((topic) => {
       lobbySocket.send(`SUBSCRIBE\nid:${topic}-${roomId}\ndestination:/topic/room/${roomId}/${topic}\nack:auto\n\n\0`);
     });
+    lobbySocket.send(`SEND\ndestination:/app/room/${roomId}/lobby/sync\n\n\0`);
     setLobbyStatus("Conectado. Actualizando aprendices en tiempo real.", "connected");
     return;
   }
