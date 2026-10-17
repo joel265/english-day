@@ -181,19 +181,35 @@
         </div>
       </section>
 
+      <section class="question-transition-card" id="questionTransitionCard" aria-live="polite" hidden>
+        <p class="eyebrow" id="transitionMechanicBadge">Nueva ronda</p>
+        <div class="transition-badge-circle" id="transitionQuestionNumber">1</div>
+        <h1 id="transitionHeading">¡Prepárate!</h1>
+        <p class="intro" id="transitionSubtext">Cargando pregunta en pantalla...</p>
+      </section>
+
       <section class="roulette-card" id="rouletteCard" aria-labelledby="rouletteTitle" hidden>
         <p class="eyebrow">English Day · Ruleta de Retroalimentación (RF-11)</p>
-        <h1 id="rouletteTitle" tabindex="-1">¡Aprendiz seleccionado al azar!</h1>
-        <div class="roulette-wheel-banner" id="rouletteBanner">
+        <h1 id="rouletteTitle" tabindex="-1">🎡 Girando la ruleta...</h1>
+        <div class="player-roulette-canvas-wrap">
+          <canvas id="playerRouletteCanvas" width="280" height="280" aria-label="Ruleta de selección de aprendiz"></canvas>
+        </div>
+        <div class="roulette-wheel-banner" id="rouletteBanner" hidden>
           <span class="roulette-badge" id="rouletteBadge">Sorteo en vivo</span>
           <h2 class="roulette-winner-name" id="rouletteWinnerName"></h2>
         </div>
-        <div class="roulette-answer-box">
+        <div class="roulette-answer-box" id="rouletteAnswerBox" hidden>
           <span class="roulette-answer-label">Respuesta registrada</span>
           <p class="roulette-answer-value" id="rouletteAnswerValue"></p>
           <p class="roulette-answer-verdict" id="rouletteAnswerVerdict"></p>
         </div>
-        <p class="results-wait-hint">El moderador realizará la retroalimentación pedagógica con el grupo.</p>
+        <div class="next-question-wait-box" role="status" aria-live="polite">
+          <span class="wait-spinner" aria-hidden="true">⏳</span>
+          <div>
+            <strong>Retroalimentación en curso...</strong>
+            <p class="results-wait-hint">El moderador realizará la retroalimentación y avanzará a la siguiente pregunta.</p>
+          </div>
+        </div>
       </section>
 
       <section class="podium-card" id="podiumCard" aria-labelledby="podiumTitle" hidden>
@@ -204,6 +220,9 @@
         <p class="podium-total" id="podiumTotalPlayers"></p>
       </section>
     </main>
+    <script src="./js/audio.js" defer></script>
+    <script src="./js/confetti.js" defer></script>
+    <script src="./js/roulette.js" defer></script>
     <script src="./js/join.js" defer></script>
   </body>
 </html>

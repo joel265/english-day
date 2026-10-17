@@ -208,24 +208,32 @@ function renderProjectorRoulette(payload) {
   showStageSection(stageRouletteView);
 
   if (rouletteWheel) {
+    modRouletteWinner.textContent = "🎡 Girando la ruleta...";
+    modRouletteAnswer.textContent = "Sorteando entre los participantes...";
+    modRouletteVerdict.textContent = "";
+
     const wheelPlayers = connectedPlayers.length > 0
       ? connectedPlayers.map((p) => ({ name: p.nickname }))
-      : [{ name: payload.nickname }];
+      : [];
+    if (!wheelPlayers.some((p) => p.name.toLowerCase() === payload.nickname.toLowerCase())) {
+      wheelPlayers.push({ name: payload.nickname });
+    }
+    rouletteWheel.resize(340);
     rouletteWheel.setPlayers(wheelPlayers);
     rouletteWheel.spin(() => {
-      modRouletteWinner.textContent = payload.nickname;
+      modRouletteWinner.textContent = `🎯 ${payload.nickname}`;
       modRouletteAnswer.textContent = payload.value ? `"${payload.value}"` : "Sin respuesta enviada";
       modRouletteVerdict.textContent = payload.isCorrect
         ? "✔ Respuesta correcta"
         : "✖ Oportunidad de retroalimentación pedagógica";
-    });
+    }, payload.nickname);
+  } else {
+    modRouletteWinner.textContent = payload.nickname;
+    modRouletteAnswer.textContent = payload.value ? `"${payload.value}"` : "Sin respuesta enviada";
+    modRouletteVerdict.textContent = payload.isCorrect
+      ? "✔ Respuesta correcta"
+      : "✖ Oportunidad de retroalimentación pedagógica";
   }
-
-  modRouletteWinner.textContent = payload.nickname;
-  modRouletteAnswer.textContent = payload.value ? `"${payload.value}"` : "Sin respuesta enviada";
-  modRouletteVerdict.textContent = payload.isCorrect
-    ? "✔ Respuesta correcta"
-    : "✖ Oportunidad de retroalimentación pedagógica";
 }
 
 function renderProjectorPodium(payload) {

@@ -49,8 +49,15 @@ const playerVerdictDetail = document.querySelector("#playerVerdictDetail");
 const resultsTitle = document.querySelector("#resultsTitle");
 const resultsCorrectAnswer = document.querySelector("#resultsCorrectAnswer");
 const resultsTop5List = document.querySelector("#resultsTop5List");
+const questionTransitionCard = document.querySelector("#questionTransitionCard");
+const transitionMechanicBadge = document.querySelector("#transitionMechanicBadge");
+const transitionQuestionNumber = document.querySelector("#transitionQuestionNumber");
+const transitionHeading = document.querySelector("#transitionHeading");
+const transitionSubtext = document.querySelector("#transitionSubtext");
 const rouletteCard = document.querySelector("#rouletteCard");
 const rouletteTitle = document.querySelector("#rouletteTitle");
+const rouletteBanner = document.querySelector("#rouletteBanner");
+const rouletteAnswerBox = document.querySelector("#rouletteAnswerBox");
 const rouletteBadge = document.querySelector("#rouletteBadge");
 const rouletteWinnerName = document.querySelector("#rouletteWinnerName");
 const rouletteAnswerValue = document.querySelector("#rouletteAnswerValue");
@@ -63,6 +70,7 @@ const podiumTotalPlayers = document.querySelector("#podiumTotalPlayers");
 let lobbySocket;
 let timerInterval;
 let autoCloseTimeout;
+let transitionTimeout;
 let selectedAnswer = null;
 let selectedWordBlocks = [];
 let questionDeadline = 0;
@@ -74,6 +82,14 @@ let resultsReceivedForCurrentQuestion = false;
 let speechRecognition = null;
 let isRecordingVoice = false;
 let finalVoiceTranscript = "";
+let knownRoomPlayers = [];
+let playerRouletteWheel = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (window.ActiveFeedbackRoulette) {
+    playerRouletteWheel = new window.ActiveFeedbackRoulette("playerRouletteCanvas");
+  }
+});
 
 // Navegación cómoda entre los 6 dígitos del PIN
 pinInputs.forEach((input, index) => {
@@ -111,8 +127,27 @@ if (urlPin && /^\d{6}$/.test(urlPin)) {
 }
 
 function showOnlyCard(activeCard) {
-  [joinCard, lobbyCard, questionCard, waitingAnswerCard, resultsCard, rouletteCard, podiumCard].forEach((card) => {
-    if (card) card.hidden = card !== activeCard;
+  if (activeCard !== questionTransitionCard && activeCard !== questionCard) {
+    window.clearTimeout(transitionTimeout);
+  }
+  [
+    joinCard,
+    lobbyCard,
+    questionTransitionCard,
+    questionCard,
+    waitingAnswerCard,
+    resultsCard,
+    rouletteCard,
+    podiumCard,
+  ].forEach((card) => {
+    if (!card) return;
+    const isTarget = card === activeCard;
+    card.hidden = !isTarget;
+    card.classList.remove("card-enter");
+    if (isTarget) {
+      void card.offsetWidth;
+      card.classList.add("card-enter");
+    }
   });
 }
 
@@ -513,10 +548,12 @@ function setLobbyStatus(message, state) {
 
 function renderLobbyPlayers(players, currentPlayerId) {
   lobbyPlayers.replaceChildren();
+  knownRoomPlayers = players.map((p) => ({ name: p.nickname }));
 
-  players.forEach((player) => {
+  players.forEach((player, index) => {
     const item = document.createElement("li");
-    item.className = "lobby-player";
+    item.className = "lobby-player stagger-item";
+    item.style.animationDelay = `${index * 55}ms`;
     item.textContent = player.nickname;
 
     if (player.playerId === currentPlayerId) {
@@ -530,6 +567,9 @@ function renderLobbyPlayers(players, currentPlayerId) {
   });
 
   playerCount.textContent = String(players.length);
+  if (playerRouletteWheel && knownRoomPlayers.length > 0) {
+    playerRouletteWheel.setPlayers(knownRoomPlayers);
+  }
 }
 
 function validateQuestion(question) {
@@ -616,6 +656,8 @@ function renderWordBlocks(question) {
     if (selectedIndices.has(index)) return;
 
     const item = document.createElement("li");
+    item.className = "stagger-item";
+    item.style.animationDelay = `${index * 45}ms`;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "word-block";
@@ -645,6 +687,7 @@ function renderQuestion(question) {
   validateQuestion(question);
   window.clearInterval(timerInterval);
   window.clearTimeout(autoCloseTimeout);
+  window.clearTimeout(transitionTimeout);
   stopVoiceRecognition();
   currentQuestion = question;
   hasSubmittedAnswer = false;
@@ -681,7 +724,8 @@ function renderQuestion(question) {
   if (question.type === "MULTIPLE_CHOICE") {
     question.options.forEach((option, index) => {
       const item = document.createElement("li");
-      item.className = "question-option question-option--multiple";
+      item.className = "question-option question-option--multiple stagger-item";
+      item.style.animationDelay = `${index * 70}ms`;
 
       const button = document.createElement("button");
       button.type = "button";
@@ -743,9 +787,32 @@ function renderQuestion(question) {
     timerInterval = window.setInterval(updateTimer, 1000);
   }
 
-  showOnlyCard(questionCard);
   document.title = `Pregunta ${question.order} | English Day`;
-  questionPrompt.focus();
+
+  if (questionTransitionCard && effectiveSeconds >= 4) {
+    if (transitionMechanicBadge) {
+      transitionMechanicBadge.textContent = `English Day · ${typeLabels[question.type]}`;
+    }
+    if (transitionQuestionNumber) {
+      transitionQuestionNumber.textContent = `#${question.order}`;
+    }
+    if (transitionHeading) {
+      transitionHeading.textContent = `¡Pregunta ${question.order}!`;
+    }
+    if (transitionSubtext) {
+      transitionSubtext.textContent = `${typeLabels[question.type]} · ${question.timeLimitSeconds} segundos`;
+    }
+    showOnlyCard(questionTransitionCard);
+    transitionTimeout = window.setTimeout(() => {
+      if (!resultsReceivedForCurrentQuestion && !hasSubmittedAnswer) {
+        showOnlyCard(questionCard);
+        questionPrompt.focus();
+      }
+    }, 850);
+  } else {
+    showOnlyCard(questionCard);
+    questionPrompt.focus();
+  }
 }
 
 /**
@@ -761,6 +828,7 @@ function renderResultsScreen(payload) {
   resultsReceivedForCurrentQuestion = true;
   window.clearInterval(timerInterval);
   window.clearTimeout(autoCloseTimeout);
+  window.clearTimeout(transitionTimeout);
   stopVoiceRecognition();
 
   if (playerVerdictBanner) {
@@ -784,6 +852,9 @@ function renderResultsScreen(payload) {
       if (playerVerdictDetail) {
         playerVerdictDetail.textContent = `Tu respuesta: "${formatAnswerDisplay(selectedAnswer)}"`;
       }
+      if (isCorrect && window.confetti) {
+        window.confetti.burst(window.innerWidth / 2, window.innerHeight / 3, 45);
+      }
     }
   }
 
@@ -797,8 +868,12 @@ function renderResultsScreen(payload) {
     resultsTop5List.append(emptyItem);
   } else {
     payload.top5.forEach((entry, index) => {
+      if (entry.nickname && !knownRoomPlayers.some((p) => p.name === entry.nickname)) {
+        knownRoomPlayers.push({ name: entry.nickname });
+      }
       const item = document.createElement("li");
-      item.className = "leaderboard-item";
+      item.className = "leaderboard-item stagger-item";
+      item.style.animationDelay = `${index * 65}ms`;
       if (currentPlayer && entry.nickname === currentPlayer.nickname) {
         item.classList.add("is-current-player");
       }
@@ -835,6 +910,8 @@ function renderRouletteScreen(payload) {
   }
 
   window.clearInterval(timerInterval);
+  window.clearTimeout(autoCloseTimeout);
+  window.clearTimeout(transitionTimeout);
   stopVoiceRecognition();
 
   const isChosen = currentPlayer && (
@@ -855,6 +932,51 @@ function renderRouletteScreen(payload) {
 
   showOnlyCard(rouletteCard);
   document.title = "Ruleta de Retroalimentación | English Day";
+
+  if (!playerRouletteWheel && window.ActiveFeedbackRoulette) {
+    playerRouletteWheel = new window.ActiveFeedbackRoulette("playerRouletteCanvas");
+  }
+
+  if (playerRouletteWheel) {
+    if (rouletteTitle) rouletteTitle.textContent = "🎡 Girando la ruleta...";
+    if (rouletteBanner) rouletteBanner.hidden = true;
+    if (rouletteAnswerBox) rouletteAnswerBox.hidden = true;
+
+    const wheelList = knownRoomPlayers.length > 0 ? [...knownRoomPlayers] : [];
+    if (!wheelList.some((p) => p.name.toLowerCase() === payload.nickname.toLowerCase())) {
+      wheelList.push({ name: payload.nickname });
+    }
+    if (wheelList.length === 1 && currentPlayer?.nickname && currentPlayer.nickname !== payload.nickname) {
+      wheelList.push({ name: currentPlayer.nickname });
+    }
+
+    playerRouletteWheel.resize(260);
+    playerRouletteWheel.setPlayers(wheelList);
+    playerRouletteWheel.spin(() => {
+      if (rouletteTitle) {
+        rouletteTitle.textContent = isChosen
+          ? "🎯 ¡Fuiste seleccionado por la ruleta!"
+          : "🎯 ¡Aprendiz seleccionado al azar!";
+      }
+      if (rouletteBanner) {
+        rouletteBanner.hidden = false;
+        rouletteBanner.classList.remove("card-enter");
+        void rouletteBanner.offsetWidth;
+        rouletteBanner.classList.add("card-enter");
+      }
+      if (rouletteAnswerBox) {
+        rouletteAnswerBox.hidden = false;
+        rouletteAnswerBox.classList.remove("card-enter");
+        void rouletteAnswerBox.offsetWidth;
+        rouletteAnswerBox.classList.add("card-enter");
+      }
+    }, payload.nickname);
+  } else {
+    if (rouletteTitle) rouletteTitle.textContent = "¡Aprendiz seleccionado al azar!";
+    if (rouletteBanner) rouletteBanner.hidden = false;
+    if (rouletteAnswerBox) rouletteAnswerBox.hidden = false;
+  }
+
   rouletteTitle?.focus();
 }
 
@@ -869,6 +991,8 @@ function renderPodiumScreen(payload) {
   }
 
   window.clearInterval(timerInterval);
+  window.clearTimeout(autoCloseTimeout);
+  window.clearTimeout(transitionTimeout);
   stopVoiceRecognition();
 
   podiumTop3List.replaceChildren();
@@ -882,7 +1006,8 @@ function renderPodiumScreen(payload) {
   } else {
     top3.forEach((entry, index) => {
       const item = document.createElement("li");
-      item.className = `podium-item podium-place-${index + 1}`;
+      item.className = `podium-item podium-place-${index + 1} stagger-item`;
+      item.style.animationDelay = `${index * 110}ms`;
       if (currentPlayer && entry.nickname === currentPlayer.nickname) {
         item.classList.add("is-current-player");
       }
