@@ -21,6 +21,9 @@ const wordBlocksSelected = document.querySelector("#wordBlocksSelected");
 const wordBlocksBank = document.querySelector("#wordBlocksBank");
 const wordBlocksCount = document.querySelector("#wordBlocksCount");
 const wordBlocksReset = document.querySelector("#wordBlocksReset");
+const textInputUI = document.querySelector("#textInputUI");
+const textAnswer = document.querySelector("#textAnswer");
+const textAnswerClear = document.querySelector("#textAnswerClear");
 const questionAnswerHint = document.querySelector("#questionAnswerHint");
 const questionStatus = document.querySelector("#questionStatus");
 let lobbySocket;
@@ -28,6 +31,41 @@ let timerInterval;
 let selectedAnswer = null;
 let selectedWordBlocks = [];
 let questionDeadline = 0;
+
+function expireQuestion() {
+  window.clearInterval(timerInterval);
+  questionTimer.textContent = "00:00";
+  questionTimer.setAttribute("aria-label", "0 segundos restantes");
+  questionProgress.value = 0;
+  questionTimer.classList.add("is-expired");
+  questionOptions.querySelectorAll("button").forEach((option) => {
+    option.disabled = true;
+  });
+  wordBlocksUI.querySelectorAll("button").forEach((option) => {
+    option.disabled = true;
+  });
+  textAnswer.disabled = true;
+  textAnswerClear.disabled = true;
+  questionStatus.textContent = "¡Se acabó el tiempo!";
+  questionStatus.dataset.state = "expired";
+}
+
+function clearTextAnswer() {
+  if (Date.now() >= questionDeadline || textAnswer.disabled) return;
+  textAnswer.value = "";
+  textAnswerClear.hidden = true;
+  textAnswer.focus();
+}
+
+textAnswer.addEventListener("input", () => {
+  if (Date.now() >= questionDeadline) {
+    expireQuestion();
+    return;
+  }
+
+  textAnswerClear.hidden = textAnswer.value.length === 0;
+});
+textAnswerClear.addEventListener("click", clearTextAnswer);
 
 function setLobbyStatus(message, state) {
   lobbyStatus.textContent = message;
@@ -180,7 +218,12 @@ function renderQuestion(question) {
   questionOptions.replaceChildren();
   questionOptions.hidden = question.type !== "MULTIPLE_CHOICE" && question.type !== "WORD_BLOCKS";
   wordBlocksUI.hidden = question.type !== "WORD_BLOCKS";
-  questionAnswerHint.hidden = question.options !== null;
+  textInputUI.hidden = question.type !== "TEXT_INPUT";
+  textAnswer.value = "";
+  textAnswer.disabled = false;
+  textAnswerClear.hidden = true;
+  textAnswerClear.disabled = false;
+  questionAnswerHint.hidden = question.options !== null || question.type === "TEXT_INPUT";
 
   if (question.type === "MULTIPLE_CHOICE") {
     question.options.forEach((option, index) => {
@@ -236,16 +279,7 @@ function renderQuestion(question) {
     questionProgress.value = secondsLeft;
 
     if (secondsLeft === 0) {
-      window.clearInterval(timerInterval);
-      questionTimer.classList.add("is-expired");
-      questionOptions.querySelectorAll("button[data-answer]").forEach((option) => {
-        option.disabled = true;
-      });
-      wordBlocksUI.querySelectorAll("button").forEach((option) => {
-        option.disabled = true;
-      });
-      questionStatus.textContent = "¡Se acabó el tiempo!";
-      questionStatus.dataset.state = "expired";
+      expireQuestion();
     }
   };
 
