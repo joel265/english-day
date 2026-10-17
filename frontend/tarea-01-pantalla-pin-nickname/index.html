@@ -146,6 +146,22 @@
         <p class="roulette-outcome" id="rouletteOutcome" role="status" aria-live="polite"></p>
         <p class="roulette-status" id="rouletteStatus" role="status" aria-live="polite"></p>
       </section>
+
+      <section class="podium-card" id="podiumCard" aria-labelledby="podiumTitle" hidden>
+        <p class="eyebrow">English Day · Partida finalizada</p>
+        <h1 id="podiumTitle" tabindex="-1">¡Juego terminado!</h1>
+        <p class="podium-intro" id="podiumSummary"></p>
+        <div class="podium-winner" id="podiumWinner" hidden>
+          <span class="podium-crown" aria-hidden="true">★</span>
+          <span class="podium-place-label">Campeón</span>
+          <p class="podium-winner-name" id="podiumWinnerName"></p>
+          <p class="podium-winner-score" id="podiumWinnerScore"></p>
+        </div>
+        <h2 class="podium-heading">Podio final</h2>
+        <ol class="podium-list" id="podiumList" aria-label="Podio final de los tres mejores aprendices"></ol>
+        <p class="podium-empty" id="podiumEmpty" hidden>No hay participantes con puntaje para mostrar.</p>
+        <p class="podium-status" id="podiumStatus" role="status" aria-live="polite"></p>
+      </section>
     </main>
     <script src="./join.js" defer></script>
   </body>

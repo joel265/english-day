@@ -26,6 +26,14 @@ const roulettePlayerName = document.querySelector("#roulettePlayerName");
 const rouletteAnswer = document.querySelector("#rouletteAnswer");
 const rouletteOutcome = document.querySelector("#rouletteOutcome");
 const rouletteStatus = document.querySelector("#rouletteStatus");
+const podiumCard = document.querySelector("#podiumCard");
+const podiumSummary = document.querySelector("#podiumSummary");
+const podiumWinner = document.querySelector("#podiumWinner");
+const podiumWinnerName = document.querySelector("#podiumWinnerName");
+const podiumWinnerScore = document.querySelector("#podiumWinnerScore");
+const podiumList = document.querySelector("#podiumList");
+const podiumEmpty = document.querySelector("#podiumEmpty");
+const podiumStatus = document.querySelector("#podiumStatus");
 const wordBlocksUI = document.querySelector("#wordBlocksUI");
 const wordBlocksSelected = document.querySelector("#wordBlocksSelected");
 const wordBlocksBank = document.querySelector("#wordBlocksBank");
@@ -212,6 +220,7 @@ function renderQuestion(question) {
   window.clearInterval(timerInterval);
   resultsCard.hidden = true;
   rouletteCard.hidden = true;
+  podiumCard.hidden = true;
   questionCard.hidden = false;
   selectedAnswer = null;
   selectedWordBlocks = [];
@@ -335,6 +344,7 @@ function renderResults(results) {
   questionStatus.textContent = "La pregunta ha finalizado.";
   questionStatus.dataset.state = "";
   rouletteCard.hidden = true;
+  podiumCard.hidden = true;
 
   correctAnswer.textContent = results.correctAnswer;
   leaderboardList.replaceChildren();
@@ -394,6 +404,7 @@ function renderRouletteResult(result, roomId) {
   window.clearInterval(timerInterval);
   questionCard.hidden = true;
   resultsCard.hidden = true;
+  podiumCard.hidden = true;
   lobbyCard.hidden = true;
 
   questionOptions.querySelectorAll("button").forEach((option) => {
@@ -421,6 +432,82 @@ function renderRouletteResult(result, roomId) {
   rouletteCard.hidden = false;
   document.title = "Ruleta de retroalimentación | English Day";
   document.querySelector("#rouletteTitle").focus();
+}
+
+function validatePodium(podium, roomId) {
+  const entries = podium?.top3 ?? podium?.podium;
+
+  if (!podium || typeof podium !== "object" || Array.isArray(podium)
+    || podium.roomId !== roomId
+    || podium.status !== "FINISHED"
+    || !Array.isArray(entries) || entries.length > 3
+    || !Number.isSafeInteger(podium.totalPlayers) || podium.totalPlayers < 0
+    || typeof podium.timestamp !== "string"
+    || !Number.isFinite(Date.parse(podium.timestamp))
+    || entries.length > podium.totalPlayers
+    || entries.some((entry) =>
+      !entry || typeof entry.nickname !== "string" || !entry.nickname.trim()
+      || !Number.isSafeInteger(entry.score) || entry.score < 0
+    )) {
+    throw new Error("El servidor envió un podio final inválido.");
+  }
+
+  return entries;
+}
+
+function renderPodium(podium, roomId) {
+  const entries = validatePodium(podium, roomId);
+  window.clearInterval(timerInterval);
+  questionCard.hidden = true;
+  resultsCard.hidden = true;
+  rouletteCard.hidden = true;
+  lobbyCard.hidden = true;
+
+  questionOptions.querySelectorAll("button").forEach((option) => {
+    option.disabled = true;
+  });
+  wordBlocksUI.querySelectorAll("button").forEach((option) => {
+    option.disabled = true;
+  });
+  textAnswer.disabled = true;
+  textAnswerClear.disabled = true;
+
+  podiumSummary.textContent = `Gracias por jugar. Participaron ${podium.totalPlayers} ${podium.totalPlayers === 1 ? "aprendiz" : "aprendices"}.`;
+  podiumList.replaceChildren();
+  podiumWinner.hidden = entries.length === 0;
+  podiumEmpty.hidden = entries.length > 0;
+  podiumStatus.textContent = "";
+  podiumStatus.dataset.state = "";
+
+  if (entries.length > 0) {
+    podiumWinnerName.textContent = entries[0].nickname;
+    podiumWinnerScore.textContent = `${entries[0].score.toLocaleString("es-CO")} pts`;
+  }
+
+  entries.forEach((entry, index) => {
+    const item = document.createElement("li");
+    item.className = `podium-entry podium-entry--rank-${index + 1}`;
+
+    const rank = document.createElement("span");
+    rank.className = "podium-rank";
+    rank.setAttribute("aria-label", `Puesto ${index + 1}`);
+    rank.textContent = String(index + 1);
+
+    const nickname = document.createElement("span");
+    nickname.className = "podium-nickname";
+    nickname.textContent = entry.nickname;
+
+    const score = document.createElement("span");
+    score.className = "podium-score";
+    score.textContent = `${entry.score.toLocaleString("es-CO")} pts`;
+
+    item.append(rank, nickname, score);
+    podiumList.append(item);
+  });
+
+  podiumCard.hidden = false;
+  document.title = "Podio final | English Day";
+  document.querySelector("#podiumTitle").focus();
 }
 
 function parseStompMessage(frame) {
@@ -451,6 +538,7 @@ function handleStompFrame(frame, roomId, currentPlayerId) {
     lobbySocket.send(`SUBSCRIBE\nid:question-${roomId}\ndestination:/topic/room/${roomId}/question\nack:auto\n\n\0`);
     lobbySocket.send(`SUBSCRIBE\nid:results-${roomId}\ndestination:/topic/room/${roomId}/results\nack:auto\n\n\0`);
     lobbySocket.send(`SUBSCRIBE\nid:roulette-${roomId}\ndestination:/topic/room/${roomId}/roulette\nack:auto\n\n\0`);
+    lobbySocket.send(`SUBSCRIBE\nid:podium-${roomId}\ndestination:/topic/room/${roomId}/podium\nack:auto\n\n\0`);
     setLobbyStatus("Conectado. Actualizando aprendices en tiempo real.", "connected");
     return;
   }
@@ -478,6 +566,8 @@ function handleStompFrame(frame, roomId, currentPlayerId) {
       renderResults(payload);
     } else if (destination === `/topic/room/${roomId}/roulette`) {
       renderRouletteResult(payload, roomId);
+    } else if (destination === `/topic/room/${roomId}/podium`) {
+      renderPodium(payload, roomId);
     } else {
       throw new Error("El servidor envió un mensaje desde un canal no esperado.");
     }
@@ -490,7 +580,10 @@ function handleStompFrame(frame, roomId, currentPlayerId) {
 }
 
 function showConnectionError(message) {
-  if (!rouletteCard.hidden) {
+  if (!podiumCard.hidden) {
+    podiumStatus.textContent = message;
+    podiumStatus.dataset.state = "error";
+  } else if (!rouletteCard.hidden) {
     rouletteStatus.textContent = message;
     rouletteStatus.dataset.state = "error";
   } else if (!resultsCard.hidden) {
@@ -544,7 +637,8 @@ function subscribeToLobby(roomId, currentPlayer) {
     if (lobbyStatus.dataset.state !== "error"
       && questionStatus.dataset.state !== "error"
       && resultsStatus.dataset.state !== "error"
-      && rouletteStatus.dataset.state !== "error") {
+      && rouletteStatus.dataset.state !== "error"
+      && podiumStatus.dataset.state !== "error") {
       showConnectionError("Se perdió la conexión con la partida. Actualiza la página para volver a ingresar.");
     }
   });
