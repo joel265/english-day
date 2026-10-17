@@ -1,7 +1,9 @@
 package com.senadso.englishday.service;
 
 import com.senadso.englishday.dto.LeaderboardEntryDto;
+import com.senadso.englishday.dto.PodiumResponse;
 import com.senadso.englishday.dto.QuestionResultsResponse;
+import com.senadso.englishday.model.enums.RoomStatus;
 import com.senadso.englishday.model.Player;
 import com.senadso.englishday.model.Question;
 import com.senadso.englishday.model.Room;
@@ -158,6 +160,87 @@ class ScoreServiceTest {
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/room/" + roomId + "/results"),
                 eq(response)
+        );
+    }
+
+    @Test
+    @DisplayName("Tarea 11 / RF-10: getTop3Podium retorna exactamente los 3 mejores jugadores ordenados")
+    void testGetTop3Podium() {
+        String roomId = "room-test-11";
+        List<Player> top3Players = List.of(
+                Player.builder().playerId("p1").nickname("camilo_dev").totalScore(5000).build(),
+                Player.builder().playerId("p2").nickname("laura_eng").totalScore(4500).build(),
+                Player.builder().playerId("p3").nickname("andres_code").totalScore(4000).build()
+        );
+        when(playerRepository.findTop3ByRoom_RoomIdOrderByTotalScoreDesc(roomId)).thenReturn(top3Players);
+
+        List<LeaderboardEntryDto> podium = scoreService.getTop3Podium(roomId);
+
+        assertThat(podium).hasSize(3);
+        assertThat(podium.get(0).getNickname()).isEqualTo("camilo_dev");
+        assertThat(podium.get(0).getScore()).isEqualTo(5000);
+        assertThat(podium.get(1).getNickname()).isEqualTo("laura_eng");
+        assertThat(podium.get(1).getScore()).isEqualTo(4500);
+        assertThat(podium.get(2).getNickname()).isEqualTo("andres_code");
+        assertThat(podium.get(2).getScore()).isEqualTo(4000);
+    }
+
+    @Test
+    @DisplayName("Tarea 11 / CU-06: getPodiumResults retorna DTO completo con Top 3 y total de jugadores")
+    void testGetPodiumResults() {
+        String roomId = "room-test-11";
+        Room room = Room.builder().roomId(roomId).status(RoomStatus.FINISHED).build();
+        when(roomRepository.findById(roomId)).thenReturn(Optional.of(room));
+
+        List<Player> top3Players = List.of(
+                Player.builder().playerId("p1").nickname("camilo_dev").totalScore(5000).build()
+        );
+        when(playerRepository.findTop3ByRoom_RoomIdOrderByTotalScoreDesc(roomId)).thenReturn(top3Players);
+        when(playerRepository.findByRoom_RoomId(roomId)).thenReturn(top3Players);
+
+        PodiumResponse response = scoreService.getPodiumResults(roomId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRoomId()).isEqualTo(roomId);
+        assertThat(response.getStatus()).isEqualTo(RoomStatus.FINISHED);
+        assertThat(response.getTop3()).hasSize(1);
+        assertThat(response.getTotalPlayers()).isEqualTo(1);
+        assertThat(response.getTimestamp()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Tarea 11 / RF-10 / CP-11: finalizeGameAndBroadcastPodium actualiza a FINISHED y emite a /topic/room/{roomId}/podium")
+    void testFinalizeGameAndBroadcastPodium() {
+        String roomId = "room-test-11";
+        Room room = Room.builder().roomId(roomId).status(RoomStatus.QUESTION_IN_PROGRESS).build();
+        when(roomRepository.findById(roomId)).thenReturn(Optional.of(room));
+        when(roomRepository.save(any(Room.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<Player> top3Players = List.of(
+                Player.builder().playerId("p1").nickname("gold_winner").totalScore(6000).build(),
+                Player.builder().playerId("p2").nickname("silver_winner").totalScore(5500).build(),
+                Player.builder().playerId("p3").nickname("bronze_winner").totalScore(4800).build()
+        );
+        when(playerRepository.findTop3ByRoom_RoomIdOrderByTotalScoreDesc(roomId)).thenReturn(top3Players);
+        when(playerRepository.findByRoom_RoomId(roomId)).thenReturn(top3Players);
+
+        PodiumResponse response = scoreService.finalizeGameAndBroadcastPodium(roomId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRoomId()).isEqualTo(roomId);
+        assertThat(response.getStatus()).isEqualTo(RoomStatus.FINISHED);
+        assertThat(response.getTop3()).hasSize(3);
+
+        // Validar emisión de podio a /topic/room/{roomId}/podium
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/room/" + roomId + "/podium"),
+                eq(response)
+        );
+
+        // Validar emisión de estado a /topic/room/{roomId}/status
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/room/" + roomId + "/status"),
+                eq(java.util.Map.of("status", "FINISHED"))
         );
     }
 }

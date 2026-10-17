@@ -1,12 +1,15 @@
 package com.senadso.englishday.service;
 
 import com.senadso.englishday.dto.LeaderboardEntryDto;
+import com.senadso.englishday.dto.PodiumResponse;
 import com.senadso.englishday.dto.QuestionResultsResponse;
+import com.senadso.englishday.exception.RoomNotFoundException;
 import com.senadso.englishday.model.Player;
 import com.senadso.englishday.model.Question;
 import com.senadso.englishday.model.Room;
 import com.senadso.englishday.model.Score;
 import com.senadso.englishday.model.ScoreId;
+import com.senadso.englishday.model.enums.RoomStatus;
 import com.senadso.englishday.repository.PlayerRepository;
 import com.senadso.englishday.repository.QuestionRepository;
 import com.senadso.englishday.repository.RoomRepository;
@@ -17,7 +20,10 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Servicio de lógica de negocio para el cálculo de puntajes y gestión de clasificaciones.
@@ -166,5 +172,91 @@ public class ScoreService {
                 roomId, question.getPrompt(), top5.size());
 
         return response;
+    }
+
+    /**
+     * Obtiene el Top 3 de aprendices con mayor puntaje en la sala para el podio final (RF-10 / CU-06).
+     *
+     * @param roomId Identificador UUID de la sala.
+     * @return Lista de hasta 3 participantes ordenados descendentemente por puntaje.
+     */
+    @Transactional(readOnly = true)
+    public List<LeaderboardEntryDto> getTop3Podium(String roomId) {
+        return playerRepository.findTop3ByRoom_RoomIdOrderByTotalScoreDesc(roomId)
+                .stream()
+                .map(player -> LeaderboardEntryDto.builder()
+                        .nickname(player.getNickname())
+                        .score(player.getTotalScore())
+                        .build())
+                .toList();
+    }
+
+    /**
+     * Obtiene el podio final actual de la sala (Top 3) para la consulta REST (RF-10 / CU-06).
+     * Ruta: GET /api/rooms/{roomId}/results (Contrato §3).
+     *
+     * @param roomId Identificador UUID de la sala.
+     * @return DTO con el Top 3, cantidad total de jugadores y metadatos.
+     */
+    @Transactional(readOnly = true)
+    public PodiumResponse getPodiumResults(String roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("Sala no encontrada"));
+
+        List<LeaderboardEntryDto> top3 = getTop3Podium(roomId);
+        int totalPlayers = playerRepository.findByRoom_RoomId(roomId).size();
+
+        return PodiumResponse.builder()
+                .roomId(room.getRoomId())
+                .status(room.getStatus())
+                .top3(top3)
+                .totalPlayers(totalPlayers)
+                .timestamp(LocalDateTime.now(ZoneOffset.UTC))
+                .build();
+    }
+
+    /**
+     * Finaliza oficialmente la partida, actualiza los rankings finales en base de datos,
+     * cambia el estado de la sala a FINISHED y emite el podio final vía WebSocket STOMP
+     * a /topic/room/{roomId}/podium y /topic/room/{roomId}/status (RF-10 / CU-06 / CP-11).
+     *
+     * @param roomId Identificador UUID de la sala.
+     * @return DTO emitido con el Top 3 de ganadores.
+     */
+    @Transactional
+    public PodiumResponse finalizeGameAndBroadcastPodium(String roomId) {
+        // 1. Obtener la sala
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("Sala no encontrada"));
+
+        // 2. Transicionar estado a FINISHED
+        room.setStatus(RoomStatus.FINISHED);
+        Room savedRoom = roomRepository.save(room);
+
+        // 3. Recalcular puestos finales en la entidad Score
+        updateRoomRanks(roomId);
+
+        // 4. Obtener el podio Top 3 y total de jugadores
+        List<LeaderboardEntryDto> top3 = getTop3Podium(roomId);
+        int totalPlayers = playerRepository.findByRoom_RoomId(roomId).size();
+
+        // 5. Construir payload del podio
+        PodiumResponse podiumResponse = PodiumResponse.builder()
+                .roomId(savedRoom.getRoomId())
+                .status(savedRoom.getStatus())
+                .top3(top3)
+                .totalPlayers(totalPlayers)
+                .timestamp(LocalDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        // 6. Emitir cambio de estado a FINISHED en /topic/room/{roomId}/status
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/status",
+                Map.of("status", RoomStatus.FINISHED.name()));
+
+        // 7. Emitir el podio al canal de difusión /topic/room/{roomId}/podium (Contrato §4.1)
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/podium", podiumResponse);
+        log.info("Podio final emitido a /topic/room/{}/podium con {} jugadores clasificados", roomId, top3.size());
+
+        return podiumResponse;
     }
 }
