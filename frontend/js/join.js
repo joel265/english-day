@@ -10,8 +10,10 @@ const lobbyStatus = document.querySelector("#lobbyStatus");
 const lobbyPlayers = document.querySelector("#lobbyPlayers");
 const playerCount = document.querySelector("#playerCount");
 const questionCard = document.querySelector("#questionCard");
-const questionMeta = document.querySelector("#questionMeta");
-const questionTitle = document.querySelector("#questionTitle");
+const questionType = document.querySelector("#questionType");
+const questionOrder = document.querySelector("#questionOrder");
+const questionTimer = document.querySelector("#questionTimer");
+const questionProgress = document.querySelector("#questionProgress");
 const questionPrompt = document.querySelector("#questionPrompt");
 const questionOptions = document.querySelector("#questionOptions");
 const wordBlocksUI = document.querySelector("#wordBlocksUI");
@@ -51,9 +53,8 @@ const podiumTop3List = document.querySelector("#podiumTop3List");
 const podiumTotalPlayers = document.querySelector("#podiumTotalPlayers");
 
 let lobbySocket;
-let activeRoomId;
-let activePlayerId;
-let activeQuestion;
+let timerInterval;
+let selectedAnswer = null;
 let selectedWordBlocks = [];
 let questionDeadline = 0;
 let currentRoomId = null;
@@ -454,15 +455,6 @@ function setLobbyStatus(message, state) {
   lobbyStatus.dataset.state = state;
 }
 
-function setAnswerStatus(message, state) {
-  answerStatus.textContent = message;
-  if (state) {
-    answerStatus.dataset.state = state;
-  } else {
-    delete answerStatus.dataset.state;
-  }
-}
-
 function renderLobbyPlayers(players, currentPlayerId) {
   lobbyPlayers.replaceChildren();
 
@@ -484,15 +476,20 @@ function renderLobbyPlayers(players, currentPlayerId) {
   playerCount.textContent = String(players.length);
 }
 
-function parseQuestion(body) {
-  let question;
-  try {
-    question = JSON.parse(body);
-  } catch {
-    throw new Error("El servidor envió una pregunta con JSON inválido.");
-  }
+function validateQuestion(question) {
+  const supportedTypes = ["MULTIPLE_CHOICE", "WORD_BLOCKS", "TEXT_INPUT", "VOICE"];
+  const hasOptions = question?.type === "MULTIPLE_CHOICE" || question?.type === "WORD_BLOCKS";
 
-  if (!question || typeof question !== "object" || Array.isArray(question)) {
+  if (!question || typeof question !== "object" || Array.isArray(question)
+    || Object.prototype.hasOwnProperty.call(question, "correctAnswer")
+    || typeof question.questionId !== "string"
+    || !/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(question.questionId)
+    || !supportedTypes.includes(question.type)
+    || typeof question.prompt !== "string" || !question.prompt.trim()
+    || !Number.isSafeInteger(question.timeLimitSeconds) || question.timeLimitSeconds < 1
+    || !Number.isSafeInteger(question.order) || question.order < 1
+    || typeof question.serverTimestamp !== "string"
+    || !Number.isFinite(Date.parse(question.serverTimestamp))) {
     throw new Error("El servidor envió una pregunta inválida.");
   }
 
@@ -505,9 +502,8 @@ function parseQuestion(body) {
     throw new Error("El servidor envió opciones incompatibles con el tipo de pregunta.");
   }
 
-  if (typeof question.questionId !== "string" || !uuidV4Pattern.test(question.questionId)) {
-    throw new Error("La pregunta no contiene un questionId UUID v4 válido.");
-  }
+  return question;
+}
 
 function selectMultipleChoiceAnswer(button) {
   if (hasSubmittedAnswer || selectedAnswer !== null || Date.now() >= questionDeadline || button.disabled) {
@@ -543,10 +539,10 @@ function renderWordBlocks(question) {
     button.disabled = hasSubmittedAnswer;
     button.setAttribute("aria-label", `Quitar ${question.options[wordIndex]}, posición ${position + 1}`);
 
-  if ((question.type === "MULTIPLE_CHOICE" || question.type === "WORD_BLOCKS") &&
-      (!Array.isArray(question.options) || question.options.length === 0)) {
-    throw new Error(`La pregunta ${question.type} debe contener opciones.`);
-  }
+    const positionLabel = document.createElement("span");
+    positionLabel.className = "word-block-position";
+    positionLabel.setAttribute("aria-hidden", "true");
+    positionLabel.textContent = String(position + 1);
 
     const word = document.createElement("span");
     word.textContent = question.options[wordIndex];
@@ -560,18 +556,11 @@ function renderWordBlocks(question) {
     wordBlocksSelected.append(item);
   });
 
-  const selection = document.createElement("p");
-  selection.className = "word-block-selection";
-  selection.setAttribute("aria-live", "polite");
-  selection.textContent = "Tu respuesta ordenada aparecerá aquí.";
+  question.options.forEach((option, index) => {
+    if (selectedIndices.has(index)) return;
 
-  const options = document.createElement("div");
-  options.className = "word-block-options";
-
-  // Supuesto pendiente de validar con Backend/QA: options contiene los bloques como strings para WORD_BLOCKS.
-  question.options.forEach((word, index) => {
+    const item = document.createElement("li");
     const button = document.createElement("button");
-    button.className = "word-block-option";
     button.type = "button";
     button.className = "word-block";
     button.disabled = hasSubmittedAnswer;
@@ -582,10 +571,9 @@ function renderWordBlocks(question) {
       selectedWordBlocks.push(index);
       renderWordBlocks(question);
     });
-    options.append(button);
+    item.append(button);
+    wordBlocksBank.append(item);
   });
-
-  answerControls.append(instructions, selection, options);
 }
 
 function resetWordBlocks(question) {
@@ -606,19 +594,15 @@ function renderQuestion(question) {
   selectedAnswer = null;
   selectedWordBlocks = [];
 
-  clearInterval(questionTimerInterval);
-  voiceCaptureToken += 1;
-  if (window.speechService?.isListening) {
-    window.speechService.stopListening();
-  }
+  const typeLabels = {
+    MULTIPLE_CHOICE: "Selección múltiple",
+    WORD_BLOCKS: "Ordena los bloques",
+    TEXT_INPUT: "Respuesta escrita",
+    VOICE: "Respuesta por voz",
+  };
 
-  activeQuestion = question;
-  selectedWordBlocks = [];
-  voiceTranscript = "";
-  answerSent = false;
-  questionExpired = false;
-  questionMeta.textContent = `Pregunta ${question.order} · ${question.type} · ${question.timeLimitSeconds} s`;
-  questionTitle.textContent = "Responde";
+  questionType.textContent = typeLabels[question.type];
+  questionOrder.textContent = `Pregunta ${question.order}`;
   questionPrompt.textContent = question.prompt;
   questionStatus.textContent = "";
   questionStatus.dataset.state = "";
@@ -637,22 +621,28 @@ function renderQuestion(question) {
   questionAnswerHint.hidden = true;
 
   if (question.type === "MULTIPLE_CHOICE") {
-    question.options.forEach((option) => {
-      const label = document.createElement("label");
-      label.className = "answer-option";
+    question.options.forEach((option, index) => {
+      const item = document.createElement("li");
+      item.className = "question-option question-option--multiple";
 
-      const input = document.createElement("input");
-      input.type = "radio";
-      input.name = "answerOption";
-      input.value = option;
-      input.addEventListener("change", () => {
-        sendAnswerButton.disabled = answerSent || questionExpired || !input.checked;
-      });
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `multiple-choice-option option-color-${index % 4}`;
+      button.dataset.answer = option;
+      button.setAttribute("aria-pressed", "false");
 
-      const text = document.createElement("span");
-      text.textContent = option;
-      label.append(input, text);
-      answerControls.append(label);
+      const marker = document.createElement("span");
+      marker.className = "multiple-choice-marker";
+      marker.setAttribute("aria-hidden", "true");
+      marker.textContent = index < 26 ? String.fromCharCode(65 + index) : String(index + 1);
+
+      const answer = document.createElement("span");
+      answer.textContent = option;
+
+      button.append(marker, answer);
+      button.addEventListener("click", () => selectMultipleChoiceAnswer(button));
+      item.append(button);
+      questionOptions.append(item);
     });
   } else if (question.type === "WORD_BLOCKS") {
     renderWordBlocks(question);
@@ -674,35 +664,21 @@ function renderQuestion(question) {
   questionTimer.classList.remove("is-expired");
 
   const updateTimer = () => {
-    const remainingSeconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-    questionTimer.textContent = `Tiempo restante: ${remainingSeconds} s`;
-    questionTimer.dataset.state = remainingSeconds <= 5 ? "urgent" : "";
+    const secondsLeft = Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000));
+    const minutes = Math.floor(secondsLeft / 60);
+    const seconds = secondsLeft % 60;
+    questionTimer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    questionTimer.setAttribute("aria-label", `${secondsLeft} segundos restantes`);
+    questionProgress.value = secondsLeft;
 
-    if (remainingSeconds === 0) {
-      clearInterval(questionTimerInterval);
-      questionExpired = true;
-      voiceCaptureToken += 1;
-      if (window.speechService?.isListening) {
-        window.speechService.stopListening();
-      }
-      answerControls.querySelectorAll("input, button").forEach((control) => {
-        control.disabled = true;
-      });
-      sendAnswerButton.disabled = true;
-      setAnswerStatus("Tiempo agotado. No se envió ninguna respuesta.", "error");
+    if (secondsLeft === 0) {
+      expireQuestion();
     }
   };
 
   updateTimer();
-  questionTimerInterval = setInterval(updateTimer, 250);
-}
-
-function parseLobbyPlayers(body, currentPlayerId) {
-  let players;
-  try {
-    players = JSON.parse(body);
-  } catch {
-    throw new Error("El servidor envió una lista de aprendices inválida.");
+  if (questionProgress.value > 0) {
+    timerInterval = window.setInterval(updateTimer, 1000);
   }
 
   showOnlyCard(questionCard);
@@ -858,15 +834,21 @@ function parseStompMessage(frame) {
   }
 
   const lines = frame.slice(0, separator).split("\n");
-  const command = lines.shift().trim();
   const headers = new Map();
-  lines.forEach((line) => {
-    const headerSeparator = line.indexOf(":");
-    if (headerSeparator !== -1) {
-      headers.set(line.slice(0, headerSeparator), line.slice(headerSeparator + 1));
-    }
+  lines.slice(1).forEach((line) => {
+    const colon = line.indexOf(":");
+    if (colon !== -1) headers.set(line.slice(0, colon), line.slice(colon + 1));
   });
-  const body = frame.slice(separator + 2);
+
+  return {
+    command: lines[0].trim(),
+    headers,
+    body: frame.slice(separator + 2),
+  };
+}
+
+function handleStompFrame(frame, roomId, currentPlayerId) {
+  const { command, headers, body } = parseStompMessage(frame);
 
   if (command === "CONNECTED") {
     const topics = ["lobby", "status", "question", "results", "roulette", "podium"];
@@ -878,6 +860,13 @@ function parseStompMessage(frame) {
   }
 
   if (command === "MESSAGE") {
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      throw new Error("El servidor envió un mensaje JSON inválido.");
+    }
+
     const destination = headers.get("destination");
     if (destination === `/topic/room/${roomId}/lobby`) {
       const playersList = Array.isArray(payload) ? payload : payload?.players;
@@ -905,7 +894,7 @@ function parseStompMessage(frame) {
   }
 
   if (command === "ERROR") {
-    throw new Error(body.trim() || "El servidor rechazó la conexión STOMP.");
+    throw new Error(body.trim() || "El servidor rechazó la conexión al lobby.");
   }
 }
 
@@ -928,8 +917,8 @@ function subscribeToLobby(roomId, player) {
   renderLobbyPlayers([player], player.playerId);
   setLobbyStatus("Conectando al lobby en tiempo real...", "loading");
   lobbySocket = new WebSocket(url);
-  let incoming = "";
 
+  let incoming = "";
   lobbySocket.addEventListener("open", () => {
     lobbySocket.send(`CONNECT\naccept-version:1.2,1.1,1.0\nhost:${window.location.host}\nheart-beat:0,0\n\n\0`);
   });
@@ -955,87 +944,14 @@ function subscribeToLobby(roomId, player) {
     }
   });
   lobbySocket.addEventListener("error", () => {
-    setLobbyStatus("No se pudo conectar a la sala en tiempo real.", "error");
+    showConnectionError("No se pudo conectar a la partida en tiempo real.");
   });
   lobbySocket.addEventListener("close", () => {
-    if (lobbyStatus.dataset.state !== "error") {
-      setLobbyStatus("Se perdió la conexión con la sala. No se pueden enviar respuestas.", "error");
+    if (lobbyStatus.dataset.state !== "error" && questionStatus.dataset.state !== "error") {
+      showConnectionError("Se perdió la conexión con la partida. Actualiza la página para volver a ingresar.");
     }
-    sendAnswerButton.disabled = true;
   });
 }
-
-function readAnswerValue() {
-  if (activeQuestion.type === "MULTIPLE_CHOICE") {
-    return answerForm.querySelector('input[name="answerOption"]:checked')?.value || "";
-  }
-
-  if (activeQuestion.type === "WORD_BLOCKS") {
-    return selectedWordBlocks.map((index) => activeQuestion.options[index]);
-  }
-
-  if (activeQuestion.type === "TEXT_INPUT") {
-    return answerForm.querySelector("#textAnswerInput")?.value.trim() || "";
-  }
-
-  if (activeQuestion.type === "VOICE") {
-    return voiceTranscript;
-  }
-
-  throw new Error("No se puede preparar una respuesta para este tipo de pregunta.");
-}
-
-answerForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  if (!activeQuestion || answerSent) {
-    return;
-  }
-
-  if (questionExpired) {
-    setAnswerStatus("El tiempo terminó. La respuesta no se envió.", "error");
-    return;
-  }
-
-  if (!lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
-    setAnswerStatus("No hay conexión activa. La respuesta no se envió.", "error");
-    return;
-  }
-
-  const value = readAnswerValue();
-  if ((typeof value !== "string" && !Array.isArray(value)) ||
-      (typeof value === "string" && !value.trim()) ||
-      (Array.isArray(value) && (!value.length || value.some((item) => typeof item !== "string")))) {
-    setAnswerStatus("Completa tu respuesta antes de enviarla.", "error");
-    return;
-  }
-
-  const payload = {
-    playerId: activePlayerId,
-    questionId: activeQuestion.questionId,
-    value,
-    clientTimestamp: new Date().toISOString()
-  };
-  const destination = `/app/room/${activeRoomId}/answer`;
-
-  try {
-    lobbySocket.send(
-      `SEND\ndestination:${destination}\ncontent-type:application/json\n\n${JSON.stringify(payload)}\0`
-    );
-    if (window.speechService?.isListening) {
-      window.speechService.stopListening();
-    }
-    answerSent = true;
-    clearInterval(questionTimerInterval);
-    sendAnswerButton.disabled = true;
-    sendAnswerButton.textContent = "Respuesta enviada";
-    answerControls.querySelectorAll("input, button").forEach((control) => {
-      control.disabled = true;
-    });
-    setAnswerStatus("Mensaje transmitido. La validación corresponde al servidor.", "success");
-  } catch (error) {
-    setAnswerStatus(`No se pudo transmitir la respuesta: ${error.message}`, "error");
-  }
-});
 
 window.addEventListener("beforeunload", () => {
   window.clearInterval(timerInterval);
@@ -1093,10 +1009,10 @@ joinForm.addEventListener("submit", async (event) => {
       throw new Error(result.error || `No se pudo ingresar (HTTP ${response.status}).`);
     }
 
-    if (!result || typeof result.roomId !== "string" || !uuidV4Pattern.test(result.roomId) ||
-        typeof result.playerId !== "string" || !uuidV4Pattern.test(result.playerId) ||
-        typeof result.nickname !== "string") {
-      throw new Error("El servidor no devolvió roomId, playerId UUID v4 y nickname válidos.");
+    formMessage.dataset.state = "success";
+    formMessage.textContent = `Te uniste a la partida como ${result.nickname}.`;
+    if (typeof result.roomId !== "string" || typeof result.playerId !== "string") {
+      throw new Error("El servidor no devolvió los datos de la sala necesarios para abrir el lobby.");
     }
 
     try {
@@ -1115,7 +1031,7 @@ joinForm.addEventListener("submit", async (event) => {
 
     showOnlyCard(lobbyCard);
     lobbyPin.textContent = `PIN de la partida: ${pin}`;
-    connectToRoom(result.roomId, result.playerId, {
+    subscribeToLobby(result.roomId, {
       playerId: result.playerId,
       nickname: result.nickname,
     });
