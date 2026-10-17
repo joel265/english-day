@@ -30,10 +30,12 @@ public class AnswerService {
     private final AnswerRepository answerRepository;
     private final PlayerRepository playerRepository;
     private final QuestionRepository questionRepository;
+    private final ScoreService scoreService;
 
     /**
      * Procesa la respuesta de un aprendiz recibida por WebSocket STOMP.
-     * Valida sintácticamente los 4 tipos de pregunta y persiste la entidad Answer.
+     * Valida sintácticamente los 4 tipos de pregunta, calcula el puntaje dinámico (RF-09)
+     * y persiste la entidad Answer y actualiza la tabla Score.
      *
      * @param roomId Identificador de la sala en curso.
      * @param request Datos de la respuesta ({ playerId, questionId, value, clientTimestamp }).
@@ -63,22 +65,29 @@ public class AnswerService {
         // 4. Validar la respuesta según su tipo pedagógico
         boolean isCorrect = validateAnswer(question.getType(), submittedValue, question.getCorrectAnswer());
 
-        // 5. Calcular tiempo de respuesta en milisegundos (para el algoritmo de puntuación de Tarea 9)
+        // 5. Calcular tiempo de respuesta en milisegundos
         int responseTimeMs = calculateResponseTimeMs(request.getClientTimestamp(), question.getTimeLimitSeconds());
 
-        // 6. Construir y persistir la entidad Answer
+        // 6. Calcular puntaje con el algoritmo dinámico de velocidad y acierto (RF-09 / Contrato §5)
+        int pointsAwarded = scoreService.calculatePoints(isCorrect, responseTimeMs, question.getTimeLimitSeconds());
+
+        // 7. Construir y persistir la entidad Answer
         Answer answer = Answer.builder()
                 .player(player)
                 .question(question)
                 .value(submittedValue)
                 .isCorrect(isCorrect)
                 .responseTimeMs(responseTimeMs)
-                .pointsAwarded(0) // El puntaje se calcula en la Tarea 9
+                .pointsAwarded(pointsAwarded)
                 .build();
 
         Answer savedAnswer = answerRepository.save(answer);
-        log.info("Respuesta registrada - Jugador: {}, Pregunta: {}, Correcta: {}, Tiempo: {} ms",
-                player.getNickname(), question.getOrder(), isCorrect, responseTimeMs);
+
+        // 8. Actualizar puntaje del jugador y tabla Score (RF-09 / RF-10)
+        scoreService.updatePlayerScore(player, player.getRoom(), pointsAwarded);
+
+        log.info("Respuesta registrada - Jugador: {}, Pregunta: {}, Correcta: {}, Tiempo: {} ms, Puntos: {}",
+                player.getNickname(), question.getOrder(), isCorrect, responseTimeMs, pointsAwarded);
 
         return savedAnswer;
     }
