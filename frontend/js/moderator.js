@@ -157,7 +157,14 @@ function renderProjectorQuestion(question) {
     if (secondsLeft === 0) {
       window.clearInterval(modTimerInterval);
       stageTimerBox.classList.add("is-expired");
-      setFeedback("Tiempo agotado. Puedes cerrar la pregunta para publicar el Top 5 o girar la ruleta.", "ok");
+      setFeedback("Tiempo agotado. Publicando respuesta correcta y Top 5 automáticamente...", "ok");
+      if (currentRoom?.roomId && question?.questionId) {
+        fetch(`/api/rooms/${encodeURIComponent(currentRoom.roomId)}/close-question`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ questionId: question.questionId }),
+        }).catch(() => {});
+      }
     }
   };
   tick();

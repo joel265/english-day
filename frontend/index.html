@@ -144,16 +144,41 @@
         <p class="question-status" id="questionStatus" role="status" aria-live="polite"></p>
       </section>
 
+      <section class="waiting-answer-card" id="waitingAnswerCard" aria-labelledby="waitingAnswerTitle" hidden>
+        <p class="eyebrow" id="waitingQuestionOrder">English Day · Ronda en curso</p>
+        <div class="waiting-pulse-icon" aria-hidden="true">⏳</div>
+        <h1 id="waitingAnswerTitle" tabindex="-1">¡Respuesta enviada!</h1>
+        <p class="intro">Tu respuesta quedó registrada. Esperando a que finalice el tiempo de la pregunta...</p>
+        <div class="waiting-submitted-box">
+          <span class="waiting-submitted-label">Tu respuesta registrada</span>
+          <strong class="waiting-submitted-value" id="waitingSubmittedValue"></strong>
+        </div>
+        <div class="waiting-timer-pill">
+          <span>Tiempo restante para ver resultados:</span>
+          <strong id="waitingTimerValue">00:00</strong>
+        </div>
+      </section>
+
       <section class="results-card" id="resultsCard" aria-labelledby="resultsTitle" hidden>
         <p class="eyebrow">English Day · Resultados de la ronda</p>
-        <h1 id="resultsTitle" tabindex="-1">Clasificación parcial (Top 5)</h1>
+        <div class="player-verdict-banner" id="playerVerdictBanner" data-verdict="expired" role="status" aria-live="assertive">
+          <span class="player-verdict-icon" id="playerVerdictIcon" aria-hidden="true">✔</span>
+          <h1 class="player-verdict-title" id="resultsTitle" tabindex="-1">¡Respuesta Correcta!</h1>
+          <p class="player-verdict-detail" id="playerVerdictDetail"></p>
+        </div>
         <div class="correct-answer-banner">
           <span class="correct-answer-label">Respuesta correcta</span>
           <strong class="correct-answer-value" id="resultsCorrectAnswer"></strong>
         </div>
-        <h2 class="players-heading">Top 5 aprendices</h2>
+        <h2 class="players-heading">Clasificación parcial (Top 5)</h2>
         <ol class="leaderboard-list" id="resultsTop5List" aria-live="polite"></ol>
-        <p class="results-wait-hint">Espera a que el moderador active la ruleta o avance a la siguiente pregunta.</p>
+        <div class="next-question-wait-box" role="status" aria-live="polite">
+          <span class="wait-spinner" aria-hidden="true">⏳</span>
+          <div>
+            <strong>Esperando la siguiente pregunta...</strong>
+            <p class="results-wait-hint">Atento a la pantalla: el moderador girará la ruleta o lanzará la siguiente pregunta en breve.</p>
+          </div>
+        </div>
       </section>
 
       <section class="roulette-card" id="rouletteCard" aria-labelledby="rouletteTitle" hidden>

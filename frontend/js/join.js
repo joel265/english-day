@@ -37,7 +37,15 @@ const voiceSubmitButton = document.querySelector("#voiceSubmitButton");
 const voiceFallbackNotice = document.querySelector("#voiceFallbackNotice");
 const questionAnswerHint = document.querySelector("#questionAnswerHint");
 const questionStatus = document.querySelector("#questionStatus");
+const waitingAnswerCard = document.querySelector("#waitingAnswerCard");
+const waitingQuestionOrder = document.querySelector("#waitingQuestionOrder");
+const waitingAnswerTitle = document.querySelector("#waitingAnswerTitle");
+const waitingSubmittedValue = document.querySelector("#waitingSubmittedValue");
+const waitingTimerValue = document.querySelector("#waitingTimerValue");
 const resultsCard = document.querySelector("#resultsCard");
+const playerVerdictBanner = document.querySelector("#playerVerdictBanner");
+const playerVerdictIcon = document.querySelector("#playerVerdictIcon");
+const playerVerdictDetail = document.querySelector("#playerVerdictDetail");
 const resultsTitle = document.querySelector("#resultsTitle");
 const resultsCorrectAnswer = document.querySelector("#resultsCorrectAnswer");
 const resultsTop5List = document.querySelector("#resultsTop5List");
@@ -54,6 +62,7 @@ const podiumTotalPlayers = document.querySelector("#podiumTotalPlayers");
 
 let lobbySocket;
 let timerInterval;
+let autoCloseTimeout;
 let selectedAnswer = null;
 let selectedWordBlocks = [];
 let questionDeadline = 0;
@@ -61,6 +70,7 @@ let currentRoomId = null;
 let currentPlayer = null;
 let currentQuestion = null;
 let hasSubmittedAnswer = false;
+let resultsReceivedForCurrentQuestion = false;
 let speechRecognition = null;
 let isRecordingVoice = false;
 let finalVoiceTranscript = "";
@@ -101,9 +111,26 @@ if (urlPin && /^\d{6}$/.test(urlPin)) {
 }
 
 function showOnlyCard(activeCard) {
-  [joinCard, lobbyCard, questionCard, resultsCard, rouletteCard, podiumCard].forEach((card) => {
+  [joinCard, lobbyCard, questionCard, waitingAnswerCard, resultsCard, rouletteCard, podiumCard].forEach((card) => {
     if (card) card.hidden = card !== activeCard;
   });
+}
+
+function formatAnswerDisplay(value) {
+  if (Array.isArray(value)) {
+    return value.join(" ");
+  }
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeAnswerForComparison(value) {
+  const raw = formatAnswerDisplay(value);
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[.,;:!?¿¡"]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function stopVoiceRecognition() {
@@ -137,18 +164,36 @@ function lockQuestionInputs() {
   if (voiceSubmitButton) voiceSubmitButton.disabled = true;
 }
 
+function requestQuestionCloseIfNeeded() {
+  if (resultsReceivedForCurrentQuestion || !currentRoomId || !currentQuestion?.questionId) {
+    return;
+  }
+  fetch(`/api/rooms/${encodeURIComponent(currentRoomId)}/close-question`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ questionId: currentQuestion.questionId }),
+  }).catch(() => {
+    // El moderador o servidor cerrará la pregunta
+  });
+}
+
 function expireQuestion() {
   window.clearInterval(timerInterval);
   stopVoiceRecognition();
   questionTimer.textContent = "00:00";
   questionTimer.setAttribute("aria-label", "0 segundos restantes");
+  if (waitingTimerValue) {
+    waitingTimerValue.textContent = "00:00 · Revelando resultados...";
+  }
   questionProgress.value = 0;
   questionTimer.classList.add("is-expired");
   lockQuestionInputs();
   if (!hasSubmittedAnswer) {
-    questionStatus.textContent = "Tiempo agotado (0 puntos). Espera los resultados.";
+    questionStatus.textContent = "Tiempo agotado (0 puntos). Revelando respuesta correcta...";
     questionStatus.dataset.state = "expired";
   }
+  window.clearTimeout(autoCloseTimeout);
+  autoCloseTimeout = window.setTimeout(requestQuestionCloseIfNeeded, 400);
 }
 
 function clearTextAnswer() {
@@ -217,6 +262,17 @@ function sendAnswerToServer(answerValue) {
   lockQuestionInputs();
   questionStatus.textContent = "¡Respuesta enviada! Espera el cierre de la pregunta.";
   questionStatus.dataset.state = "selected";
+
+  if (waitingAnswerCard) {
+    if (waitingQuestionOrder && currentQuestion) {
+      waitingQuestionOrder.textContent = `English Day · Pregunta ${currentQuestion.order}`;
+    }
+    if (waitingSubmittedValue) {
+      waitingSubmittedValue.textContent = `"${formatAnswerDisplay(answerValue)}"`;
+    }
+    showOnlyCard(waitingAnswerCard);
+    waitingAnswerTitle?.focus();
+  }
   return true;
 }
 
@@ -588,9 +644,11 @@ function resetWordBlocks(question) {
 function renderQuestion(question) {
   validateQuestion(question);
   window.clearInterval(timerInterval);
+  window.clearTimeout(autoCloseTimeout);
   stopVoiceRecognition();
   currentQuestion = question;
   hasSubmittedAnswer = false;
+  resultsReceivedForCurrentQuestion = false;
   selectedAnswer = null;
   selectedWordBlocks = [];
 
@@ -667,9 +725,13 @@ function renderQuestion(question) {
     const secondsLeft = Math.max(0, Math.ceil((questionDeadline - Date.now()) / 1000));
     const minutes = Math.floor(secondsLeft / 60);
     const seconds = secondsLeft % 60;
-    questionTimer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    const formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    questionTimer.textContent = formattedTime;
     questionTimer.setAttribute("aria-label", `${secondsLeft} segundos restantes`);
     questionProgress.value = secondsLeft;
+    if (waitingTimerValue) {
+      waitingTimerValue.textContent = formattedTime;
+    }
 
     if (secondsLeft === 0) {
       expireQuestion();
@@ -696,8 +758,34 @@ function renderResultsScreen(payload) {
     throw new Error("El servidor envió resultados de ronda inválidos.");
   }
 
+  resultsReceivedForCurrentQuestion = true;
   window.clearInterval(timerInterval);
+  window.clearTimeout(autoCloseTimeout);
   stopVoiceRecognition();
+
+  if (playerVerdictBanner) {
+    if (!hasSubmittedAnswer) {
+      playerVerdictBanner.dataset.verdict = "expired";
+      if (playerVerdictIcon) playerVerdictIcon.textContent = "⏰";
+      if (resultsTitle) resultsTitle.textContent = "¡Tiempo agotado!";
+      if (playerVerdictDetail) {
+        playerVerdictDetail.textContent = "No alcanzaste a enviar tu respuesta (0 puntos en esta ronda).";
+      }
+    } else {
+      const normalizedSubmitted = normalizeAnswerForComparison(selectedAnswer);
+      const normalizedExpected = normalizeAnswerForComparison(payload.correctAnswer);
+      const isCorrect = normalizedSubmitted.length > 0 && normalizedSubmitted === normalizedExpected;
+
+      playerVerdictBanner.dataset.verdict = isCorrect ? "correct" : "incorrect";
+      if (playerVerdictIcon) playerVerdictIcon.textContent = isCorrect ? "✔" : "✖";
+      if (resultsTitle) {
+        resultsTitle.textContent = isCorrect ? "¡Respuesta Correcta!" : "Respuesta Incorrecta";
+      }
+      if (playerVerdictDetail) {
+        playerVerdictDetail.textContent = `Tu respuesta: "${formatAnswerDisplay(selectedAnswer)}"`;
+      }
+    }
+  }
 
   resultsCorrectAnswer.textContent = payload.correctAnswer;
   resultsTop5List.replaceChildren();
