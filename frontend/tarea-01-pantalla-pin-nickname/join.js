@@ -9,7 +9,17 @@ const lobbyPin = document.querySelector("#lobbyPin");
 const lobbyStatus = document.querySelector("#lobbyStatus");
 const lobbyPlayers = document.querySelector("#lobbyPlayers");
 const playerCount = document.querySelector("#playerCount");
+const questionCard = document.querySelector("#questionCard");
+const questionType = document.querySelector("#questionType");
+const questionOrder = document.querySelector("#questionOrder");
+const questionTimer = document.querySelector("#questionTimer");
+const questionProgress = document.querySelector("#questionProgress");
+const questionPrompt = document.querySelector("#questionPrompt");
+const questionOptions = document.querySelector("#questionOptions");
+const questionAnswerHint = document.querySelector("#questionAnswerHint");
+const questionStatus = document.querySelector("#questionStatus");
 let lobbySocket;
+let timerInterval;
 
 function setLobbyStatus(message, state) {
   lobbyStatus.textContent = message;
@@ -37,42 +47,166 @@ function renderLobbyPlayers(players, currentPlayerId) {
   playerCount.textContent = String(players.length);
 }
 
-function handleStompFrame(frame, roomId, currentPlayerId) {
+function validateQuestion(question) {
+  const supportedTypes = ["MULTIPLE_CHOICE", "WORD_BLOCKS", "TEXT_INPUT", "VOICE"];
+  const hasOptions = question?.type === "MULTIPLE_CHOICE" || question?.type === "WORD_BLOCKS";
+
+  if (!question || typeof question !== "object" || Array.isArray(question)
+    || Object.prototype.hasOwnProperty.call(question, "correctAnswer")
+    || typeof question.questionId !== "string"
+    || !/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(question.questionId)
+    || !supportedTypes.includes(question.type)
+    || typeof question.prompt !== "string" || !question.prompt.trim()
+    || !Number.isSafeInteger(question.timeLimitSeconds) || question.timeLimitSeconds < 1
+    || !Number.isSafeInteger(question.order) || question.order < 1
+    || typeof question.serverTimestamp !== "string"
+    || !Number.isFinite(Date.parse(question.serverTimestamp))) {
+    throw new Error("El servidor envió una pregunta inválida.");
+  }
+
+  if (hasOptions) {
+    if (!Array.isArray(question.options) || question.options.length < 2
+      || question.options.some((option) => typeof option !== "string" || !option.trim())) {
+      throw new Error("El servidor envió opciones de pregunta inválidas.");
+    }
+  } else if (question.options !== null) {
+    throw new Error("El servidor envió opciones incompatibles con el tipo de pregunta.");
+  }
+
+  return question;
+}
+
+function renderQuestion(question) {
+  validateQuestion(question);
+  window.clearInterval(timerInterval);
+
+  const typeLabels = {
+    MULTIPLE_CHOICE: "Selección múltiple",
+    WORD_BLOCKS: "Ordena los bloques",
+    TEXT_INPUT: "Respuesta escrita",
+    VOICE: "Respuesta por voz",
+  };
+
+  questionType.textContent = typeLabels[question.type];
+  questionOrder.textContent = `Pregunta ${question.order}`;
+  questionPrompt.textContent = question.prompt;
+  questionStatus.textContent = "";
+  questionStatus.dataset.state = "";
+  questionOptions.replaceChildren();
+  questionOptions.hidden = question.options === null;
+  questionAnswerHint.hidden = question.options !== null;
+
+  if (question.options !== null) {
+    question.options.forEach((option) => {
+      const item = document.createElement("li");
+      item.className = "question-option";
+      item.textContent = option;
+      questionOptions.append(item);
+    });
+  } else {
+    questionAnswerHint.textContent = question.type === "VOICE"
+      ? "Prepara tu respuesta en voz alta."
+      : "Prepara tu respuesta escrita.";
+  }
+
+  const deadline = Date.parse(question.serverTimestamp) + question.timeLimitSeconds * 1000;
+  questionProgress.max = question.timeLimitSeconds;
+  questionProgress.value = question.timeLimitSeconds;
+  questionTimer.classList.remove("is-expired");
+
+  const updateTimer = () => {
+    const secondsLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    const minutes = Math.floor(secondsLeft / 60);
+    const seconds = secondsLeft % 60;
+    questionTimer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    questionTimer.setAttribute("aria-label", `${secondsLeft} segundos restantes`);
+    questionProgress.value = secondsLeft;
+
+    if (secondsLeft === 0) {
+      window.clearInterval(timerInterval);
+      questionTimer.classList.add("is-expired");
+      questionStatus.textContent = "¡Se acabó el tiempo!";
+      questionStatus.dataset.state = "expired";
+    }
+  };
+
+  updateTimer();
+  if (questionProgress.value > 0) {
+    timerInterval = window.setInterval(updateTimer, 1000);
+  }
+
+  lobbyCard.hidden = true;
+  questionCard.hidden = false;
+  document.title = `Pregunta ${question.order} | English Day`;
+  questionPrompt.focus();
+}
+
+function parseStompMessage(frame) {
   const separator = frame.indexOf("\n\n");
   if (separator === -1) {
     throw new Error("El servidor envió una trama STOMP inválida.");
   }
 
-  const command = frame.slice(0, separator).split("\n", 1)[0].trim();
-  const body = frame.slice(separator + 2);
+  const lines = frame.slice(0, separator).split("\n");
+  const headers = new Map();
+  lines.slice(1).forEach((line) => {
+    const colon = line.indexOf(":");
+    if (colon !== -1) headers.set(line.slice(0, colon), line.slice(colon + 1));
+  });
+
+  return {
+    command: lines[0].trim(),
+    headers,
+    body: frame.slice(separator + 2),
+  };
+}
+
+function handleStompFrame(frame, roomId, currentPlayerId) {
+  const { command, headers, body } = parseStompMessage(frame);
 
   if (command === "CONNECTED") {
-    const destination = `/topic/room/${roomId}/lobby`;
-    lobbySocket.send(`SUBSCRIBE\nid:lobby-${roomId}\ndestination:${destination}\nack:auto\n\n\0`);
+    lobbySocket.send(`SUBSCRIBE\nid:lobby-${roomId}\ndestination:/topic/room/${roomId}/lobby\nack:auto\n\n\0`);
+    lobbySocket.send(`SUBSCRIBE\nid:question-${roomId}\ndestination:/topic/room/${roomId}/question\nack:auto\n\n\0`);
     setLobbyStatus("Conectado. Actualizando aprendices en tiempo real.", "connected");
     return;
   }
 
   if (command === "MESSAGE") {
-    let players;
+    let payload;
     try {
-      players = JSON.parse(body);
+      payload = JSON.parse(body);
     } catch {
-      throw new Error("El servidor envió una lista de aprendices inválida.");
+      throw new Error("El servidor envió un mensaje JSON inválido.");
     }
 
-    if (!Array.isArray(players) || players.some((player) =>
-      !player || typeof player.playerId !== "string" || typeof player.nickname !== "string"
-    )) {
-      throw new Error("El servidor envió una lista de aprendices inválida.");
-    }
+    const destination = headers.get("destination");
+    if (destination === `/topic/room/${roomId}/lobby`) {
+      if (!Array.isArray(payload) || payload.some((player) =>
+        !player || typeof player.playerId !== "string" || typeof player.nickname !== "string"
+      )) {
+        throw new Error("El servidor envió una lista de aprendices inválida.");
+      }
 
-    renderLobbyPlayers(players, currentPlayerId);
+      renderLobbyPlayers(payload, currentPlayerId);
+    } else if (destination === `/topic/room/${roomId}/question`) {
+      renderQuestion(payload);
+    } else {
+      throw new Error("El servidor envió un mensaje desde un canal no esperado.");
+    }
     return;
   }
 
   if (command === "ERROR") {
     throw new Error(body.trim() || "El servidor rechazó la conexión al lobby.");
+  }
+}
+
+function showConnectionError(message) {
+  if (questionCard.hidden) {
+    setLobbyStatus(message, "error");
+  } else {
+    questionStatus.textContent = message;
+    questionStatus.dataset.state = "error";
   }
 }
 
@@ -100,7 +234,7 @@ function subscribeToLobby(roomId, currentPlayer) {
         try {
           handleStompFrame(frame, roomId, currentPlayer.playerId);
         } catch (error) {
-          setLobbyStatus(error.message, "error");
+          showConnectionError(error.message);
           lobbySocket.close();
           return;
         }
@@ -110,16 +244,17 @@ function subscribeToLobby(roomId, currentPlayer) {
     }
   });
   lobbySocket.addEventListener("error", () => {
-    setLobbyStatus("No se pudo conectar al lobby en tiempo real.", "error");
+    showConnectionError("No se pudo conectar a la partida en tiempo real.");
   });
   lobbySocket.addEventListener("close", () => {
-    if (lobbyStatus.dataset.state !== "error") {
-      setLobbyStatus("Se perdió la conexión con el lobby. Actualiza la página para volver a ingresar.", "error");
+    if (lobbyStatus.dataset.state !== "error" && questionStatus.dataset.state !== "error") {
+      showConnectionError("Se perdió la conexión con la partida. Actualiza la página para volver a ingresar.");
     }
   });
 }
 
 window.addEventListener("beforeunload", () => {
+  window.clearInterval(timerInterval);
   if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
     lobbySocket.close();
   }

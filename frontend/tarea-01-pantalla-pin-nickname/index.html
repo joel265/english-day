@@ -59,6 +59,24 @@
         <h2 class="players-heading">Aprendices conectados <span id="playerCount">0</span></h2>
         <ul class="lobby-players" id="lobbyPlayers" aria-live="polite"></ul>
       </section>
+
+      <section class="question-card" id="questionCard" aria-labelledby="questionPrompt" hidden>
+        <div class="question-header">
+          <div>
+            <p class="eyebrow" id="questionType"></p>
+            <p class="question-order" id="questionOrder"></p>
+          </div>
+          <div class="question-timer">
+            <span>Tiempo restante</span>
+            <strong id="questionTimer" role="timer" aria-live="off">00:00</strong>
+          </div>
+        </div>
+        <progress class="question-progress" id="questionProgress" value="0" max="1" aria-label="Tiempo restante"></progress>
+        <h1 class="question-prompt" id="questionPrompt" tabindex="-1"></h1>
+        <ul class="question-options" id="questionOptions" aria-label="Opciones disponibles" hidden></ul>
+        <p class="question-answer-hint" id="questionAnswerHint" hidden></p>
+        <p class="question-status" id="questionStatus" role="status" aria-live="polite"></p>
+      </section>
     </main>
     <script src="./join.js" defer></script>
   </body>
