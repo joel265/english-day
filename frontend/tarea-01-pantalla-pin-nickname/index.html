@@ -49,6 +49,16 @@
           <button class="join-button" type="submit">Ingresar a la partida</button>
         </form>
       </section>
+
+      <section class="lobby-card" id="lobbyCard" aria-labelledby="lobby-title" hidden>
+        <p class="eyebrow">English Day · Sala de espera</p>
+        <h1 id="lobby-title">¡Ya estás en el lobby!</h1>
+        <p class="intro">Espera a que tu instructor inicie la partida.</p>
+        <p class="lobby-pin" id="lobbyPin"></p>
+        <p class="lobby-status" id="lobbyStatus" role="status" aria-live="polite"></p>
+        <h2 class="players-heading">Aprendices conectados <span id="playerCount">0</span></h2>
+        <ul class="lobby-players" id="lobbyPlayers" aria-live="polite"></ul>
+      </section>
     </main>
     <script src="./join.js" defer></script>
   </body>
