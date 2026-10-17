@@ -71,4 +71,17 @@ public class GameWebSocketController {
         log.info("Mensaje WebSocket recibido en /app/room/{}/moderator/roulette", roomId);
         rouletteService.spinRoulette(roomId, null);
     }
+
+    /**
+     * Finaliza la partida y emite el podio final (Top 3) al canal STOMP /topic/room/{roomId}/podium
+     * y el cambio de estado a FINISHED en /topic/room/{roomId}/status (RF-10 / CU-06 / CP-11).
+     * Destinos STOMP: /app/room/{roomId}/podium y /app/room/{roomId}/moderator/finish.
+     *
+     * @param roomId Identificador UUID de la sala.
+     */
+    @MessageMapping({"/room/{roomId}/podium", "/room/{roomId}/moderator/finish"})
+    public void publishPodium(@DestinationVariable String roomId) {
+        log.info("Mensaje WebSocket recibido en /app/room/{}/podium para emitir podio final", roomId);
+        scoreService.finalizeGameAndBroadcastPodium(roomId);
+    }
 }

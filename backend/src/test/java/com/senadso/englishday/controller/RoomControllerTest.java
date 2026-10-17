@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -132,5 +133,45 @@ class RoomControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error", is("Sala no encontrada")));
+    }
+
+    @Test
+    @DisplayName("Tarea 11 / RF-10 / CU-06: GET /api/rooms/{roomId}/results retorna 200 OK con el Podio Top 3")
+    void testGetFinalResultsSuccess() throws Exception {
+        CreateRoomResponse room = roomService.createRoom();
+
+        // Registrar participantes
+        roomService.joinRoom(room.getPin(), JoinRoomRequest.builder().nickname("camilo_dev").build());
+        roomService.joinRoom(room.getPin(), JoinRoomRequest.builder().nickname("laura_eng").build());
+
+        mockMvc.perform(get("/api/rooms/" + room.getRoomId() + "/results")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roomId", is(room.getRoomId())))
+                .andExpect(jsonPath("$.top3", hasSize(2)))
+                .andExpect(jsonPath("$.totalPlayers", is(2)))
+                .andExpect(jsonPath("$.timestamp", notNullValue()));
+    }
+
+    @Test
+    @DisplayName("Tarea 11: GET /api/rooms/{roomId}/results con sala inexistente retorna 404 Not Found")
+    void testGetFinalResultsRoomNotFound() throws Exception {
+        mockMvc.perform(get("/api/rooms/00000000-0000-0000-0000-000000000000/results")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", is("Sala no encontrada")));
+    }
+
+    @Test
+    @DisplayName("Tarea 11 / CP-11: POST /api/rooms/{roomId}/finish finaliza la partida con estado FINISHED")
+    void testFinishGameSuccess() throws Exception {
+        CreateRoomResponse room = roomService.createRoom();
+
+        mockMvc.perform(post("/api/rooms/" + room.getRoomId() + "/finish")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roomId", is(room.getRoomId())))
+                .andExpect(jsonPath("$.status", is("FINISHED")))
+                .andExpect(jsonPath("$.top3", notNullValue()));
     }
 }

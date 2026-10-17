@@ -36,6 +36,11 @@ public interface PlayerRepository extends JpaRepository<Player, String> {
     List<Player> findTop5ByRoom_RoomIdOrderByTotalScoreDesc(String roomId);
 
     /**
+     * Obtiene el Top 3 de jugadores con mayor puntaje en una sala (RF-10 / Podio Final).
+     */
+    List<Player> findTop3ByRoom_RoomIdOrderByTotalScoreDesc(String roomId);
+
+    /**
      * Obtiene todos los jugadores de una sala ordenados por puntaje descendente.
      */
     List<Player> findByRoom_RoomIdOrderByTotalScoreDesc(String roomId);
