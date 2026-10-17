@@ -13,3 +13,4 @@ node_modules/
 # Herramientas y binarios locales
 tools/
 ~$*
+.~lock*
