@@ -92,6 +92,25 @@
           </section>
           <button class="word-blocks-reset" id="wordBlocksReset" type="button">Reiniciar oración</button>
         </div>
+        <div class="text-input-ui" id="textInputUI" hidden>
+          <label class="text-input-label" for="textAnswer">Escribe tu respuesta</label>
+          <div class="text-input-field">
+            <span class="text-input-icon" aria-hidden="true">✎</span>
+            <input
+              id="textAnswer"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              placeholder="Escribe tu respuesta aquí..."
+              aria-describedby="textInputHelp"
+            >
+            <button class="text-input-clear" id="textAnswerClear" type="button" aria-label="Limpiar respuesta" hidden>×</button>
+          </div>
+          <p class="text-input-help" id="textInputHelp">Escribe tu respuesta en inglés. Puedes corregirla mientras el tiempo esté activo.</p>
+        </div>
         <p class="question-answer-hint" id="questionAnswerHint" hidden></p>
         <p class="question-status" id="questionStatus" role="status" aria-live="polite"></p>
       </section>
