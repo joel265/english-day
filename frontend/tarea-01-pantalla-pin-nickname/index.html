@@ -114,6 +114,38 @@
         <p class="question-answer-hint" id="questionAnswerHint" hidden></p>
         <p class="question-status" id="questionStatus" role="status" aria-live="polite"></p>
       </section>
+
+      <section class="results-card" id="resultsCard" aria-labelledby="resultsTitle" hidden>
+        <p class="eyebrow">English Day · Resultados de la ronda</p>
+        <h1 id="resultsTitle" tabindex="-1">¡Pregunta finalizada!</h1>
+        <div class="correct-answer-panel">
+          <span class="correct-answer-label">Respuesta correcta</span>
+          <p id="correctAnswer"></p>
+        </div>
+        <div class="leaderboard-heading">
+          <h2>Top 5 de la sala</h2>
+          <span>Clasificación actual</span>
+        </div>
+        <ol class="leaderboard-list" id="leaderboardList" aria-label="Clasificación de los cinco mejores aprendices"></ol>
+        <p class="leaderboard-empty" id="leaderboardEmpty" hidden>Aún no hay puntajes para mostrar.</p>
+        <p class="results-status" id="resultsStatus" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="roulette-card" id="rouletteCard" aria-labelledby="rouletteTitle" hidden>
+        <p class="eyebrow">English Day · Ruleta de retroalimentación</p>
+        <h1 id="rouletteTitle" tabindex="-1">¡La ruleta ha elegido!</h1>
+        <div class="roulette-result">
+          <span class="roulette-player-icon" aria-hidden="true">★</span>
+          <p class="roulette-result-label">Aprendiz seleccionado</p>
+          <p class="roulette-player-name" id="roulettePlayerName"></p>
+        </div>
+        <div class="roulette-answer-panel">
+          <span class="roulette-answer-label">Respuesta registrada</span>
+          <p id="rouletteAnswer"></p>
+        </div>
+        <p class="roulette-outcome" id="rouletteOutcome" role="status" aria-live="polite"></p>
+        <p class="roulette-status" id="rouletteStatus" role="status" aria-live="polite"></p>
+      </section>
     </main>
     <script src="./join.js" defer></script>
   </body>
