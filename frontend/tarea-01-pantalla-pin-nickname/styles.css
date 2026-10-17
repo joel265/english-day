@@ -48,7 +48,8 @@ main {
 }
 
 .join-card,
-.lobby-card {
+.lobby-card,
+.question-card {
   padding: 1.25rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
@@ -268,13 +269,129 @@ h1 {
   text-transform: uppercase;
 }
 
+.question-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.question-order {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.question-timer {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: end;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.question-timer strong {
+  color: var(--primary-dark);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.question-timer strong.is-expired {
+  color: #ba1a1a;
+}
+
+.question-progress {
+  display: block;
+  width: 100%;
+  height: 0.75rem;
+  margin: 1.25rem 0 1.75rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: var(--border);
+  accent-color: var(--primary);
+}
+
+.question-progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.question-progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--primary);
+  transition: width 0.3s linear;
+}
+
+.question-progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.question-prompt {
+  margin: 0;
+  font-size: 1.4rem;
+  line-height: 1.4;
+}
+
+.question-prompt:focus-visible {
+  outline: 3px solid var(--secondary);
+  outline-offset: 4px;
+}
+
+.question-options {
+  display: grid;
+  gap: 0.65rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.question-option {
+  min-height: 3rem;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.question-answer-hint {
+  margin: 1.5rem 0 0;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.question-status {
+  min-height: 1.25rem;
+  margin: 1.25rem 0 0;
+  font-weight: 700;
+}
+
+.question-status[data-state="expired"],
+.question-status[data-state="error"] {
+  color: #ba1a1a;
+}
+
 @media (min-width: 36rem) {
   main {
     margin-top: 3rem;
   }
 
   .join-card,
-  .lobby-card {
+  .lobby-card,
+  .question-card {
     padding: 2rem;
+  }
+
+  .question-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
