@@ -130,6 +130,22 @@
         <p class="leaderboard-empty" id="leaderboardEmpty" hidden>Aún no hay puntajes para mostrar.</p>
         <p class="results-status" id="resultsStatus" role="status" aria-live="polite"></p>
       </section>
+
+      <section class="roulette-card" id="rouletteCard" aria-labelledby="rouletteTitle" hidden>
+        <p class="eyebrow">English Day · Ruleta de retroalimentación</p>
+        <h1 id="rouletteTitle" tabindex="-1">¡La ruleta ha elegido!</h1>
+        <div class="roulette-result">
+          <span class="roulette-player-icon" aria-hidden="true">★</span>
+          <p class="roulette-result-label">Aprendiz seleccionado</p>
+          <p class="roulette-player-name" id="roulettePlayerName"></p>
+        </div>
+        <div class="roulette-answer-panel">
+          <span class="roulette-answer-label">Respuesta registrada</span>
+          <p id="rouletteAnswer"></p>
+        </div>
+        <p class="roulette-outcome" id="rouletteOutcome" role="status" aria-live="polite"></p>
+        <p class="roulette-status" id="rouletteStatus" role="status" aria-live="polite"></p>
+      </section>
     </main>
     <script src="./join.js" defer></script>
   </body>
