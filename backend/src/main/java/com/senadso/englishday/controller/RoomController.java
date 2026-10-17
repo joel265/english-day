@@ -4,7 +4,9 @@ import com.senadso.englishday.dto.CreateRoomResponse;
 import com.senadso.englishday.dto.JoinRoomRequest;
 import com.senadso.englishday.dto.JoinRoomResponse;
 import com.senadso.englishday.dto.RoomResponse;
+import com.senadso.englishday.dto.RouletteResultResponse;
 import com.senadso.englishday.service.RoomService;
+import com.senadso.englishday.service.RouletteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class RoomController {
 
     private final RoomService roomService;
+    private final RouletteService rouletteService;
 
     /**
      * Endpoint para crear una sala y generar el PIN de 6 dígitos.
@@ -52,6 +55,16 @@ public class RoomController {
     @PostMapping("/{roomId}/start")
     public ResponseEntity<RoomResponse> startGame(@PathVariable String roomId) {
         RoomResponse response = roomService.startGame(roomId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para que el moderador active la ruleta de retroalimentación interactiva.
+     * Ruta: POST /api/rooms/{roomId}/roulette (Contrato §3 / RF-11 / CU-05).
+     */
+    @PostMapping("/{roomId}/roulette")
+    public ResponseEntity<RouletteResultResponse> spinRoulette(@PathVariable String roomId) {
+        RouletteResultResponse response = rouletteService.spinRoulette(roomId, null);
         return ResponseEntity.ok(response);
     }
 }
