@@ -16,6 +16,6 @@ El Contrato de Integración fija lo que ya se decidió (rutas, campos, eventos).
 | **4** | 2026-10-11 | Se define formalmente **MySQL (versión 8.0+)** como el motor de base de datos relacional oficial del proyecto. Backend usará el driver `mysql-connector-j` con Spring Data JPA y se mantiene total compatibilidad con los scripts SQL e InnoDB definidos en la carpeta `database/`. | Backend + Base de Datos | Backend, Base de Datos, QA | ✅ Cerrada |
 | **5** | 2026-10-16 | Para `/topic/room/{roomId}/lobby`, el payload es un arreglo JSON `[ { "playerId": "...", "nickname": "...", "joinedAt": "..." } ]` emitido en tiempo real al unirse un jugador. | Backend | Backend, Frontend, UI/UX, QA | ☐ Abierta (Pendiente validar con Frontend/QA) |
 | **6** | 2026-10-16 | `POST /api/rooms/{roomId}/start` retorna `RoomResponse` (HTTP 200 OK); asíncronamente emite el estado a `/topic/room/{roomId}/status` y la pregunta a `/topic/room/{roomId}/question` (sin `correctAnswer`). | Backend | Backend, Frontend, UI/UX, QA | ☐ Abierta (Pendiente validar con Frontend/QA) |
-| **7** | | | | | ☐ Abierta |
+| **7** | 2026-10-16 | En `/app/room/{roomId}/answer`, `value` acepta texto plano o arreglo de tokens (para `WORD_BLOCKS`). Se previene el duplicado: solo se procesa y persiste la primera respuesta recibida por jugador y pregunta. | Backend | Backend, Frontend, QA | ☐ Abierta (Pendiente validar con Frontend/QA) |
 | **8** | | | | | ☐ Abierta |
 | **9** | | | | | ☐ Abierta |

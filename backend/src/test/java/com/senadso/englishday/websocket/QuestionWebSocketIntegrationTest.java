@@ -50,6 +50,9 @@ class QuestionWebSocketIntegrationTest {
     @Autowired
     private QuestionRepository questionRepository;
 
+    @Autowired
+    private com.senadso.englishday.repository.AnswerRepository answerRepository;
+
     private WebSocketStompClient stompClient;
 
     @BeforeEach
@@ -67,7 +70,8 @@ class QuestionWebSocketIntegrationTest {
     @Test
     @DisplayName("Tarea 7 / CU-03 / RF-08: Iniciar partida emite pregunta y timer por WebSocket sin correctAnswer")
     void testStartGameBroadcastsQuestion() throws Exception {
-        // 1. Precondición: Crear una pregunta semilla con order = 1 en la base de datos
+        // 1. Precondición: Limpiar tablas y crear una pregunta semilla con order = 1
+        answerRepository.deleteAll();
         questionRepository.deleteAll();
         Question question = Question.builder()
                 .type(QuestionType.MULTIPLE_CHOICE)
