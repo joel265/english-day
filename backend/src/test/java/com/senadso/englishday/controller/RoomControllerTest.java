@@ -174,4 +174,52 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.status", is("FINISHED")))
                 .andExpect(jsonPath("$.top3", notNullValue()));
     }
+
+    @Test
+    @DisplayName("RF-03 / Anexo A.4: GET /api/rooms/{pin} retorna 200 OK con el estado actual y playerCount")
+    void testGetRoomByPinSuccess() throws Exception {
+        CreateRoomResponse room = roomService.createRoom();
+        roomService.joinRoom(room.getPin(), JoinRoomRequest.builder().nickname("ana_dev").build());
+
+        mockMvc.perform(get("/api/rooms/" + room.getPin())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roomId", is(room.getRoomId())))
+                .andExpect(jsonPath("$.pin", is(room.getPin())))
+                .andExpect(jsonPath("$.status", is("WAITING_LOBBY")))
+                .andExpect(jsonPath("$.playerCount", is(1)));
+    }
+
+    @Test
+    @DisplayName("CU-03 / Tarea 14: POST /api/rooms/{roomId}/next avanza a la siguiente pregunta y responde 200 OK")
+    void testNextQuestionSuccess() throws Exception {
+        answerRepository.deleteAll();
+        questionRepository.deleteAll();
+        questionRepository.save(com.senadso.englishday.model.Question.builder()
+                .type(com.senadso.englishday.model.enums.QuestionType.MULTIPLE_CHOICE)
+                .prompt("Question 1")
+                .options(java.util.List.of("A", "B"))
+                .correctAnswer("A")
+                .timeLimitSeconds(15)
+                .order(1)
+                .build());
+        questionRepository.save(com.senadso.englishday.model.Question.builder()
+                .type(com.senadso.englishday.model.enums.QuestionType.TEXT_INPUT)
+                .prompt("Question 2")
+                .options(null)
+                .correctAnswer("ate")
+                .timeLimitSeconds(20)
+                .order(2)
+                .build());
+
+        CreateRoomResponse room = roomService.createRoom();
+        roomService.startGame(room.getRoomId());
+
+        mockMvc.perform(post("/api/rooms/" + room.getRoomId() + "/next")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roomId", is(room.getRoomId())))
+                .andExpect(jsonPath("$.status", is("QUESTION_IN_PROGRESS")))
+                .andExpect(jsonPath("$.currentQuestionIndex", is(2)));
+    }
 }

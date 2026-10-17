@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Panel de Moderador | English Day SENA ADSO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --surface: #f3faff;
+        --surface-card: #ffffff;
+        --surface-low: #e9f6fd;
+        --text: #111d22;
+        --text-muted: #3f4a36;
+        --primary: #58cc02;
+        --primary-dark: #2b6c00;
+        --secondary: #006590;
+        --secondary-light: #2fb8ff;
+        --tertiary: #ddad00;
+        --tertiary-dark: #755b00;
+        --error: #ba1a1a;
+        --border: #cfdce3;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--surface);
+        color: var(--text);
+        font-family: "Rubik", sans-serif;
+      }
+
+      .mod-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 2rem;
+        border-bottom: 3px solid var(--border);
+        background: var(--surface-card);
+      }
+
+      .mod-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 900;
+      }
+
+      .mod-brand span {
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        background: #ddf4c5;
+        color: var(--primary-dark);
+        font-size: 0.8rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .mod-header-right {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .status-pill {
+        padding: 0.45rem 0.9rem;
+        border: 2px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-low);
+        font-size: 0.85rem;
+        font-weight: 800;
+      }
+
+      .status-pill[data-status="QUESTION_IN_PROGRESS"] {
+        border-color: var(--primary);
+        background: #ddf4c5;
+        color: #1f5100;
+      }
+
+      .status-pill[data-status="ROULETTE_TIME"] {
+        border-color: var(--tertiary);
+        background: #ffdf92;
+        color: #241a00;
+      }
+
+      .status-pill[data-status="FINISHED"] {
+        border-color: var(--secondary);
+        background: #c8e6ff;
+        color: #001e2e;
+      }
+
+      .player-view-link {
+        padding: 0.45rem 0.9rem;
+        border: 2px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-card);
+        color: var(--secondary);
+        font-size: 0.85rem;
+        font-weight: 800;
+        text-decoration: none;
+      }
+
+      .mod-layout {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 1.5rem;
+        max-width: 1440px;
+        margin: 1.5rem auto;
+        padding: 0 2rem 2rem;
+      }
+
+      .mod-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .card {
+        padding: 1.5rem;
+        border: 2px solid var(--border);
+        border-radius: 1rem;
+        background: var(--surface-card);
+        box-shadow: 0 6px 0 var(--border);
+      }
+
+      .card-title {
+        margin: 0 0 0.75rem;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .pin-banner {
+        padding: 1rem;
+        border: 2px dashed var(--primary);
+        border-radius: 0.85rem;
+        background: #ddf4c5;
+        text-align: center;
+      }
+
+      .pin-banner-label {
+        display: block;
+        color: #1f5100;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .pin-banner-value {
+        display: block;
+        margin-top: 0.25rem;
+        color: var(--primary-dark);
+        font-size: 2.5rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .pin-join-url {
+        display: block;
+        margin-top: 0.4rem;
+        color: #1f5100;
+        font-size: 0.8rem;
+        font-weight: 700;
+        word-break: break-all;
+      }
+
+      .controls-stack {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .mod-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        min-height: 3.35rem;
+        padding: 0.75rem 1rem;
+        border: 0;
+        border-radius: 0.85rem;
+        font: inherit;
+        font-size: 0.95rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 120ms ease, opacity 120ms ease;
+      }
+
+      .mod-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .mod-btn:active:not(:disabled) {
+        transform: translateY(2px);
+      }
+
+      .mod-btn--primary {
+        background: var(--primary);
+        box-shadow: 0 4px 0 var(--primary-dark);
+        color: #ffffff;
+      }
+
+      .mod-btn--secondary {
+        background: var(--secondary-light);
+        box-shadow: 0 4px 0 var(--secondary);
+        color: #ffffff;
+      }
+
+      .mod-btn--amber {
+        background: #f4bf00;
+        box-shadow: 0 4px 0 var(--tertiary-dark);
+        color: #241a00;
+      }
+
+      .mod-btn--danger {
+        background: var(--error);
+        box-shadow: 0 4px 0 #7a0f0f;
+        color: #ffffff;
+      }
+
+      .mod-btn--outline {
+        border: 2px solid var(--border);
+        background: var(--surface);
+        box-shadow: 0 3px 0 var(--border);
+        color: var(--text);
+      }
+
+      .reconnect-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+
+      .reconnect-row input {
+        flex: 1;
+        min-width: 0;
+        padding: 0.6rem 0.75rem;
+        border: 2px solid var(--border);
+        border-radius: 0.65rem;
+        font: inherit;
+        font-weight: 700;
+      }
+
+      .mod-feedback {
+        min-height: 1.4rem;
+        margin: 0.5rem 0 0;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .mod-feedback[data-state="error"] {
+        color: var(--error);
+      }
+
+      .mod-feedback[data-state="ok"] {
+        color: var(--primary-dark);
+      }
+
+      .projector-stage {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .stage-hero {
+        min-height: 430px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .stage-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .stage-badge {
+        display: inline-block;
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        background: var(--surface-low);
+        color: var(--secondary);
+        font-size: 0.8rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .stage-timer {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        font-size: 2rem;
+        font-weight: 900;
+        color: var(--primary-dark);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .stage-timer.is-expired {
+        color: var(--error);
+      }
+
+      .stage-prompt {
+        margin: 1.5rem 0;
+        font-size: 2.1rem;
+        font-weight: 900;
+        line-height: 1.25;
+      }
+
+      .projector-options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .projector-option {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        min-height: 4.5rem;
+        padding: 1rem 1.25rem;
+        border-radius: 0.85rem;
+        color: #ffffff;
+        font-size: 1.25rem;
+        font-weight: 800;
+        box-shadow: 0 5px 0 rgba(0, 0, 0, 0.2);
+      }
+
+      .projector-option.opt-0 { background: #b42318; }
+      .projector-option.opt-1 { background: #1261a0; }
+      .projector-option.opt-2 { background: #f4c542; color: #111d22; }
+      .projector-option.opt-3 { background: #268a36; }
+
+      .stage-grid-bottom {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.25rem;
+      }
+
+      .player-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .player-chip {
+        padding: 0.45rem 0.85rem;
+        border: 2px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-low);
+        font-weight: 700;
+      }
+
+      .roulette-arena {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        align-items: center;
+        gap: 1.5rem;
+        margin-top: 1rem;
+      }
+
+      .roulette-canvas-wrap {
+        display: flex;
+        justify-content: center;
+      }
+
+      #rouletteCanvas {
+        width: 300px;
+        height: 300px;
+      }
+
+      .roulette-spotlight {
+        padding: 1.25rem;
+        border: 2px solid var(--border);
+        border-radius: 1rem;
+        background: var(--surface-low);
+      }
+
+      .roulette-spotlight h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.75rem;
+        color: var(--secondary);
+      }
+
+      .ranking-table {
+        display: grid;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .ranking-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.7rem 1rem;
+        border: 2px solid var(--border);
+        border-radius: 0.65rem;
+        background: var(--surface);
+        font-weight: 800;
+      }
+
+      .ranking-row.rank-1 {
+        border-color: #f4bf00;
+        background: #fff9db;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      @media (max-width: 960px) {
+        .mod-layout,
+        .stage-grid-bottom,
+        .roulette-arena {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="mod-header">
+      <h1 class="mod-brand">
+        English Day · Panel de Moderador
+        <span>Pantalla Proyector · SENA ADSO</span>
+      </h1>
+      <div class="mod-header-right">
+        <span class="status-pill" id="modRoomStatus" data-status="NONE">Sin sala activa</span>
+        <a class="player-view-link" href="/index.html" target="_blank" rel="noopener">Abrir vista de Aprendiz ↗</a>
+      </div>
+    </header>
+
+    <div class="mod-layout">
+      <aside class="mod-panel" aria-label="Controles del moderador">
+        <section class="card">
+          <h2 class="card-title">PIN de Acceso en Proyector</h2>
+          <div class="pin-banner">
+            <span class="pin-banner-label">PIN de 6 dígitos</span>
+            <strong class="pin-banner-value" id="modPinValue">------</strong>
+            <span class="pin-join-url" id="modJoinUrl">Crea una sala para generar el PIN</span>
+          </div>
+          <div class="reconnect-row">
+            <input id="reconnectPinInput" type="text" inputmode="numeric" maxlength="6" placeholder="Reconectar PIN (6 díg.)">
+            <button class="mod-btn mod-btn--outline" id="btnReconnectPin" type="button" style="width:auto;">Cargar</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">Acciones de la Partida (Bitácora #6)</h2>
+          <div class="controls-stack">
+            <button class="mod-btn mod-btn--primary" id="btnCreateRoom" type="button">
+              1. Crear Sala (POST /api/rooms)
+            </button>
+            <button class="mod-btn mod-btn--primary" id="btnStartGame" type="button" disabled>
+              2. Iniciar Partida (POST /start)
+            </button>
+            <button class="mod-btn mod-btn--secondary" id="btnCloseQuestion" type="button" disabled>
+              3. Cerrar Pregunta y Emitir Top 5 (/results)
+            </button>
+            <button class="mod-btn mod-btn--amber" id="btnActivateRoulette" type="button" disabled>
+              4. Activar Ruleta (RF-11 /roulette)
+            </button>
+            <button class="mod-btn mod-btn--secondary" id="btnNextQuestion" type="button" disabled>
+              5. Siguiente Pregunta (/moderator/next)
+            </button>
+            <button class="mod-btn mod-btn--danger" id="btnFinishGame" type="button" disabled>
+              6. Finalizar Juego y Podio Top 3 (/podium)
+            </button>
+          </div>
+          <p class="mod-feedback" id="modFeedback" role="status" aria-live="polite"></p>
+        </section>
+      </aside>
+
+      <main class="projector-stage">
+        <section class="card stage-hero" aria-live="polite">
+          <div>
+            <div class="stage-header">
+              <span class="stage-badge" id="stagePhaseBadge">Esperando creación de sala</span>
+              <div class="stage-timer" id="stageTimerBox">
+                <span id="stageTimerValue">00:00</span>
+              </div>
+            </div>
+
+            <div id="stageWelcomeView">
+              <h2 class="stage-prompt" id="stageMainHeading">
+                Bienvenido al Panel de Moderador del English Day
+              </h2>
+              <p>
+                Presiona <strong>Crear Sala</strong> para generar el PIN de 6 dígitos en pantalla gigante.
+                Los aprendices ingresan desde sus móviles y aparecerán en tiempo real en la lista inferior.
+              </p>
+            </div>
+
+            <div id="stageQuestionView" hidden>
+              <h2 class="stage-prompt" id="stageQuestionPrompt"></h2>
+              <ul class="projector-options" id="stageQuestionOptions"></ul>
+            </div>
+
+            <div id="stageRouletteView" hidden>
+              <div class="roulette-arena">
+                <div class="roulette-canvas-wrap">
+                  <canvas id="rouletteCanvas" width="300" height="300"></canvas>
+                </div>
+                <div class="roulette-spotlight">
+                  <span class="stage-badge">Aprendiz Seleccionado (RF-11)</span>
+                  <h3 id="modRouletteWinner">—</h3>
+                  <p><strong>Respuesta enviada:</strong> <span id="modRouletteAnswer">—</span></p>
+                  <p id="modRouletteVerdict"></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="stage-grid-bottom">
+          <section class="card">
+            <h2 class="card-title">
+              Aprendices en el Lobby (<span id="modLobbyCount">0</span>)
+            </h2>
+            <ul class="player-chips" id="modLobbyList">
+              <li class="player-chip">Sin aprendices aún</li>
+            </ul>
+          </section>
+
+          <section class="card">
+            <h2 class="card-title" id="modRankingTitle">Clasificación en Vivo (Top 5 / Podio Top 3)</h2>
+            <p id="modCorrectAnswerBanner" hidden>
+              <strong>Respuesta correcta:</strong> <span id="modCorrectAnswerText"></span>
+            </p>
+            <ol class="ranking-table" id="modRankingList">
+              <li class="ranking-row">Los puntajes aparecerán al cerrar cada pregunta.</li>
+            </ol>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="./js/confetti.js" defer></script>
+    <script src="./js/roulette.js" defer></script>
+    <script src="./js/moderator.js" defer></script>
+  </body>
+</html>

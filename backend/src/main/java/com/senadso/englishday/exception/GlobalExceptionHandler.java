@@ -15,12 +15,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     /**
-     * Intercepta la ausencia de sala por PIN y responde HTTP 404 (CP-03).
+     * Intercepta la ausencia de sala por PIN y responde HTTP 404 (CP-03 / Anexo A.3).
      */
     @ExceptionHandler(PinNotFoundException.class)
     public ResponseEntity<ErrorResponse> handlePinNotFound(PinNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(ex.getMessage()));
+                .body(new ErrorResponse("ROOM_NOT_FOUND", ex.getMessage()));
     }
 
     /**
@@ -29,7 +29,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RoomNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleRoomNotFound(RoomNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(ex.getMessage()));
+                .body(new ErrorResponse("ROOM_NOT_FOUND", ex.getMessage()));
+    }
+
+    /**
+     * Intercepta argumentos inválidos (ej. PIN inválido).
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("INVALID_ARGUMENT", ex.getMessage()));
     }
 
     /**
@@ -38,7 +47,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(ex.getMessage()));
+                .body(new ErrorResponse("INVALID_ROOM_STATE", ex.getMessage()));
     }
 
     /**
@@ -51,6 +60,6 @@ public class GlobalExceptionHandler {
                 : ex.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(errorMessage));
+                .body(new ErrorResponse("VALIDATION_ERROR", errorMessage));
     }
 }

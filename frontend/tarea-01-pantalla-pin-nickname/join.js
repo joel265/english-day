@@ -21,23 +21,107 @@ const wordBlocksSelected = document.querySelector("#wordBlocksSelected");
 const wordBlocksBank = document.querySelector("#wordBlocksBank");
 const wordBlocksCount = document.querySelector("#wordBlocksCount");
 const wordBlocksReset = document.querySelector("#wordBlocksReset");
+const wordBlocksSubmit = document.querySelector("#wordBlocksSubmit");
 const textInputUI = document.querySelector("#textInputUI");
 const textAnswer = document.querySelector("#textAnswer");
 const textAnswerClear = document.querySelector("#textAnswerClear");
+const textAnswerSubmit = document.querySelector("#textAnswerSubmit");
+const voiceUI = document.querySelector("#voiceUI");
+const voiceMicButton = document.querySelector("#voiceMicButton");
+const voiceMicLabel = document.querySelector("#voiceMicLabel");
+const voiceMicHint = document.querySelector("#voiceMicHint");
+const voiceTranscriptText = document.querySelector("#voiceTranscriptText");
+const voiceConfirmActions = document.querySelector("#voiceConfirmActions");
+const voiceRepeatButton = document.querySelector("#voiceRepeatButton");
+const voiceSubmitButton = document.querySelector("#voiceSubmitButton");
+const voiceFallbackNotice = document.querySelector("#voiceFallbackNotice");
 const questionAnswerHint = document.querySelector("#questionAnswerHint");
 const questionStatus = document.querySelector("#questionStatus");
+const resultsCard = document.querySelector("#resultsCard");
+const resultsTitle = document.querySelector("#resultsTitle");
+const resultsCorrectAnswer = document.querySelector("#resultsCorrectAnswer");
+const resultsTop5List = document.querySelector("#resultsTop5List");
+const rouletteCard = document.querySelector("#rouletteCard");
+const rouletteTitle = document.querySelector("#rouletteTitle");
+const rouletteBadge = document.querySelector("#rouletteBadge");
+const rouletteWinnerName = document.querySelector("#rouletteWinnerName");
+const rouletteAnswerValue = document.querySelector("#rouletteAnswerValue");
+const rouletteAnswerVerdict = document.querySelector("#rouletteAnswerVerdict");
+const podiumCard = document.querySelector("#podiumCard");
+const podiumTitle = document.querySelector("#podiumTitle");
+const podiumTop3List = document.querySelector("#podiumTop3List");
+const podiumTotalPlayers = document.querySelector("#podiumTotalPlayers");
+
 let lobbySocket;
 let timerInterval;
 let selectedAnswer = null;
 let selectedWordBlocks = [];
 let questionDeadline = 0;
+let currentRoomId = null;
+let currentPlayer = null;
+let currentQuestion = null;
+let hasSubmittedAnswer = false;
+let speechRecognition = null;
+let isRecordingVoice = false;
+let finalVoiceTranscript = "";
 
-function expireQuestion() {
-  window.clearInterval(timerInterval);
-  questionTimer.textContent = "00:00";
-  questionTimer.setAttribute("aria-label", "0 segundos restantes");
-  questionProgress.value = 0;
-  questionTimer.classList.add("is-expired");
+// Navegación cómoda entre los 6 dígitos del PIN
+pinInputs.forEach((input, index) => {
+  input.addEventListener("input", (event) => {
+    const clean = event.target.value.replace(/\D/g, "").slice(-1);
+    event.target.value = clean;
+    if (clean && index < pinInputs.length - 1) {
+      pinInputs[index + 1].focus();
+    }
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Backspace" && !input.value && index > 0) {
+      pinInputs[index - 1].focus();
+    }
+  });
+  input.addEventListener("paste", (event) => {
+    const pasted = (event.clipboardData?.getData("text") || "").replace(/\D/g, "").slice(0, 6);
+    if (pasted.length > 0) {
+      event.preventDefault();
+      pasted.split("").forEach((digit, idx) => {
+        if (pinInputs[idx]) pinInputs[idx].value = digit;
+      });
+      const focusIdx = Math.min(pasted.length, pinInputs.length - 1);
+      pinInputs[focusIdx].focus();
+    }
+  });
+});
+
+// Pre-llenar PIN si viene por parámetro ?pin=XXXXXX (ej. desde QR del proyector)
+const urlPin = new URLSearchParams(window.location.search).get("pin");
+if (urlPin && /^\d{6}$/.test(urlPin)) {
+  urlPin.split("").forEach((digit, idx) => {
+    if (pinInputs[idx]) pinInputs[idx].value = digit;
+  });
+}
+
+function showOnlyCard(activeCard) {
+  [joinCard, lobbyCard, questionCard, resultsCard, rouletteCard, podiumCard].forEach((card) => {
+    if (card) card.hidden = card !== activeCard;
+  });
+}
+
+function stopVoiceRecognition() {
+  if (speechRecognition && isRecordingVoice) {
+    try {
+      speechRecognition.abort();
+    } catch {
+      // Ignorar si ya estaba detenido
+    }
+  }
+  isRecordingVoice = false;
+  if (voiceMicButton) {
+    voiceMicButton.setAttribute("aria-pressed", "false");
+    voiceMicButton.classList.remove("is-recording");
+  }
+}
+
+function lockQuestionInputs() {
   questionOptions.querySelectorAll("button").forEach((option) => {
     option.disabled = true;
   });
@@ -46,14 +130,32 @@ function expireQuestion() {
   });
   textAnswer.disabled = true;
   textAnswerClear.disabled = true;
-  questionStatus.textContent = "¡Se acabó el tiempo!";
-  questionStatus.dataset.state = "expired";
+  if (textAnswerSubmit) textAnswerSubmit.disabled = true;
+  if (wordBlocksSubmit) wordBlocksSubmit.disabled = true;
+  if (voiceMicButton) voiceMicButton.disabled = true;
+  if (voiceRepeatButton) voiceRepeatButton.disabled = true;
+  if (voiceSubmitButton) voiceSubmitButton.disabled = true;
+}
+
+function expireQuestion() {
+  window.clearInterval(timerInterval);
+  stopVoiceRecognition();
+  questionTimer.textContent = "00:00";
+  questionTimer.setAttribute("aria-label", "0 segundos restantes");
+  questionProgress.value = 0;
+  questionTimer.classList.add("is-expired");
+  lockQuestionInputs();
+  if (!hasSubmittedAnswer) {
+    questionStatus.textContent = "Tiempo agotado (0 puntos). Espera los resultados.";
+    questionStatus.dataset.state = "expired";
+  }
 }
 
 function clearTextAnswer() {
-  if (Date.now() >= questionDeadline || textAnswer.disabled) return;
+  if (Date.now() >= questionDeadline || textAnswer.disabled || hasSubmittedAnswer) return;
   textAnswer.value = "";
   textAnswerClear.hidden = true;
+  if (textAnswerSubmit) textAnswerSubmit.disabled = true;
   textAnswer.focus();
 }
 
@@ -64,8 +166,289 @@ textAnswer.addEventListener("input", () => {
   }
 
   textAnswerClear.hidden = textAnswer.value.length === 0;
+  if (textAnswerSubmit) {
+    textAnswerSubmit.disabled = hasSubmittedAnswer || textAnswer.value.trim().length === 0;
+  }
 });
+
+textAnswer.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    submitTextInputAnswer();
+  }
+});
+
 textAnswerClear.addEventListener("click", clearTextAnswer);
+
+/**
+ * Tarea 9: Envía la respuesta del aprendiz al servidor vía STOMP (/app/room/{roomId}/answer)
+ * según Contrato §4.2 y §4.4:
+ * { playerId, questionId, value, clientTimestamp }
+ */
+function sendAnswerToServer(answerValue) {
+  if (hasSubmittedAnswer || Date.now() >= questionDeadline) {
+    return false;
+  }
+  if (!currentRoomId || !currentPlayer?.playerId || !currentQuestion?.questionId) {
+    questionStatus.textContent = "Error: sesión de jugador o pregunta no inicializada.";
+    questionStatus.dataset.state = "error";
+    return false;
+  }
+  if (!lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
+    questionStatus.textContent = "No hay conexión en tiempo real para enviar la respuesta.";
+    questionStatus.dataset.state = "error";
+    return false;
+  }
+
+  const clientTimestamp = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  const payload = JSON.stringify({
+    playerId: currentPlayer.playerId,
+    questionId: currentQuestion.questionId,
+    value: answerValue,
+    clientTimestamp,
+  });
+
+  lobbySocket.send(
+    `SEND\ndestination:/app/room/${currentRoomId}/answer\ncontent-type:application/json\n\n${payload}\0`
+  );
+
+  hasSubmittedAnswer = true;
+  selectedAnswer = answerValue;
+  lockQuestionInputs();
+  questionStatus.textContent = "¡Respuesta enviada! Espera el cierre de la pregunta.";
+  questionStatus.dataset.state = "selected";
+  return true;
+}
+
+function submitTextInputAnswer() {
+  if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
+  const trimmed = textAnswer.value.trim();
+  if (!trimmed) {
+    questionStatus.textContent = "Escribe una respuesta antes de enviar.";
+    questionStatus.dataset.state = "error";
+    textAnswer.focus();
+    return;
+  }
+  sendAnswerToServer(trimmed);
+}
+
+if (textAnswerSubmit) {
+  textAnswerSubmit.addEventListener("click", submitTextInputAnswer);
+}
+
+function submitWordBlocksAnswer() {
+  if (hasSubmittedAnswer || Date.now() >= questionDeadline || !currentQuestion) return;
+  const tokens = selectedWordBlocks.map((index) => currentQuestion.options[index]);
+  if (tokens.length === 0) {
+    questionStatus.textContent = "Selecciona al menos un bloque para enviar tu oración.";
+    questionStatus.dataset.state = "error";
+    return;
+  }
+  sendAnswerToServer(tokens);
+}
+
+if (wordBlocksSubmit) {
+  wordBlocksSubmit.addEventListener("click", submitWordBlocksAnswer);
+}
+
+/**
+ * Tarea 8: Mecánica Voice (Web Speech API) según Contrato Anexo B y RF-07.
+ * - Idioma único: en-US (Anexo B.1)
+ * - No continuo, interimResults = true (Anexo B.2, B.3)
+ * - Botones "Enviar" y "Repetir" al terminar la captura (Anexo B.3)
+ * - Fallback a TEXT_INPUT si el micrófono no está disponible o falla (Anexo B.4)
+ */
+function activateVoiceTextFallback(reasonMessage) {
+  stopVoiceRecognition();
+  if (voiceFallbackNotice) {
+    voiceFallbackNotice.textContent = reasonMessage;
+    voiceFallbackNotice.hidden = false;
+  }
+  const stage = document.querySelector("#voiceStage");
+  const transcriptBox = document.querySelector("#voiceTranscriptBox");
+  if (stage) stage.hidden = true;
+  if (transcriptBox) transcriptBox.hidden = true;
+  if (voiceConfirmActions) voiceConfirmActions.hidden = true;
+
+  textInputUI.hidden = false;
+  textAnswer.disabled = hasSubmittedAnswer;
+  textAnswer.focus();
+}
+
+function initVoiceUI() {
+  stopVoiceRecognition();
+  finalVoiceTranscript = "";
+  if (voiceFallbackNotice) {
+    voiceFallbackNotice.hidden = true;
+    voiceFallbackNotice.textContent = "";
+  }
+  const stage = document.querySelector("#voiceStage");
+  const transcriptBox = document.querySelector("#voiceTranscriptBox");
+  if (stage) stage.hidden = false;
+  if (transcriptBox) transcriptBox.hidden = false;
+  if (voiceConfirmActions) voiceConfirmActions.hidden = true;
+  if (voiceMicButton) {
+    voiceMicButton.disabled = false;
+    voiceMicButton.setAttribute("aria-pressed", "false");
+    voiceMicButton.classList.remove("is-recording");
+  }
+  if (voiceMicLabel) voiceMicLabel.textContent = "Toca el micrófono para hablar";
+  if (voiceTranscriptText) {
+    voiceTranscriptText.textContent = "Aún no has grabado tu respuesta.";
+    voiceTranscriptText.classList.remove("is-interim");
+  }
+
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognitionCtor) {
+    activateVoiceTextFallback("No pudimos usar el micrófono. Escribe tu respuesta.");
+  }
+}
+
+function toggleVoiceRecording() {
+  if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
+
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognitionCtor) {
+    activateVoiceTextFallback("No pudimos usar el micrófono. Escribe tu respuesta.");
+    return;
+  }
+
+  if (isRecordingVoice && speechRecognition) {
+    speechRecognition.stop();
+    return;
+  }
+
+  finalVoiceTranscript = "";
+  if (voiceConfirmActions) voiceConfirmActions.hidden = true;
+
+  speechRecognition = new SpeechRecognitionCtor();
+  speechRecognition.lang = "en-US";
+  speechRecognition.continuous = false;
+  speechRecognition.interimResults = true;
+  speechRecognition.maxAlternatives = 1;
+
+  let latestInterim = "";
+
+  speechRecognition.onstart = () => {
+    isRecordingVoice = true;
+    voiceMicButton.setAttribute("aria-pressed", "true");
+    voiceMicButton.classList.add("is-recording");
+    voiceMicLabel.textContent = "Escuchando... Toca de nuevo para detener";
+    voiceTranscriptText.textContent = "Escuchando tu voz en inglés...";
+    voiceTranscriptText.classList.add("is-interim");
+    questionStatus.textContent = "";
+    questionStatus.dataset.state = "";
+  };
+
+  speechRecognition.onresult = (event) => {
+    if (Date.now() >= questionDeadline) {
+      stopVoiceRecognition();
+      return;
+    }
+    let interimText = "";
+    let finalText = "";
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalText += transcript;
+      } else {
+        interimText += transcript;
+      }
+    }
+    if (finalText.trim()) {
+      finalVoiceTranscript = finalText.trim();
+    }
+    latestInterim = interimText.trim();
+
+    if (finalVoiceTranscript) {
+      voiceTranscriptText.textContent = finalVoiceTranscript;
+      voiceTranscriptText.classList.remove("is-interim");
+    } else if (latestInterim) {
+      voiceTranscriptText.textContent = latestInterim;
+      voiceTranscriptText.classList.add("is-interim");
+    }
+  };
+
+  speechRecognition.onerror = (event) => {
+    isRecordingVoice = false;
+    voiceMicButton.setAttribute("aria-pressed", "false");
+    voiceMicButton.classList.remove("is-recording");
+
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      activateVoiceTextFallback(
+        "No pudimos usar el micrófono. Escribe tu respuesta. Si lo bloqueaste, actívalo en los ajustes del navegador."
+      );
+      return;
+    }
+    if (event.error === "network" || event.error === "audio-capture") {
+      activateVoiceTextFallback("No pudimos usar el micrófono. Escribe tu respuesta.");
+      return;
+    }
+    if (event.error === "no-speech") {
+      voiceMicLabel.textContent = "Toca el micrófono para hablar";
+      voiceTranscriptText.textContent = "No te escuché. Toca el micrófono e inténtalo de nuevo.";
+      voiceTranscriptText.classList.remove("is-interim");
+    }
+  };
+
+  speechRecognition.onend = () => {
+    isRecordingVoice = false;
+    voiceMicButton.setAttribute("aria-pressed", "false");
+    voiceMicButton.classList.remove("is-recording");
+    voiceMicLabel.textContent = "Toca el micrófono para hablar";
+
+    if (Date.now() >= questionDeadline) {
+      return;
+    }
+
+    if (!finalVoiceTranscript && latestInterim) {
+      finalVoiceTranscript = latestInterim;
+    }
+
+    if (finalVoiceTranscript) {
+      voiceTranscriptText.textContent = finalVoiceTranscript;
+      voiceTranscriptText.classList.remove("is-interim");
+      if (voiceConfirmActions) voiceConfirmActions.hidden = false;
+      if (voiceRepeatButton) voiceRepeatButton.disabled = false;
+      if (voiceSubmitButton) voiceSubmitButton.disabled = false;
+    } else if (!voiceFallbackNotice || voiceFallbackNotice.hidden) {
+      voiceTranscriptText.textContent = "No te escuché. Toca el micrófono e inténtalo de nuevo.";
+      voiceTranscriptText.classList.remove("is-interim");
+    }
+  };
+
+  try {
+    speechRecognition.start();
+  } catch {
+    activateVoiceTextFallback("No pudimos usar el micrófono. Escribe tu respuesta.");
+  }
+}
+
+if (voiceMicButton) {
+  voiceMicButton.addEventListener("click", toggleVoiceRecording);
+}
+
+if (voiceRepeatButton) {
+  voiceRepeatButton.addEventListener("click", () => {
+    if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
+    finalVoiceTranscript = "";
+    if (voiceConfirmActions) voiceConfirmActions.hidden = true;
+    voiceTranscriptText.textContent = "Grabación descartada. Toca el micrófono para repetir.";
+    voiceTranscriptText.classList.remove("is-interim");
+  });
+}
+
+if (voiceSubmitButton) {
+  voiceSubmitButton.addEventListener("click", () => {
+    if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
+    if (!finalVoiceTranscript.trim()) {
+      questionStatus.textContent = "No te escuché. Toca el micrófono e inténtalo de nuevo.";
+      questionStatus.dataset.state = "error";
+      return;
+    }
+    sendAnswerToServer(finalVoiceTranscript.trim());
+  });
+}
 
 function setLobbyStatus(message, state) {
   lobbyStatus.textContent = message;
@@ -115,7 +498,7 @@ function validateQuestion(question) {
       || question.options.some((option) => typeof option !== "string" || !option.trim())) {
       throw new Error("El servidor envió opciones de pregunta inválidas.");
     }
-  } else if (question.options !== null) {
+  } else if (question.options !== null && (!Array.isArray(question.options) || question.options.length > 0)) {
     throw new Error("El servidor envió opciones incompatibles con el tipo de pregunta.");
   }
 
@@ -123,19 +506,19 @@ function validateQuestion(question) {
 }
 
 function selectMultipleChoiceAnswer(button) {
-  if (selectedAnswer !== null || Date.now() >= questionDeadline || button.disabled) {
+  if (hasSubmittedAnswer || selectedAnswer !== null || Date.now() >= questionDeadline || button.disabled) {
     return;
   }
 
-  selectedAnswer = button.dataset.answer;
+  const answer = button.dataset.answer;
   questionOptions.querySelectorAll("button[data-answer]").forEach((option) => {
     const isSelected = option === button;
     option.disabled = true;
     option.setAttribute("aria-pressed", String(isSelected));
     option.classList.toggle("is-selected", isSelected);
   });
-  questionStatus.textContent = "Respuesta seleccionada. Espera el resultado.";
-  questionStatus.dataset.state = "selected";
+
+  sendAnswerToServer(answer);
 }
 
 function renderWordBlocks(question) {
@@ -144,12 +527,16 @@ function renderWordBlocks(question) {
   wordBlocksBank.replaceChildren();
   wordBlocksCount.textContent = `${selectedWordBlocks.length} ${selectedWordBlocks.length === 1 ? "bloque" : "bloques"}`;
   selectedAnswer = selectedWordBlocks.map((index) => question.options[index]);
+  if (wordBlocksSubmit) {
+    wordBlocksSubmit.disabled = hasSubmittedAnswer || selectedWordBlocks.length === 0;
+  }
 
   selectedWordBlocks.forEach((wordIndex, position) => {
     const item = document.createElement("li");
     const button = document.createElement("button");
     button.type = "button";
     button.className = "word-block word-block--selected";
+    button.disabled = hasSubmittedAnswer;
     button.setAttribute("aria-label", `Quitar ${question.options[wordIndex]}, posición ${position + 1}`);
 
     const positionLabel = document.createElement("span");
@@ -161,7 +548,7 @@ function renderWordBlocks(question) {
     word.textContent = question.options[wordIndex];
     button.append(positionLabel, word);
     button.addEventListener("click", () => {
-      if (Date.now() >= questionDeadline) return;
+      if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
       selectedWordBlocks = selectedWordBlocks.filter((index) => index !== wordIndex);
       renderWordBlocks(question);
     });
@@ -176,10 +563,11 @@ function renderWordBlocks(question) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "word-block";
+    button.disabled = hasSubmittedAnswer;
     button.setAttribute("aria-label", `Agregar bloque: ${option}`);
     button.textContent = option;
     button.addEventListener("click", () => {
-      if (Date.now() >= questionDeadline) return;
+      if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
       selectedWordBlocks.push(index);
       renderWordBlocks(question);
     });
@@ -189,7 +577,7 @@ function renderWordBlocks(question) {
 }
 
 function resetWordBlocks(question) {
-  if (Date.now() >= questionDeadline) return;
+  if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
   selectedWordBlocks = [];
   selectedAnswer = [];
   questionStatus.textContent = "";
@@ -200,6 +588,9 @@ function resetWordBlocks(question) {
 function renderQuestion(question) {
   validateQuestion(question);
   window.clearInterval(timerInterval);
+  stopVoiceRecognition();
+  currentQuestion = question;
+  hasSubmittedAnswer = false;
   selectedAnswer = null;
   selectedWordBlocks = [];
 
@@ -216,14 +607,18 @@ function renderQuestion(question) {
   questionStatus.textContent = "";
   questionStatus.dataset.state = "";
   questionOptions.replaceChildren();
-  questionOptions.hidden = question.type !== "MULTIPLE_CHOICE" && question.type !== "WORD_BLOCKS";
+  questionOptions.hidden = question.type !== "MULTIPLE_CHOICE";
   wordBlocksUI.hidden = question.type !== "WORD_BLOCKS";
   textInputUI.hidden = question.type !== "TEXT_INPUT";
+  if (voiceUI) voiceUI.hidden = question.type !== "VOICE";
   textAnswer.value = "";
   textAnswer.disabled = false;
   textAnswerClear.hidden = true;
   textAnswerClear.disabled = false;
-  questionAnswerHint.hidden = question.options !== null || question.type === "TEXT_INPUT";
+  if (textAnswerSubmit) textAnswerSubmit.disabled = true;
+  if (wordBlocksReset) wordBlocksReset.disabled = false;
+  if (wordBlocksSubmit) wordBlocksSubmit.disabled = true;
+  questionAnswerHint.hidden = true;
 
   if (question.type === "MULTIPLE_CHOICE") {
     question.options.forEach((option, index) => {
@@ -252,22 +647,20 @@ function renderQuestion(question) {
   } else if (question.type === "WORD_BLOCKS") {
     renderWordBlocks(question);
     wordBlocksReset.onclick = () => resetWordBlocks(question);
-  } else if (question.options !== null) {
-    question.options.forEach((option) => {
-      const item = document.createElement("li");
-      item.className = "question-option";
-      item.textContent = option;
-      questionOptions.append(item);
-    });
-  } else {
-    questionAnswerHint.textContent = question.type === "VOICE"
-      ? "Prepara tu respuesta en voz alta."
-      : "Prepara tu respuesta escrita.";
+  } else if (question.type === "VOICE") {
+    initVoiceUI();
   }
 
-  questionDeadline = Date.parse(question.serverTimestamp) + question.timeLimitSeconds * 1000;
+  const serverTimeMs = Date.parse(question.serverTimestamp);
+  const clockSkewAdjustedStart = Number.isFinite(serverTimeMs) ? serverTimeMs : Date.now();
+  const remainingFromServer = Math.round((clockSkewAdjustedStart + question.timeLimitSeconds * 1000 - Date.now()) / 1000);
+  const effectiveSeconds = remainingFromServer > 1 && remainingFromServer <= question.timeLimitSeconds + 5
+    ? remainingFromServer
+    : question.timeLimitSeconds;
+
+  questionDeadline = Date.now() + effectiveSeconds * 1000;
   questionProgress.max = question.timeLimitSeconds;
-  questionProgress.value = question.timeLimitSeconds;
+  questionProgress.value = Math.min(question.timeLimitSeconds, effectiveSeconds);
   questionTimer.classList.remove("is-expired");
 
   const updateTimer = () => {
@@ -288,10 +681,150 @@ function renderQuestion(question) {
     timerInterval = window.setInterval(updateTimer, 1000);
   }
 
-  lobbyCard.hidden = true;
-  questionCard.hidden = false;
+  showOnlyCard(questionCard);
   document.title = `Pregunta ${question.order} | English Day`;
   questionPrompt.focus();
+}
+
+/**
+ * Tarea 10: Pantalla de resultados al cerrar cada pregunta (/topic/room/{roomId}/results).
+ * Payload según Contrato §4.5:
+ * { "correctAnswer": "went", "top5": [{ "nickname": "camilo_dev", "score": 4200 }] }
+ */
+function renderResultsScreen(payload) {
+  if (!payload || typeof payload !== "object" || typeof payload.correctAnswer !== "string" || !Array.isArray(payload.top5)) {
+    throw new Error("El servidor envió resultados de ronda inválidos.");
+  }
+
+  window.clearInterval(timerInterval);
+  stopVoiceRecognition();
+
+  resultsCorrectAnswer.textContent = payload.correctAnswer;
+  resultsTop5List.replaceChildren();
+
+  if (payload.top5.length === 0) {
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "leaderboard-item";
+    emptyItem.textContent = "Aún no hay puntajes registrados en esta ronda.";
+    resultsTop5List.append(emptyItem);
+  } else {
+    payload.top5.forEach((entry, index) => {
+      const item = document.createElement("li");
+      item.className = "leaderboard-item";
+      if (currentPlayer && entry.nickname === currentPlayer.nickname) {
+        item.classList.add("is-current-player");
+      }
+
+      const rankBadge = document.createElement("span");
+      rankBadge.className = `leaderboard-rank rank-${index + 1}`;
+      rankBadge.textContent = `#${index + 1}`;
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "leaderboard-name";
+      nameSpan.textContent = entry.nickname;
+
+      const scoreSpan = document.createElement("strong");
+      scoreSpan.className = "leaderboard-score";
+      scoreSpan.textContent = `${entry.score ?? 0} pts`;
+
+      item.append(rankBadge, nameSpan, scoreSpan);
+      resultsTop5List.append(item);
+    });
+  }
+
+  showOnlyCard(resultsCard);
+  document.title = "Resultados Top 5 | English Day";
+  resultsTitle?.focus();
+}
+
+/**
+ * Tarea 11: Pantalla de Ruleta de Retroalimentación (/topic/room/{roomId}/roulette).
+ * Payload: { roomId, playerId, nickname, questionId, value, isCorrect, timestamp }
+ */
+function renderRouletteScreen(payload) {
+  if (!payload || typeof payload !== "object" || typeof payload.nickname !== "string") {
+    throw new Error("El servidor envió un resultado de ruleta inválido.");
+  }
+
+  window.clearInterval(timerInterval);
+  stopVoiceRecognition();
+
+  const isChosen = currentPlayer && (
+    payload.playerId === currentPlayer.playerId || payload.nickname === currentPlayer.nickname
+  );
+
+  rouletteBadge.textContent = isChosen
+    ? "¡Te tocó explicar tu respuesta!"
+    : "Aprendiz seleccionado al azar";
+  rouletteWinnerName.textContent = payload.nickname;
+  rouletteAnswerValue.textContent = payload.value
+    ? `"${payload.value}"`
+    : "Sin respuesta registrada a tiempo";
+  rouletteAnswerVerdict.textContent = payload.isCorrect
+    ? "✔ Respuesta correcta"
+    : "✖ Respuesta por reforzar en grupo";
+  rouletteAnswerVerdict.dataset.correct = String(Boolean(payload.isCorrect));
+
+  showOnlyCard(rouletteCard);
+  document.title = "Ruleta de Retroalimentación | English Day";
+  rouletteTitle?.focus();
+}
+
+/**
+ * Tarea 12: Pantalla de Podio Final Top 3 (/topic/room/{roomId}/podium).
+ * Payload: { roomId, status: "FINISHED", top3: [{ nickname, score }], totalPlayers, timestamp }
+ */
+function renderPodiumScreen(payload) {
+  const top3 = payload?.top3 || payload?.podium;
+  if (!payload || typeof payload !== "object" || !Array.isArray(top3)) {
+    throw new Error("El servidor envió un podio final inválido.");
+  }
+
+  window.clearInterval(timerInterval);
+  stopVoiceRecognition();
+
+  podiumTop3List.replaceChildren();
+  const medals = ["🥇 1.° Lugar", "🥈 2.° Lugar", "🥉 3.° Lugar"];
+
+  if (top3.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "podium-item";
+    empty.textContent = "Partida finalizada sin participantes registrados.";
+    podiumTop3List.append(empty);
+  } else {
+    top3.forEach((entry, index) => {
+      const item = document.createElement("li");
+      item.className = `podium-item podium-place-${index + 1}`;
+      if (currentPlayer && entry.nickname === currentPlayer.nickname) {
+        item.classList.add("is-current-player");
+      }
+
+      const medal = document.createElement("span");
+      medal.className = "podium-medal";
+      medal.textContent = medals[index] || `#${index + 1}`;
+
+      const name = document.createElement("strong");
+      name.className = "podium-name";
+      name.textContent = entry.nickname;
+
+      const score = document.createElement("span");
+      score.className = "podium-score";
+      score.textContent = `${entry.score ?? 0} pts`;
+
+      item.append(medal, name, score);
+      podiumTop3List.append(item);
+    });
+  }
+
+  if (typeof payload.totalPlayers === "number") {
+    podiumTotalPlayers.textContent = `Total de aprendices participantes: ${payload.totalPlayers}`;
+  } else {
+    podiumTotalPlayers.textContent = "";
+  }
+
+  showOnlyCard(podiumCard);
+  document.title = "¡Podio Final! | English Day";
+  podiumTitle?.focus();
 }
 
 function parseStompMessage(frame) {
@@ -318,8 +851,10 @@ function handleStompFrame(frame, roomId, currentPlayerId) {
   const { command, headers, body } = parseStompMessage(frame);
 
   if (command === "CONNECTED") {
-    lobbySocket.send(`SUBSCRIBE\nid:lobby-${roomId}\ndestination:/topic/room/${roomId}/lobby\nack:auto\n\n\0`);
-    lobbySocket.send(`SUBSCRIBE\nid:question-${roomId}\ndestination:/topic/room/${roomId}/question\nack:auto\n\n\0`);
+    const topics = ["lobby", "status", "question", "results", "roulette", "podium"];
+    topics.forEach((topic) => {
+      lobbySocket.send(`SUBSCRIBE\nid:${topic}-${roomId}\ndestination:/topic/room/${roomId}/${topic}\nack:auto\n\n\0`);
+    });
     setLobbyStatus("Conectado. Actualizando aprendices en tiempo real.", "connected");
     return;
   }
@@ -334,15 +869,24 @@ function handleStompFrame(frame, roomId, currentPlayerId) {
 
     const destination = headers.get("destination");
     if (destination === `/topic/room/${roomId}/lobby`) {
-      if (!Array.isArray(payload) || payload.some((player) =>
+      const playersList = Array.isArray(payload) ? payload : payload?.players;
+      if (!Array.isArray(playersList) || playersList.some((player) =>
         !player || typeof player.playerId !== "string" || typeof player.nickname !== "string"
       )) {
         throw new Error("El servidor envió una lista de aprendices inválida.");
       }
 
-      renderLobbyPlayers(payload, currentPlayerId);
+      renderLobbyPlayers(playersList, currentPlayerId);
     } else if (destination === `/topic/room/${roomId}/question`) {
       renderQuestion(payload);
+    } else if (destination === `/topic/room/${roomId}/results`) {
+      renderResultsScreen(payload);
+    } else if (destination === `/topic/room/${roomId}/roulette`) {
+      renderRouletteScreen(payload);
+    } else if (destination === `/topic/room/${roomId}/podium`) {
+      renderPodiumScreen(payload);
+    } else if (destination === `/topic/room/${roomId}/status`) {
+      // Estado sincronizado por topic /status
     } else {
       throw new Error("El servidor envió un mensaje desde un canal no esperado.");
     }
@@ -355,7 +899,7 @@ function handleStompFrame(frame, roomId, currentPlayerId) {
 }
 
 function showConnectionError(message) {
-  if (questionCard.hidden) {
+  if (!lobbyCard.hidden) {
     setLobbyStatus(message, "error");
   } else {
     questionStatus.textContent = message;
@@ -363,11 +907,14 @@ function showConnectionError(message) {
   }
 }
 
-function subscribeToLobby(roomId, currentPlayer) {
+function subscribeToLobby(roomId, player) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const url = `${protocol}//${window.location.host}/ws-englishday`;
 
-  renderLobbyPlayers([currentPlayer], currentPlayer.playerId);
+  currentRoomId = roomId;
+  currentPlayer = player;
+
+  renderLobbyPlayers([player], player.playerId);
   setLobbyStatus("Conectando al lobby en tiempo real...", "loading");
   lobbySocket = new WebSocket(url);
 
@@ -385,7 +932,7 @@ function subscribeToLobby(roomId, currentPlayer) {
 
       if (frame) {
         try {
-          handleStompFrame(frame, roomId, currentPlayer.playerId);
+          handleStompFrame(frame, roomId, player.playerId);
         } catch (error) {
           showConnectionError(error.message);
           lobbySocket.close();
@@ -408,6 +955,7 @@ function subscribeToLobby(roomId, currentPlayer) {
 
 window.addEventListener("beforeunload", () => {
   window.clearInterval(timerInterval);
+  stopVoiceRecognition();
   if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
     lobbySocket.close();
   }
@@ -419,6 +967,13 @@ joinForm.addEventListener("submit", async (event) => {
 
   const pin = pinInputs.map((input) => input.value).join("");
   const nickname = nicknameInput.value.trim();
+
+  if (!/^\d{6}$/.test(pin)) {
+    formMessage.dataset.state = "error";
+    formMessage.textContent = "El PIN debe tener 6 dígitos.";
+    pinInputs[0]?.focus();
+    return;
+  }
 
   if (!nickname) {
     formMessage.dataset.state = "error";
@@ -460,8 +1015,21 @@ joinForm.addEventListener("submit", async (event) => {
       throw new Error("El servidor no devolvió los datos de la sala necesarios para abrir el lobby.");
     }
 
-    joinCard.hidden = true;
-    lobbyCard.hidden = false;
+    try {
+      window.sessionStorage.setItem(
+        "englishDayPlayerSession",
+        JSON.stringify({
+          pin,
+          roomId: result.roomId,
+          playerId: result.playerId,
+          nickname: result.nickname,
+        })
+      );
+    } catch {
+      // sessionStorage opcional
+    }
+
+    showOnlyCard(lobbyCard);
     lobbyPin.textContent = `PIN de la partida: ${pin}`;
     subscribeToLobby(result.roomId, {
       playerId: result.playerId,

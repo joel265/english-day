@@ -52,8 +52,9 @@ public class PodiumResponse {
 
     /**
      * Alias de conveniencia para clientes frontend que consuman la propiedad 'podium'.
+     * Se marca como READ_ONLY para que la deserialización de Jackson no duplique la lista top3.
      */
-    @JsonProperty("podium")
+    @JsonProperty(value = "podium", access = JsonProperty.Access.READ_ONLY)
     public List<LeaderboardEntryDto> getPodium() {
         return top3;
     }

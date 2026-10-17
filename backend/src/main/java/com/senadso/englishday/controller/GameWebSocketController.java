@@ -3,6 +3,7 @@ package com.senadso.englishday.controller;
 import com.senadso.englishday.dto.CloseQuestionRequest;
 import com.senadso.englishday.dto.SubmitAnswerRequest;
 import com.senadso.englishday.service.AnswerService;
+import com.senadso.englishday.service.RoomService;
 import com.senadso.englishday.service.RouletteService;
 import com.senadso.englishday.service.ScoreService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class GameWebSocketController {
     private final AnswerService answerService;
     private final ScoreService scoreService;
     private final RouletteService rouletteService;
+    private final RoomService roomService;
 
     /**
      * Procesa la respuesta enviada por un aprendiz desde su dispositivo móvil.
@@ -41,6 +43,18 @@ public class GameWebSocketController {
                 roomId, request.getQuestionId());
 
         answerService.processAnswer(roomId, request);
+    }
+
+    /**
+     * Avanza a la siguiente pregunta por solicitud del moderador.
+     * Destino STOMP: /app/room/{roomId}/moderator/next (Contrato §4.2 / CU-03).
+     *
+     * @param roomId Identificador UUID de la sala.
+     */
+    @MessageMapping("/room/{roomId}/moderator/next")
+    public void nextQuestion(@DestinationVariable String roomId) {
+        log.info("Mensaje WebSocket recibido en /app/room/{}/moderator/next", roomId);
+        roomService.nextQuestion(roomId);
     }
 
     /**

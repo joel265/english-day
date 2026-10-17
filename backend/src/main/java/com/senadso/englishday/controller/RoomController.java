@@ -52,12 +52,42 @@ public class RoomController {
     }
 
     /**
+     * Endpoint para consultar el estado actual de la sala por PIN (reconexión).
+     * Ruta: GET /api/rooms/{pin} (Contrato §3 y Anexo A.4 / RF-03).
+     */
+    @GetMapping("/{pin}")
+    public ResponseEntity<RoomResponse> getRoomByPin(@PathVariable String pin) {
+        RoomResponse response = roomService.getRoomByPin(pin);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Endpoint para que el moderador inicie la partida.
      * Ruta: POST /api/rooms/{roomId}/start (Contrato §3 / CU-03 / RF-08).
      */
     @PostMapping("/{roomId}/start")
     public ResponseEntity<RoomResponse> startGame(@PathVariable String roomId) {
         RoomResponse response = roomService.startGame(roomId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para que el moderador avance a la siguiente pregunta.
+     * Ruta: POST /api/rooms/{roomId}/next (CU-03 / Tarea 14 Panel de Moderador).
+     */
+    @PostMapping("/{roomId}/next")
+    public ResponseEntity<RoomResponse> nextQuestion(@PathVariable String roomId) {
+        RoomResponse response = roomService.nextQuestion(roomId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para que el moderador cierre la pregunta actual y emita el Top 5 a /topic/room/{roomId}/results.
+     * Ruta: POST /api/rooms/{roomId}/close-question (RF-10).
+     */
+    @PostMapping("/{roomId}/close-question")
+    public ResponseEntity<com.senadso.englishday.dto.QuestionResultsResponse> closeQuestion(@PathVariable String roomId) {
+        com.senadso.englishday.dto.QuestionResultsResponse response = scoreService.broadcastQuestionResults(roomId, null);
         return ResponseEntity.ok(response);
     }
 

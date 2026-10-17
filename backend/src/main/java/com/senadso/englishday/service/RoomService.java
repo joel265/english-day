@@ -171,6 +171,58 @@ public class RoomService {
     }
 
     /**
+     * Consulta el estado actual de una sala mediante su PIN de 6 dígitos (Contrato §3 / Anexo A.4 / RF-03).
+     *
+     * @param pin Código PIN de 6 dígitos.
+     * @return Datos de la sala incluyendo playerCount.
+     */
+    @Transactional(readOnly = true)
+    public RoomResponse getRoomByPin(String pin) {
+        if (pin == null || !pin.matches("^[0-9]{6}$")) {
+            throw new IllegalArgumentException("El PIN debe tener 6 dígitos");
+        }
+        Room room = roomRepository.findByPin(pin)
+                .orElseThrow(() -> new PinNotFoundException("PIN no encontrado"));
+        int playerCount = playerRepository.findByRoom_RoomId(room.getRoomId()).size();
+        return RoomResponse.fromEntityWithCount(room, playerCount);
+    }
+
+    /**
+     * Avanza a la siguiente pregunta de la partida (Contrato §4.2 /app/room/{roomId}/moderator/next y CU-03).
+     * Incrementa currentQuestionIndex, actualiza el estado a QUESTION_IN_PROGRESS y difunde la pregunta
+     * al topic /topic/room/{roomId}/question.
+     *
+     * @param roomId Identificador UUID de la sala.
+     * @return Estado actualizado de la sala.
+     */
+    @Transactional
+    public RoomResponse nextQuestion(String roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("Sala no encontrada"));
+
+        if (room.getStatus() == RoomStatus.FINISHED) {
+            throw new IllegalStateException("La partida ya ha finalizado");
+        }
+
+        int nextOrder = (room.getCurrentQuestionIndex() == null ? 0 : room.getCurrentQuestionIndex()) + 1;
+        Question nextQuestion = questionRepository.findByOrder(nextOrder)
+                .orElseThrow(() -> new IllegalStateException("No hay más preguntas disponibles en el banco"));
+
+        room.setStatus(RoomStatus.QUESTION_IN_PROGRESS);
+        room.setCurrentQuestionIndex(nextOrder);
+        Room updatedRoom = roomRepository.save(room);
+
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/status",
+                Map.of("status", updatedRoom.getStatus().name()));
+
+        LocalDateTime serverTimestamp = LocalDateTime.now(ZoneOffset.UTC);
+        QuestionBroadcastResponse broadcastPayload = QuestionBroadcastResponse.fromEntity(nextQuestion, serverTimestamp);
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/question", broadcastPayload);
+
+        return RoomResponse.fromEntity(updatedRoom);
+    }
+
+    /**
      * Genera un PIN numérico aleatorio de 6 dígitos ("000000" a "999999")
      * garantizando que no esté colisionando con una sala existente.
      */

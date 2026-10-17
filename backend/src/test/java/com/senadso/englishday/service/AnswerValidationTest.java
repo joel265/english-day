@@ -70,12 +70,16 @@ class AnswerValidationTest {
     }
 
     @Test
-    @DisplayName("RF-07: VOICE - Validación robusta de transcripción de voz Web Speech API")
+    @DisplayName("RF-07: VOICE - Validación robusta de transcripción de voz Web Speech API y Anexo B.6")
     void testVoiceValidation() {
         String expected = "She lives in London";
 
         assertThat(answerService.validateAnswer(QuestionType.VOICE, "she lives in london", expected)).isTrue();
         assertThat(answerService.validateAnswer(QuestionType.VOICE, "SHE LIVES IN LONDON.", expected)).isTrue();
         assertThat(answerService.validateAnswer(QuestionType.VOICE, "she lived in london", expected)).isFalse();
+
+        // Anexo B.6: Conserva apóstrofo y guion pero elimina signos de puntuación periféricos
+        assertThat(answerService.validateAnswer(QuestionType.VOICE, "I don't know!", "i don't know")).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "well-known,", "well-known")).isTrue();
     }
 }
