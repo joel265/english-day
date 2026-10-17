@@ -83,6 +83,9 @@ class RoomControllerTest {
     @Autowired
     private com.senadso.englishday.repository.QuestionRepository questionRepository;
 
+    @Autowired
+    private com.senadso.englishday.repository.AnswerRepository answerRepository;
+
     @Test
     @DisplayName("Validación: POST /api/rooms/{pin}/join con nickname vacío debe retornar 400 Bad Request")
     void testJoinRoomBlankNickname() throws Exception {
@@ -101,6 +104,7 @@ class RoomControllerTest {
     @DisplayName("CU-03 / RF-08: POST /api/rooms/{roomId}/start debe iniciar la partida y responder 200 OK")
     void testStartGameSuccess() throws Exception {
         // Asegurar que exista la pregunta order = 1
+        answerRepository.deleteAll();
         questionRepository.deleteAll();
         com.senadso.englishday.model.Question question = com.senadso.englishday.model.Question.builder()
                 .type(com.senadso.englishday.model.enums.QuestionType.MULTIPLE_CHOICE)
