@@ -1,118 +1,176 @@
-# English Day — Plataforma Web de Gamificación (SENA ADSO)
+# English Day — Plataforma Web Interactiva de Gamificación en Inglés (SENA ADSO)
 
-Plataforma tipo Kahoot para el evento English Day: API REST + WebSockets en tiempo real, backend en Java/Spring Boot, frontend web mobile-first, base de datos relacional. Desarrollada por 5 subequipos (Backend, Frontend, UI/UX, Base de Datos, QA) con apoyo de IA.
+Plataforma web multijugador en tiempo real desarrollada para el evento institucional **English Day** del **SENA (Análisis y Desarrollo de Software — ADSO)**. Permite a los aprendices conectarse desde sus dispositivos móviles mediante un código PIN de 6 dígitos para competir en rondas sincrónicas de inglés (niveles MCER A2–B1) proyectadas en auditorio, integrando cuatro mecánicas interactivas, retroalimentación pedagógica por ruleta y clasificación en vivo.
 
-Si es tu primera vez aquí, ve directo a **[Paso a paso a prueba de bobos](#paso-a-paso-a-prueba-de-bobos)**.
+---
 
-## Estructura del repositorio
+## Características Principales
 
-```
+- **Salas en Vivo mediante PIN de 6 dígitos:** Creación instantánea de sesiones de juego y lobby en tiempo real con actualización automática de participantes conectados.
+- **Sincronización Bidireccional de Baja Latencia (< 200 ms):** Comunicación basada en **WebSockets (STOMP)** capaz de soportar 30+ aprendices concurrentes por sala sin condiciones de carrera.
+- **Cuatro Mecánicas de Evaluación:**
+  - `MULTIPLE_CHOICE`: Selección múltiple de 4 opciones con retroalimentación táctil.
+  - `WORD_BLOCKS`: Construcción sintáctica de oraciones mediante bloques interactivos (*Tap & Arrange*).
+  - `TEXT_INPUT`: Escritura directa con normalización tolerante a mayúsculas, espacios y signos de puntuación.
+  - `VOICE`: Reconocimiento de pronunciación en inglés (`en-US`) mediante **Web Speech API**, con transcripción en vivo y degradación elegante (*fallback* automático a texto) cuando el navegador o los permisos del dispositivo restringen el micrófono.
+- **Algoritmo de Puntuación por Velocidad:** Cálculo determinista en servidor según el tiempo restante de respuesta:
+  $$\text{Puntos} = \text{round}\left(1000 \times \left(0.5 + 0.5 \times \frac{t_{\text{restante}}}{t_{\text{total}}}\right)\right)$$
+- **Ruleta de Retroalimentación Pedagógica:** Sorteo aleatorio en servidor entre los participantes de la ronda (con animación en Canvas en la vista del proyector) para fomentar la justificación oral en inglés.
+- **Panel de Moderador / Proyector Integrado:** Interfaz dedicada para el docente con controles de inicio, cierre de pregunta (Top 5 parcial), giro de ruleta, avance de ronda, reconexión por PIN y podio final (Top 3) con animación de confeti.
+
+---
+
+## Arquitectura y Stack Tecnológico
+
+| Capa | Tecnología | Propósito |
+|---|---|---|
+| **Backend** | Java 17 / Spring Boot 3.2.5 | API REST síncrona, Broker STOMP WebSocket, lógica de negocio y puntuación |
+| **Persistencia** | Spring Data JPA + Hibernate / MySQL 8.0+ | Almacenamiento relacional transaccional (con soporte H2 en memoria para pruebas) |
+| **Tiempo Real** | Spring WebSocket + STOMP Protocol | Difusión de eventos de sala (`lobby`, `status`, `question`, `results`, `roulette`, `podium`) |
+| **Frontend** | HTML5 Semántico, CSS3 (*Tactile Gamified Arcade*), JavaScript ES6+ | Clientes ligeros sin dependencias pesadas, *Mobile-First* (`>= 48x48px` touch targets), Web Speech API y Canvas 2D |
+| **Infraestructura** | Cloudflare Tunnel (`cloudflared`) | Exposición segura mediante HTTPS / WSS para habilitar el micrófono móvil en redes locales |
+
+---
+
+## Estructura del Proyecto
+
+```text
 english-day/
-├── QA/          (Trabajos de QA / Testing)
-├── UIUX/        (Trabajos de Diseño Web)
-├── backend/     (Spring Boot)
-├── frontend/    (HTML/CSS/JS)
-├── database/    (scripts SQL)
-├── docs/        (todos los documentos del proyecto, ver tabla abajo)
-└── README.md    (este archivo)
+├── backend/                                  # Servidor Spring Boot (API REST + STOMP WebSocket)
+│   ├── src/main/java/com/senadso/englishday/
+│   │   ├── config/                           # Configuración CORS, recursos estáticos, WebSocket y semilla automática
+│   │   ├── controller/                       # Controladores REST (RoomController) y STOMP (GameWebSocketController)
+│   │   ├── dto/                              # Objetos de transferencia de datos según Contrato de Integración
+│   │   ├── exception/                        # Manejo global de excepciones y códigos de error semánticos
+│   │   ├── model/                            # Entidades JPA (Room, Player, Question, Answer, Score)
+│   │   ├── repository/                       # Repositorios Spring Data JPA
+│   │   └── service/                          # Lógica de salas, validación de respuestas, puntajes y ruleta
+│   ├── src/main/resources/                   # Perfiles de configuración (default, h2, prod)
+│   └── src/test/java/                        # Suite de 44 pruebas unitarias, de integración y concurrencia
+├── frontend/                                 # Aplicación Web Cliente (servida estáticamente por el Backend)
+│   ├── index.html                            # Vista del Aprendiz (Mobile-First)
+│   ├── moderator.html                        # Panel de Control del Moderador y Vista de Proyector
+│   ├── css/                                  # Hojas de estilo del sistema de diseño Tactile Gamified Arcade
+│   └── js/                                   # Clientes STOMP/REST (join.js, moderator.js), ruleta y efectos
+├── database/                                 # Persistencia y Analítica SQL
+│   ├── schema.sql                            # Esquema DDL oficial para MySQL 8.0+
+│   ├── questions_seed.sql                    # Semilla oficial de 23 preguntas (niveles A2-B1)
+│   ├── queries/                              # Consultas operativas y reportería analítica post-evento
+│   └── schemas/                              # JSON Schema de validación del banco de preguntas
+├── QA/                                       # Aseguramiento de Calidad y Pruebas Automatizadas
+│   ├── MATRIZ_CASOS_DE_PRUEBA_Y_EJECUCION.md # Matriz y resultados de ejecución (CP-01 a CP-11)
+│   ├── REPORTE_RESILIENCIA_AUDITORIA_Y_DISPOSITIVOS.md
+│   ├── e2e_verification_suite.mjs            # Suite automatizada End-to-End (15 verificaciones REST + STOMP)
+│   ├── load-test/                            # Scripts e informe de pruebas de carga y estrés (Grafana k6)
+│   └── banco-preguntas/                      # Insumos pedagógicos del área de bilingüismo
+├── UIUX/                                     # Sistema de Diseño y Prototipos de Interfaz
+│   ├── design-system/                        # Especificación visual (DESIGN.md)
+│   ├── wireframes/                           # Estructura base de pantallas
+│   ├── mobile-views/                         # Vistas móviles de alta fidelidad
+│   ├── components/                           # Componentes interactivos por mecánica
+│   └── projector-views/                      # Vistas de pantalla gigante / auditorio
+└── docs/                                     # Documentación de Arquitectura, Contrato API/WS y Despliegue
 ```
 
-## Documentos del proyecto
+---
 
-Todos viven en `docs/`. Hay dos grupos: los que definen **qué** se va a construir, hechos en la etapa de planificación, y los que definen **cómo** se construye con ayuda de la IA, pensados para que nadie se pierda durante el desarrollo.
+## Contrato de Comunicación (Resumen)
 
-### 1. Planificación del proyecto (documentos base)
+### Endpoints REST Principales
 
-| Documento | Para qué sirve | Quién lo usa |
+| Método | Ruta | Descripción |
 |---|---|---|
-| `PROYECTO_DE_DESARROLLO_DE_SOFTWARE...docx` | Visión general, requerimientos funcionales y no funcionales (RF/RNF), casos de uso, los 5 subequipos. **Léelo primero, sin excepción.** | Todos |
-| `DOCUMENTO_DE_ARQUITECTURA_DE_SOFTWARE (DAS).docx` | Arquitectura técnica, stack tecnológico, modelo de clases del sistema. | Backend, Frontend, Base de Datos |
-| `CRONOGRAMA_DE_TRABAJO_Y_EDT...docx` | Fechas, hitos (H1-H5), y la Matriz RACI: quién es responsable de qué. | PM y líderes de cada equipo |
-| `Estrategia_de_Trabajo_Colaborativo_y_Hojas_de_Ruta_Tecnicas.docx` | El roadmap de aprendizaje de tu subequipo, por fases. | Cada subequipo, en su propia sección |
-| `PLAN_DE_PRUEBAS_Y_CONTROL_DE_CALIDAD.docx` | Casos de prueba y criterios de aceptación, atados a cada RF. | QA, y cualquiera antes de dar una tarea por terminada |
-| `MANUAL_DE_DESPLIEGUE.docx` | Cómo poner el sistema en línea el día del evento (Cloudflare Tunnel, variables de entorno, etc.). | Backend, PM, el día del English Day |
+| `POST` | `/api/rooms` | Crea una nueva sala en estado `WAITING` y genera un PIN único de 6 dígitos. |
+| `GET` | `/api/rooms/{pin}` | Obtiene el estado actual y metadatos de una sala activa a partir de su PIN. |
+| `POST` | `/api/rooms/{pin}/join` | Registra un aprendiz en la sala y notifica al tópico de lobby. |
+| `POST` | `/api/rooms/{roomId}/start` | Inicia la partida (`IN_PROGRESS`) y emite la primera pregunta. |
+| `POST` | `/api/rooms/{roomId}/close-question` | Cierra la pregunta activa y publica la respuesta correcta junto al Top 5. |
+| `POST` | `/api/rooms/{roomId}/roulette` | Selecciona aleatoriamente a un aprendiz para la retroalimentación oral. |
+| `POST` | `/api/rooms/{roomId}/next` | Avanza a la siguiente pregunta del banco o finaliza la partida. |
+| `POST` | `/api/rooms/{roomId}/finish` | Cierra la partida (`FINISHED`) y publica el podio final (Top 3). |
 
-### 2. Cómo se desarrolla con la IA (documentos operativos)
+### Canales STOMP WebSocket (`/ws-game`)
 
-| Documento | Para qué sirve | Quién lo usa |
+| Dirección | Destino | Propósito |
 |---|---|---|
-| `CONTRATO_DE_INTEGRACION_API_WEBSOCKETS.docx` | Fija los nombres EXACTOS de rutas, campos JSON y eventos WebSocket que todos deben respetar, para que lo que hace cada equipo encaje sin fricción. | Todos, en cada conversación con la IA |
-| `BACKLOG_DE_TAREAS_POR_EQUIPO.docx` | La lista numerada y ordenada de tareas de tu equipo — responde "¿y ahora qué sigue?". | Todos, antes de crear una rama nueva |
-| `PROMPTS_MAESTROS_POR_EQUIPO.docx` | El mensaje inicial que cada equipo le pega a la IA para que entienda el proyecto, su rol y las reglas del juego. | Todos, al iniciar cada conversación con la IA |
-| `GUIA_DE_GIT.docx` | Comandos exactos, nombres de rama/commit, protección de `main`, checklist de Pull Request y qué hacer si hay un conflicto. | Todos, en cada tarea |
-| `GUIA_DE_KICKOFF_Y_COMUNICACION.docx` | Agenda de la reunión de lanzamiento del proyecto, y la cadencia de standups/checkpoints entre el PM y los líderes de área. | PM y líderes de área |
-| `BITACORA_DE_DECISIONES_TECNICAS.docx` | Registro vivo de las decisiones que no estaban en el Contrato de Integración (ej. cómo comparar una respuesta de voz, una constante de puntuación) — se actualiza todo el tiempo, a diferencia del Contrato. | Todos, cada vez que surge un "supuesto pendiente de validar" |
-| `CHECKLIST_PRE_EVENTO.docx` | Los últimos 5 días antes del English Day: ensayo en condiciones reales, code freeze, y el plan de contingencia si algo falla en vivo. | PM y todos, la última semana |
-| `GUIA_DE_SUSTENTACION.docx` | Quién defiende cada parte ante el jurado, la estructura de la presentación, y cómo responder con transparencia sobre el uso de la IA. | Todos, antes de la sustentación |
-| `CONFIGURACION_DEL_REPOSITORIO_Y_TABLERO.docx` | Paso a paso para crear el repositorio real en GitHub y el tablero Kanban a partir del Backlog, usando `setup_repo.sh` y `create_backlog_issues.sh`. | PM, una sola vez, al inicio |
-| `LIDERAZGO_DE_EQUIPO_Y_DESARROLLO_PARALELO.docx` | Labores del líder de cada equipo, y cómo repartir las tareas del Backlog en "oleadas" paralelas para que todos programen con la IA, no solo el líder. | Los 5 líderes y sus equipos |
+| `SUBSCRIBE` | `/topic/room/{roomId}/lobby` | Lista actualizada de jugadores conectados en sala de espera. |
+| `SUBSCRIBE` | `/topic/room/{roomId}/status` | Cambios de estado de la sala (`WAITING`, `IN_PROGRESS`, `FINISHED`). |
+| `SUBSCRIBE` | `/topic/room/{roomId}/question` | Difusión de la pregunta activa y su temporizador (sin exponer `correctAnswer`). |
+| `SEND` | `/app/room/{roomId}/answer` | Envío de respuesta del aprendiz (`{ playerId, questionId, value }`). |
+| `SUBSCRIBE` | `/topic/room/{roomId}/results` | Respuesta correcta revelada y clasificación parcial Top 5. |
+| `SUBSCRIBE` | `/topic/room/{roomId}/roulette` | Aprendiz seleccionado por la ruleta y su respuesta registrada. |
+| `SUBSCRIBE` | `/topic/room/{roomId}/podium` | Podio final Top 3 al cierre de la sesión. |
 
-> Regla de oro: **Contrato + Backlog + tu documento propio** se adjuntan SIEMPRE a la IA. Sin eso, la IA improvisa y el trabajo de un equipo deja de encajar con el de otro. Si tu IA te dice que algo es un "supuesto pendiente de validar", ese es el momento de abrir la Bitácora, no de seguir adelante como si ya existiera.
+---
 
-## Paso a paso a prueba de bobos
+## Requisitos Previos
 
-### Antes de tocar código (una sola vez por persona)
+- **Java JDK 17+**
+- **MySQL 8.0+** *(opcional si se ejecuta con el perfil en memoria `h2`)*
+- **Cloudflare Tunnel (`cloudflared`)** *(requerido únicamente en el evento en vivo para proveer HTTPS/WSS a dispositivos móviles)*
 
-- [ ] Crear una cuenta en [GitHub](https://github.com) si no tienes una.
-- [ ] Instalar [Git](https://git-scm.com/downloads).
-- [ ] Instalar tu editor de código (ver tabla de recomendados más abajo).
-- [ ] Configurar Git una sola vez:
-  ```
-  git config --global user.name "Tu Nombre"
-  git config --global user.email "tu_correo@ejemplo.com"
-  ```
-- [ ] Clonar el repositorio:
-  ```
-  git clone https://github.com/[usuario-o-equipo]/english-day.git
-  cd english-day
-  ```
-- [ ] Leer los documentos de `docs/` **en este orden**: (1) Proyecto general → (2) DAS → (3) tu sección en Estrategia de Trabajo Colaborativo → (4) tu fila en el Cronograma/RACI → (5) Contrato de Integración → (6) tu sección en el Backlog → (7) Guía de Git.
-- [ ] Abrir `PROMPTS_MAESTROS_POR_EQUIPO.docx` y copiar el prompt de tu equipo — lo vas a necesitar en cada conversación con la IA.
-- [ ] Si eres **líder de área**: revisa también `GUIA_DE_KICKOFF_Y_COMUNICACION.docx` §3 para conocer la cadencia de standups y checkpoints.
-- [ ] Si eres **PM**: sigue la checklist y la agenda completas de `GUIA_DE_KICKOFF_Y_COMUNICACION.docx` para preparar y dirigir el kickoff.
+---
 
-### Cada vez que vayas a hacer una tarea nueva
+## Instalación y Puesta en Marcha
 
-1. Abre el **Backlog** y busca la sección de tu equipo: identifica la primera tarea que aún no está marcada como hecha.
-2. Actualiza tu copia local y crea la rama de esa tarea:
-   ```
-   git checkout main
-   git pull
-   git checkout -b equipo/tarea-N-descripcion-corta
-   ```
-3. Abre tu editor con IA, pega el **Prompt Maestro** de tu equipo (actualiza la línea "VAMOS EN LA TAREA" con el número correcto), y adjunta el Contrato de Integración + el Backlog + tu documento propio.
-4. Trabaja con la IA paso a paso, guardando avances en commits pequeños (ver convención en la Guía de Git).
-5. Prueba tu trabajo localmente antes de subir nada.
-6. Sube la rama y abre un Pull Request hacia `main`:
-   ```
-   git push origin equipo/tarea-N-descripcion-corta
-   ```
-7. Espera la revisión y aprobación del responsable según la Matriz RACI.
-8. Cuando se apruebe y se haga merge, vuelve al paso 1 con la siguiente tarea.
+### 1. Inicializar la Base de Datos (Producción con MySQL)
 
-### Si te pierdes
+```bash
+mysql -u root -p < database/schema.sql
+mysql -u root -p english_day < database/questions_seed.sql
+```
 
-| Duda | Dónde buscar |
-|---|---|
-| "¿Qué tarea sigue?" | `BACKLOG_DE_TAREAS_POR_EQUIPO.docx`, sección de tu equipo |
-| "¿Cómo se llama este campo/endpoint/evento?" | `CONTRATO_DE_INTEGRACION_API_WEBSOCKETS.docx` |
-| "¿Qué comando de Git uso?" | `GUIA_DE_GIT.docx`, secciones 5 y 9 (glosario) |
-| "¿Cómo empiezo a hablar con la IA?" | `PROMPTS_MAESTROS_POR_EQUIPO.docx` |
-| "¿Quién aprueba mi Pull Request?" | `GUIA_DE_GIT.docx`, sección 7, o la Matriz RACI del Cronograma |
-| "Tomé una decisión que no estaba en el Contrato, ¿dónde la dejo?" | `BITACORA_DE_DECISIONES_TECNICAS.docx` |
-| "Soy PM, ¿cómo presento el proyecto o me comunico con los líderes?" | `GUIA_DE_KICKOFF_Y_COMUNICACION.docx` |
-| "¿Qué falta antes del día del evento?" | `CHECKLIST_PRE_EVENTO.docx` |
-| "¿Cómo me preparo para defender el proyecto ante el jurado?" | `GUIA_DE_SUSTENTACION.docx` |
+### 2. Compilar y Ejecutar el Servidor
 
-## Editores de código recomendados (con IA integrada)
+#### Modo Producción (MySQL)
+```bash
+cd backend
+./mvnw clean package -DskipTests
+java -jar -Dspring.profiles.active=prod -Dserver.port=8080 target/english-day-0.0.1-SNAPSHOT.jar
+```
+*(Variables de entorno soportadas: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `PORT`).*
 
-No es obligatorio usar uno en particular, pero estos hacen que trabajar con la IA sea mucho más fluido porque leen tu proyecto completo en vez de que copies y pegues código a mano.
+#### Modo Rápido / Autónomo (Base de datos H2 en memoria)
+Si deseas ejecutar la plataforma de inmediato sin configurar MySQL externo:
+```bash
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--spring.profiles.active=h2"
+```
 
-| Editor | Recomendado para | Por qué |
-|---|---|---|
-| **Visual Studio Code** + extensión de IA (Copilot, Claude Code, Cline) | Todos, especialmente Frontend | El más usado, gratis, con miles de tutoriales; la extensión de IA se agrega en minutos |
-| **Google Antigravity** | Backend y tareas grandes/multi-archivo | Gratis (en preview), basado en VS Code, agente autónomo que planea, escribe, prueba y verifica código en el editor, la terminal y el navegador a la vez — útil para tareas que tocan varios archivos como un endpoint completo con su prueba |
-| **Cursor** | Quien ya conoce VS Code y quiere IA muy integrada al escribir | Fork de VS Code con "modo agente" para tareas grandes y autocompletado con contexto de todo el proyecto |
-| **IntelliJ IDEA (Community, gratis)** | Backend en Java/Spring Boot | El estándar para proyectos Java; se le puede agregar un plugin de IA (ej. GitHub Copilot) |
+### 3. Acceso a las Interfaces
 
-> Cualquiera que elijan, la clave sigue siendo la misma: adjuntar el Contrato de Integración, el Backlog y el prompt maestro de su equipo antes de pedirle nada a la IA.
+Una vez iniciado el servidor en el puerto `8080`:
+- **Vista del Aprendiz (Móvil / Navegador):** `http://localhost:8080/`
+- **Panel del Moderador / Proyector:** `http://localhost:8080/moderator`
+
+### 4. Exposición Segura HTTPS para el Evento (Cloudflare Tunnel)
+
+Para permitir que los aprendices se conecten desde sus teléfonos móviles y utilicen el reconocimiento de voz por micrófono (que exige contexto seguro HTTPS):
+
+```bash
+cloudflared tunnel --url http://localhost:8080
+```
+
+Comparte la URL `https://xxxx.trycloudflare.com` generada (o su código QR) con los participantes del auditorio.
+
+---
+
+## Ejecución de Pruebas Automatizadas
+
+### Pruebas Unitarias, de Integración y Concurrencia (Backend)
+```bash
+cd backend
+./mvnw test
+```
+
+### Suite End-to-End (Flujo Completo REST + STOMP WebSockets)
+Con el servidor en ejecución en `http://localhost:8080`:
+```bash
+node QA/e2e_verification_suite.mjs
+```
+
+---
+
+## Créditos
+
+Proyecto desarrollado por los aprendices de la tecnología en **Análisis y Desarrollo de Software (ADSO)** del **Servicio Nacional de Aprendizaje (SENA)** para la jornada institucional **English Day**.
