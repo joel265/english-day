@@ -268,6 +268,177 @@ h1 {
   text-transform: uppercase;
 }
 
+.question-card {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--border);
+}
+
+.question-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.question-prompt {
+  margin: 0.75rem 0 1.25rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.question-timer {
+  margin: 0 0 1rem;
+  color: var(--primary-dark);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.question-timer[data-state="urgent"] {
+  color: #ba1a1a;
+}
+
+.answer-controls {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.answer-option,
+.word-block-option {
+  min-height: 3rem;
+  padding: 0.75rem;
+  border: 2px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.answer-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.answer-option input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--primary-dark);
+}
+
+.word-block-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.word-block-option {
+  min-width: 3rem;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.word-block-option[aria-pressed="true"] {
+  border-color: var(--primary-dark);
+  background: var(--primary);
+}
+
+.word-block-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.word-block-selection {
+  min-height: 3rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px dashed var(--secondary);
+  border-radius: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.text-answer-label {
+  display: grid;
+  gap: 0.5rem;
+  font-weight: 700;
+}
+
+.text-answer-input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.75rem;
+  border: 2px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.voice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.voice-button,
+.answer-button {
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 4px 0 var(--primary-dark);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.voice-button {
+  flex: 1 1 10rem;
+}
+
+.voice-button.secondary {
+  background: var(--secondary);
+  box-shadow: 0 4px 0 #006590;
+}
+
+.answer-button {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.voice-button:disabled,
+.answer-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.answer-status {
+  min-height: 1.25rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.answer-status[data-state="error"] {
+  color: #ba1a1a;
+}
+
+.answer-status[data-state="success"] {
+  color: var(--primary-dark);
+}
+
+.answer-option:focus-within,
+.word-block-option:focus-visible,
+.text-answer-input:focus-visible,
+.voice-button:focus-visible,
+.answer-button:focus-visible {
+  outline: 3px solid var(--secondary);
+  outline-offset: 2px;
+}
+
 @media (min-width: 36rem) {
   main {
     margin-top: 3rem;

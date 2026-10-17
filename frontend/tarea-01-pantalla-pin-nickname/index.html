@@ -58,8 +58,24 @@
         <p class="lobby-status" id="lobbyStatus" role="status" aria-live="polite"></p>
         <h2 class="players-heading">Aprendices conectados <span id="playerCount">0</span></h2>
         <ul class="lobby-players" id="lobbyPlayers" aria-live="polite"></ul>
+
+        <section class="question-card" id="questionCard" aria-labelledby="questionTitle" hidden>
+          <p class="eyebrow" id="questionMeta"></p>
+          <h2 id="questionTitle">Pregunta</h2>
+          <p class="question-prompt" id="questionPrompt"></p>
+          <p class="question-timer" id="questionTimer" role="timer" aria-live="off"></p>
+
+          <form id="answerForm">
+            <div class="answer-controls" id="answerControls"></div>
+            <p class="answer-status" id="answerStatus" role="status" aria-live="polite"></p>
+            <button class="answer-button" id="sendAnswerButton" type="submit" disabled>
+              Enviar respuesta
+            </button>
+          </form>
+        </section>
       </section>
     </main>
+    <script src="../js/speech.js" defer></script>
     <script src="./join.js" defer></script>
   </body>
 </html>
