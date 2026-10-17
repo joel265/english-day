@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f3faff">
+    <title>Respuesta por voz | English Day</title>
+    <link rel="stylesheet" href="../css/voice.css">
+    <script src="../js/speech.js" defer></script>
+    <script src="../js/voice.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <section id="voiceSection" aria-labelledby="voiceTitle">
+        <p>English Day · Juego en vivo</p>
+        <h1 id="voiceTitle">Responde con tu voz</h1>
+        <p id="voicePrompt">Lee la consigna y responde hablando en inglés.</p>
+
+        <div>
+          <button id="startListeningButton" type="button" aria-pressed="false">
+            Iniciar micrófono
+          </button>
+          <button id="stopListeningButton" type="button" disabled>
+            Detener micrófono
+          </button>
+        </div>
+
+        <p id="voiceStatus" role="status" aria-live="polite">
+          Pulsa “Iniciar micrófono” para hablar.
+        </p>
+
+        <section aria-labelledby="transcriptTitle">
+          <h2 id="transcriptTitle">Transcripción detectada</h2>
+          <p id="speechTranscript" aria-live="polite">
+            Tu transcripción aparecerá aquí.
+          </p>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>
