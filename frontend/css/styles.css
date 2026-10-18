@@ -452,6 +452,46 @@ h1 {
   text-transform: uppercase;
 }
 
+.lobby-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed var(--border);
+}
+
+.leave-lobby-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.65rem 1rem;
+  border: 2px solid #f0b8b8;
+  border-radius: 999px;
+  background: #fff5f5;
+  box-shadow: 0 3px 0 #e39e9e;
+  color: #ba1a1a;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 100ms ease, background 120ms ease;
+}
+
+.leave-lobby-button:hover:not(:disabled) {
+  background: #ffe8e8;
+}
+
+.leave-lobby-button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #e39e9e;
+}
+
+.leave-lobby-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .question-header {
   display: flex;
   align-items: flex-start;

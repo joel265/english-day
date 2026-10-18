@@ -29,6 +29,9 @@ const btnSaveRoomSettings = document.querySelector("#btnSaveRoomSettings");
 const modRoomStatus = document.querySelector("#modRoomStatus");
 const modPinValue = document.querySelector("#modPinValue");
 const modJoinUrl = document.querySelector("#modJoinUrl");
+const modQrBox = document.querySelector("#modQrBox");
+const modQrCanvas = document.querySelector("#modQrCanvas");
+const btnCopyJoinUrl = document.querySelector("#btnCopyJoinUrl");
 const modFeedback = document.querySelector("#modFeedback");
 
 const stagePhaseBadge = document.querySelector("#stagePhaseBadge");
@@ -36,6 +39,11 @@ const stageTimerBox = document.querySelector("#stageTimerBox");
 const stageTimerValue = document.querySelector("#stageTimerValue");
 const stageWelcomeView = document.querySelector("#stageWelcomeView");
 const stageMainHeading = document.querySelector("#stageMainHeading");
+const stageWelcomeSubtext = document.querySelector("#stageWelcomeSubtext");
+const stageQrBox = document.querySelector("#stageQrBox");
+const stageQrCanvas = document.querySelector("#stageQrCanvas");
+const stageQrUrl = document.querySelector("#stageQrUrl");
+const stageQrPinPill = document.querySelector("#stageQrPinPill");
 const stageQuestionView = document.querySelector("#stageQuestionView");
 const stageQuestionPrompt = document.querySelector("#stageQuestionPrompt");
 const stageQuestionOptions = document.querySelector("#stageQuestionOptions");
@@ -323,6 +331,10 @@ function renderProjectorPodium(payload) {
   }
 
   showStageSection(stageWelcomeView);
+  if (stageQrBox) stageQrBox.hidden = true;
+  if (stageWelcomeSubtext) {
+    stageWelcomeSubtext.textContent = "La partida ha finalizado. Puedes crear una nueva sala cuando lo desees.";
+  }
   stageMainHeading.textContent = top3.length > 0
     ? `🏆 ¡Ganador: ${top3[0].nickname} (${top3[0].score} pts)!`
     : "🏆 ¡Partida Finalizada!";
@@ -406,11 +418,53 @@ function connectModeratorWebSocket(roomId) {
   });
 }
 
+function renderRoomQrCodes(joinUrl, pin) {
+  if (window.EnglishDayQR && typeof window.EnglishDayQR.renderToCanvas === "function") {
+    if (modQrCanvas) {
+      window.EnglishDayQR.renderToCanvas(modQrCanvas, joinUrl, {
+        size: 160,
+        darkColor: "#111d22",
+        lightColor: "#ffffff",
+      });
+    }
+    if (stageQrCanvas) {
+      window.EnglishDayQR.renderToCanvas(stageQrCanvas, joinUrl, {
+        size: 240,
+        darkColor: "#00354d",
+        lightColor: "#ffffff",
+      });
+    }
+  }
+  if (modQrBox) modQrBox.hidden = false;
+  if (stageQrBox) stageQrBox.hidden = false;
+  if (stageQrUrl) stageQrUrl.textContent = joinUrl;
+  if (stageQrPinPill) stageQrPinPill.textContent = `PIN: ${pin}`;
+}
+
+if (btnCopyJoinUrl) {
+  btnCopyJoinUrl.addEventListener("click", async () => {
+    if (!currentRoom?.pin) return;
+    const joinUrl = `${window.location.origin}/index.html?pin=${currentRoom.pin}`;
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+      const prev = btnCopyJoinUrl.textContent;
+      btnCopyJoinUrl.textContent = "✔ ¡Enlace copiado!";
+      setFeedback(`Enlace copiado al portapapeles: ${joinUrl}`, "ok");
+      window.setTimeout(() => {
+        btnCopyJoinUrl.textContent = prev;
+      }, 2200);
+    } catch {
+      setFeedback(`Enlace directo: ${joinUrl}`, "ok");
+    }
+  });
+}
+
 function attachRoomSession(roomData) {
   currentRoom = roomData;
   modPinValue.textContent = roomData.pin;
   const playerJoinLink = `${window.location.origin}/index.html?pin=${roomData.pin}`;
   modJoinUrl.textContent = `Enlace aprendices: ${playerJoinLink}`;
+  renderRoomQrCodes(playerJoinLink, roomData.pin);
   modRankingTitle.textContent = "Clasificación en Vivo";
   modCorrectAnswerBanner.hidden = true;
   modCorrectAnswerText.textContent = "";
@@ -422,6 +476,10 @@ function attachRoomSession(roomData) {
   updateRoomStatusBadge(roomData.status);
   stagePhaseBadge.textContent = `Sala activa · PIN ${roomData.pin}`;
   stageMainHeading.textContent = `Únete en tu móvil con el PIN ${roomData.pin}`;
+  if (stageWelcomeSubtext) {
+    stageWelcomeSubtext.textContent =
+      "Escanea el código QR desde la pantalla o escribe el PIN de 6 dígitos en tu navegador para entrar a la sala.";
+  }
   showStageSection(stageWelcomeView);
   connectModeratorWebSocket(roomData.roomId);
 }

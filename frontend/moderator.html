@@ -175,6 +175,97 @@
         word-break: break-all;
       }
 
+      .pin-qr-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px dashed rgba(31, 81, 0, 0.25);
+      }
+
+      .pin-qr-canvas {
+        width: 152px;
+        height: 152px;
+        padding: 0.35rem;
+        border: 2px solid var(--primary-dark);
+        border-radius: 0.75rem;
+        background: #ffffff;
+        box-shadow: 0 3px 0 rgba(43, 108, 0, 0.2);
+      }
+
+      .copy-url-btn {
+        padding: 0.4rem 0.8rem;
+        border: 2px solid var(--primary-dark);
+        border-radius: 999px;
+        background: #ffffff;
+        color: var(--primary-dark);
+        font: inherit;
+        font-size: 0.78rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 100ms ease, background 120ms ease;
+      }
+
+      .copy-url-btn:hover {
+        background: #f3faff;
+      }
+
+      .copy-url-btn:active {
+        transform: translateY(1px);
+      }
+
+      .stage-qr-showcase {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1.5rem;
+        margin-top: 1.25rem;
+        padding: 1.25rem;
+        border: 2px dashed rgba(255, 255, 255, 0.45);
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      .stage-qr-canvas {
+        width: 210px;
+        height: 210px;
+        padding: 0.5rem;
+        border-radius: 0.9rem;
+        background: #ffffff;
+        box-shadow: 0 8px 20px rgba(0, 30, 46, 0.28);
+      }
+
+      .stage-qr-details {
+        flex: 1;
+        min-width: 220px;
+      }
+
+      .stage-qr-details h3 {
+        margin: 0 0 0.4rem;
+        font-size: 1.35rem;
+        font-weight: 900;
+      }
+
+      .stage-qr-details p {
+        margin: 0.25rem 0;
+        font-size: 1rem;
+        opacity: 0.95;
+      }
+
+      .stage-qr-pin-pill {
+        display: inline-block;
+        margin-top: 0.5rem;
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        background: #ddf4c5;
+        color: #1f5100;
+        font-size: 1.1rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+      }
+
       .controls-stack {
         display: grid;
         gap: 0.75rem;
@@ -491,11 +582,15 @@
     <div class="mod-layout">
       <aside class="mod-panel" aria-label="Controles del moderador">
         <section class="card">
-          <h2 class="card-title">PIN de Acceso en Proyector</h2>
+          <h2 class="card-title">PIN de Acceso y Código QR</h2>
           <div class="pin-banner">
             <span class="pin-banner-label">PIN de 6 dígitos</span>
             <strong class="pin-banner-value" id="modPinValue">------</strong>
             <span class="pin-join-url" id="modJoinUrl">Crea una sala para generar el PIN</span>
+            <div class="pin-qr-box" id="modQrBox" hidden>
+              <canvas class="pin-qr-canvas" id="modQrCanvas" width="160" height="160" aria-label="Código QR para unirse a la sala"></canvas>
+              <button class="copy-url-btn" id="btnCopyJoinUrl" type="button">📋 Copiar enlace de invitación</button>
+            </div>
           </div>
           <div class="reconnect-row">
             <input id="reconnectPinInput" type="text" inputmode="numeric" maxlength="6" placeholder="Reconectar PIN (6 díg.)">
@@ -579,10 +674,19 @@
               <h2 class="stage-prompt" id="stageMainHeading">
                 Bienvenido al Panel de Moderador del English Day
               </h2>
-              <p>
-                Presiona <strong>Crear Sala</strong> para generar el PIN de 6 dígitos en pantalla gigante.
+              <p id="stageWelcomeSubtext">
+                Presiona <strong>Crear Sala</strong> para generar el PIN de 6 dígitos y el código QR en pantalla gigante.
                 Los aprendices ingresan desde sus móviles y aparecerán en tiempo real en la lista inferior.
               </p>
+              <div class="stage-qr-showcase" id="stageQrBox" hidden>
+                <canvas class="stage-qr-canvas" id="stageQrCanvas" width="240" height="240" aria-label="Código QR gigante para escanear desde el proyector"></canvas>
+                <div class="stage-qr-details">
+                  <h3>📱 Escanea el QR para ingresar directo</h3>
+                  <p>Apunta la cámara de tu celular al código QR para entrar con el PIN autocompletado.</p>
+                  <p id="stageQrUrl"></p>
+                  <span class="stage-qr-pin-pill" id="stageQrPinPill">PIN: ------</span>
+                </div>
+              </div>
             </div>
 
             <div id="stageQuestionView" hidden>
@@ -631,6 +735,7 @@
 
     <script src="./js/confetti.js" defer></script>
     <script src="./js/roulette.js" defer></script>
+    <script src="./js/qrcode.js" defer></script>
     <script src="./js/moderator.js" defer></script>
   </body>
 </html>

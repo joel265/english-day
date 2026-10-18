@@ -263,6 +263,24 @@ public class RoomService {
     }
 
     /**
+     * Retira a un aprendiz de la sala de espera y notifica en tiempo real al lobby y al moderador.
+     */
+    @Transactional
+    public void leaveRoom(String roomId, String playerId) {
+        if (!roomRepository.existsById(roomId)) {
+            throw new RoomNotFoundException("Sala no encontrada");
+        }
+        playerRepository.findById(playerId).ifPresent(player -> {
+            if (player.getRoom() != null && roomId.equals(player.getRoom().getRoomId())) {
+                playerRepository.delete(player);
+                playerRepository.flush();
+                log.info("Aprendiz {} ({}) salió de la sala {}", player.getNickname(), playerId, roomId);
+            }
+        });
+        broadcastLobbyUpdate(roomId);
+    }
+
+    /**
      * Emite la lista de jugadores conectados al canal STOMP del lobby.
      */
     public void broadcastLobbyUpdate(String roomId) {

@@ -138,13 +138,31 @@ async function runSuite() {
   // 0. Verificar vistas HTML servidas por el servidor
   const indexRes = await fetch(`${BASE_URL}/index.html`);
   const indexHtml = await indexRes.text();
-  assert(indexRes.status === 200 && indexHtml.includes("voiceUI") && indexHtml.includes("podiumCard"),
-    "Frontend Tarea 8-12: /index.html sirve las pantallas de PIN, Lobby, Pregunta (4 mecánicas), Resultados, Ruleta y Podio");
+  assert(
+    indexRes.status === 200 &&
+      indexHtml.includes("voiceUI") &&
+      indexHtml.includes("podiumCard") &&
+      indexHtml.includes("btnLeaveLobby"),
+    "Frontend Tarea 8-12: /index.html sirve las pantallas de PIN, Lobby (con botón Salir de la sala), Pregunta (4 mecánicas), Resultados, Ruleta y Podio"
+  );
 
   const modRes = await fetch(`${BASE_URL}/moderator.html`);
   const modHtml = await modRes.text();
-  assert(modRes.status === 200 && modHtml.includes("btnCreateRoom") && modHtml.includes("btnActivateRoulette"),
-    "Frontend Tarea 14: /moderator.html sirve el Panel de Moderador con todos los botones operativos");
+  assert(
+    modRes.status === 200 &&
+      modHtml.includes("btnCreateRoom") &&
+      modHtml.includes("btnActivateRoulette") &&
+      modHtml.includes("modQrCanvas") &&
+      modHtml.includes("stageQrCanvas"),
+    "Frontend Tarea 14: /moderator.html sirve el Panel de Moderador con todos los botones operativos y generador QR integrado"
+  );
+
+  const qrScriptRes = await fetch(`${BASE_URL}/js/qrcode.js`);
+  const qrScriptText = await qrScriptRes.text();
+  assert(
+    qrScriptRes.status === 200 && qrScriptText.includes("EnglishDayQR"),
+    "Generador QR: /js/qrcode.js se sirve correctamente para renderizar códigos QR en Canvas"
+  );
 
   // 1. CP-01: Crear sala
   const createRes = await fetch(`${BASE_URL}/api/rooms`, { method: "POST" });
@@ -192,6 +210,32 @@ async function runSuite() {
   const lobbyUpdate2 = await lobbyPromise2;
   assert(join2Res.status === 200 && lobbyUpdate2.length === 2,
     "CP-02: Jugador 2 (laura_eng) unido; lobby contiene 2 aprendices conectados");
+
+  // 4b. Verificar ingreso y salida voluntaria de un 3er jugador en el lobby (DELETE /api/rooms/{roomId}/players/{playerId})
+  const lobbyPromise3 = stomp.waitForMessage(`/topic/room/${room.roomId}/lobby`);
+  const join3Res = await fetch(`${BASE_URL}/api/rooms/${room.pin}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname: "temp_aprendiz" }),
+  });
+  const player3 = await join3Res.json();
+  const lobbyUpdate3 = await lobbyPromise3;
+  assert(join3Res.status === 200 && lobbyUpdate3.length === 3,
+    "Lobby: Jugador temporal (temp_aprendiz) se une a la sala de espera (3 aprendices)");
+
+  const lobbyLeavePromise = stomp.waitForMessage(`/topic/room/${room.roomId}/lobby`);
+  const leaveRes = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/players/${player3.playerId}`, {
+    method: "DELETE",
+  });
+  const leaveBody = await leaveRes.json();
+  const lobbyAfterLeave = await lobbyLeavePromise;
+  assert(
+    leaveRes.status === 200 &&
+      leaveBody.status === "LEFT" &&
+      Array.isArray(lobbyAfterLeave) &&
+      lobbyAfterLeave.length === 2,
+    "Botón Salir del Lobby: DELETE /api/rooms/{roomId}/players/{playerId} retira al jugador y actualiza el lobby en vivo a 2 aprendices"
+  );
 
   // 5. Anexo A.4: Reconexión GET /api/rooms/{pin}
   const getRoomRes = await fetch(`${BASE_URL}/api/rooms/${room.pin}`);

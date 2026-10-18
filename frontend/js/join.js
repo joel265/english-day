@@ -9,6 +9,7 @@ const lobbyPin = document.querySelector("#lobbyPin");
 const lobbyStatus = document.querySelector("#lobbyStatus");
 const lobbyPlayers = document.querySelector("#lobbyPlayers");
 const playerCount = document.querySelector("#playerCount");
+const btnLeaveLobby = document.querySelector("#btnLeaveLobby");
 const questionCard = document.querySelector("#questionCard");
 const questionType = document.querySelector("#questionType");
 const questionOrder = document.querySelector("#questionOrder");
@@ -95,6 +96,7 @@ let isRecordingVoice = false;
 let finalVoiceTranscript = "";
 let knownRoomPlayers = [];
 let playerRouletteWheel = null;
+let isLeavingIntentionally = false;
 
 document.addEventListener("DOMContentLoaded", () => {
   if (window.ActiveFeedbackRoulette) {
@@ -135,6 +137,9 @@ if (urlPin && /^\d{6}$/.test(urlPin)) {
   urlPin.split("").forEach((digit, idx) => {
     if (pinInputs[idx]) pinInputs[idx].value = digit;
   });
+  formMessage.dataset.state = "success";
+  formMessage.textContent = `PIN ${urlPin} cargado desde el código QR. ¡Escribe tu nombre para entrar!`;
+  nicknameInput?.focus();
 }
 
 function showOnlyCard(activeCard) {
@@ -1292,6 +1297,11 @@ function subscribeToLobby(roomId, player) {
 
   currentRoomId = roomId;
   currentPlayer = player;
+  isLeavingIntentionally = false;
+  if (btnLeaveLobby) {
+    btnLeaveLobby.disabled = false;
+    btnLeaveLobby.textContent = "🚪 Salir de la sala de espera";
+  }
 
   renderLobbyPlayers([player], player.playerId);
   setLobbyStatus("Conectando al lobby en tiempo real...", "loading");
@@ -1323,19 +1333,96 @@ function subscribeToLobby(roomId, player) {
     }
   });
   lobbySocket.addEventListener("error", () => {
-    showConnectionError("No se pudo conectar a la partida en tiempo real.");
+    if (!isLeavingIntentionally) {
+      showConnectionError("No se pudo conectar a la partida en tiempo real.");
+    }
   });
   lobbySocket.addEventListener("close", () => {
-    if (lobbyStatus.dataset.state !== "error" && questionStatus.dataset.state !== "error") {
+    if (
+      !isLeavingIntentionally &&
+      lobbyStatus.dataset.state !== "error" &&
+      questionStatus.dataset.state !== "error"
+    ) {
       showConnectionError("Se perdió la conexión con la partida. Actualiza la página para volver a ingresar.");
     }
   });
+}
+
+async function leaveCurrentLobby() {
+  if (!currentRoomId || !currentPlayer?.playerId) {
+    showOnlyCard(joinCard);
+    return;
+  }
+
+  const roomIdToLeave = currentRoomId;
+  const playerIdToLeave = currentPlayer.playerId;
+
+  if (btnLeaveLobby) {
+    btnLeaveLobby.disabled = true;
+    btnLeaveLobby.textContent = "Saliendo de la sala...";
+  }
+
+  isLeavingIntentionally = true;
+  window.clearInterval(timerInterval);
+  window.clearTimeout(autoCloseTimeout);
+  window.clearTimeout(transitionTimeout);
+  window.clearInterval(transitionInterval);
+  stopVoiceRecognition();
+
+  try {
+    await fetch(
+      `/api/rooms/${encodeURIComponent(roomIdToLeave)}/players/${encodeURIComponent(playerIdToLeave)}`,
+      { method: "DELETE" }
+    );
+  } catch {
+    // Continuar desconexión local aunque el servidor no responda
+  }
+
+  if (lobbySocket) {
+    try {
+      lobbySocket.close();
+    } catch {
+      // Ignorar
+    }
+    lobbySocket = null;
+  }
+
+  try {
+    window.sessionStorage.removeItem("englishDayPlayerSession");
+  } catch {
+    // sessionStorage opcional
+  }
+
+  currentRoomId = null;
+  currentPlayer = null;
+  currentQuestion = null;
+  knownRoomPlayers = [];
+  lobbyPlayers.replaceChildren();
+  playerCount.textContent = "0";
+  lobbyStatus.textContent = "";
+  delete lobbyStatus.dataset.state;
+
+  if (btnLeaveLobby) {
+    btnLeaveLobby.disabled = false;
+    btnLeaveLobby.textContent = "🚪 Salir de la sala de espera";
+  }
+
+  showOnlyCard(joinCard);
+  document.title = "Unirse a la partida | English Day";
+  formMessage.dataset.state = "loading";
+  formMessage.textContent = "Saliste de la sala de espera. Puedes ingresar a otra partida cuando quieras.";
+  nicknameInput?.focus();
+}
+
+if (btnLeaveLobby) {
+  btnLeaveLobby.addEventListener("click", leaveCurrentLobby);
 }
 
 window.addEventListener("beforeunload", () => {
   window.clearInterval(timerInterval);
   stopVoiceRecognition();
   if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
+    isLeavingIntentionally = true;
     lobbySocket.close();
   }
 });

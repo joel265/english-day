@@ -77,6 +77,25 @@ public class RoomController {
     }
 
     /**
+     * Endpoint para que un aprendiz salga voluntariamente de la sala de espera.
+     */
+    @DeleteMapping("/{roomId}/players/{playerId}")
+    public ResponseEntity<java.util.Map<String, String>> leaveRoom(
+            @PathVariable String roomId,
+            @PathVariable String playerId) {
+        roomService.leaveRoom(roomId, playerId);
+        return ResponseEntity.ok(java.util.Map.of("status", "LEFT", "playerId", playerId));
+    }
+
+    @PostMapping("/{roomId}/players/{playerId}/leave")
+    public ResponseEntity<java.util.Map<String, String>> leaveRoomPost(
+            @PathVariable String roomId,
+            @PathVariable String playerId) {
+        roomService.leaveRoom(roomId, playerId);
+        return ResponseEntity.ok(java.util.Map.of("status", "LEFT", "playerId", playerId));
+    }
+
+    /**
      * Endpoint para consultar el estado actual de la sala por PIN (reconexión).
      * Ruta: GET /api/rooms/{pin} (Contrato §3 y Anexo A.4 / RF-03).
      */
