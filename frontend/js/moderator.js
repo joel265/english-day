@@ -18,6 +18,14 @@ const btnFinishGame = document.querySelector("#btnFinishGame");
 const btnReconnectPin = document.querySelector("#btnReconnectPin");
 const reconnectPinInput = document.querySelector("#reconnectPinInput");
 
+const cfgTimeMultipleChoice = document.querySelector("#cfgTimeMultipleChoice");
+const cfgTimeTextInput = document.querySelector("#cfgTimeTextInput");
+const cfgTimeWordBlocks = document.querySelector("#cfgTimeWordBlocks");
+const cfgTimeVoice = document.querySelector("#cfgTimeVoice");
+const cfgTimeIntro = document.querySelector("#cfgTimeIntro");
+const cfgRandomOrder = document.querySelector("#cfgRandomOrder");
+const btnSaveRoomSettings = document.querySelector("#btnSaveRoomSettings");
+
 const modRoomStatus = document.querySelector("#modRoomStatus");
 const modPinValue = document.querySelector("#modPinValue");
 const modJoinUrl = document.querySelector("#modJoinUrl");
@@ -54,6 +62,45 @@ document.addEventListener("DOMContentLoaded", () => {
     rouletteWheel = new window.ActiveFeedbackRoulette("rouletteCanvas");
   }
 });
+
+function clampInt(val, min, max, fallback) {
+  const parsed = Number.parseInt(val, 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function readModeratorSettingsFromForm() {
+  return {
+    multipleChoiceTimeSeconds: clampInt(cfgTimeMultipleChoice?.value, 5, 180, 15),
+    textInputTimeSeconds: clampInt(cfgTimeTextInput?.value, 5, 180, 20),
+    wordBlocksTimeSeconds: clampInt(cfgTimeWordBlocks?.value, 5, 180, 20),
+    voiceTimeSeconds: clampInt(cfgTimeVoice?.value, 5, 180, 25),
+    introDurationSeconds: clampInt(cfgTimeIntro?.value, 0, 15, 3),
+    shuffleQuestions: cfgRandomOrder ? cfgRandomOrder.value !== "false" : true,
+  };
+}
+
+function applySettingsToForm(settings) {
+  if (!settings) return;
+  if (cfgTimeMultipleChoice && settings.multipleChoiceTimeSeconds != null) {
+    cfgTimeMultipleChoice.value = String(settings.multipleChoiceTimeSeconds);
+  }
+  if (cfgTimeTextInput && settings.textInputTimeSeconds != null) {
+    cfgTimeTextInput.value = String(settings.textInputTimeSeconds);
+  }
+  if (cfgTimeWordBlocks && settings.wordBlocksTimeSeconds != null) {
+    cfgTimeWordBlocks.value = String(settings.wordBlocksTimeSeconds);
+  }
+  if (cfgTimeVoice && settings.voiceTimeSeconds != null) {
+    cfgTimeVoice.value = String(settings.voiceTimeSeconds);
+  }
+  if (cfgTimeIntro && settings.introDurationSeconds != null) {
+    cfgTimeIntro.value = String(settings.introDurationSeconds);
+  }
+  if (cfgRandomOrder && settings.shuffleQuestions != null) {
+    cfgRandomOrder.value = String(Boolean(settings.shuffleQuestions));
+  }
+}
 
 function setFeedback(message, state = "ok") {
   modFeedback.textContent = message;
@@ -121,7 +168,7 @@ function renderProjectorQuestion(question) {
     VOICE: "Voice Challenge · Pronunciación (RF-07)",
   };
 
-  stagePhaseBadge.textContent = `Pregunta ${question.order} · ${typeLabels[question.type] || question.type}`;
+  stagePhaseBadge.textContent = `Pregunta ${question.order} · ${typeLabels[question.type] || question.type} (${question.timeLimitSeconds}s)`;
   stageQuestionPrompt.textContent = question.prompt;
   stageQuestionOptions.replaceChildren();
 
@@ -147,11 +194,21 @@ function renderProjectorQuestion(question) {
 
   showStageSection(stageQuestionView);
 
-  const deadline = Date.now() + (question.timeLimitSeconds || 15) * 1000;
+  const introSeconds = typeof question.introDurationSeconds === "number" ? question.introDurationSeconds : 3;
+  const questionSeconds = question.timeLimitSeconds || 15;
+  const introEndMs = Date.now() + introSeconds * 1000;
+  const deadline = introEndMs + questionSeconds * 1000;
   stageTimerBox.classList.remove("is-expired");
 
   const tick = () => {
-    const secondsLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    const now = Date.now();
+    if (now < introEndMs) {
+      const introLeft = Math.max(1, Math.ceil((introEndMs - now) / 1000));
+      stageTimerValue.textContent = `Intro 00:0${introLeft}`;
+      return;
+    }
+
+    const secondsLeft = Math.max(0, Math.ceil((deadline - now) / 1000));
     const mins = Math.floor(secondsLeft / 60);
     const secs = secondsLeft % 60;
     stageTimerValue.textContent = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
@@ -169,7 +226,7 @@ function renderProjectorQuestion(question) {
     }
   };
   tick();
-  modTimerInterval = window.setInterval(tick, 1000);
+  modTimerInterval = window.setInterval(tick, 500);
 }
 
 function renderProjectorResults(payload) {
@@ -369,18 +426,67 @@ function attachRoomSession(roomData) {
   connectModeratorWebSocket(roomData.roomId);
 }
 
+async function syncSettingsToActiveRoom(showNotification = false) {
+  const settings = readModeratorSettingsFromForm();
+  applySettingsToForm(settings);
+  if (!currentRoom?.roomId) {
+    if (showNotification) {
+      setFeedback(
+        `Parámetros listos (MC: ${settings.multipleChoiceTimeSeconds}s, Texto: ${settings.textInputTimeSeconds}s, Bloques: ${settings.wordBlocksTimeSeconds}s, Voz: ${settings.voiceTimeSeconds}s, Intro: ${settings.introDurationSeconds}s). Se aplicarán al crear la sala.`,
+        "ok"
+      );
+    }
+    return settings;
+  }
+
+  const response = await fetch(`/api/rooms/${encodeURIComponent(currentRoom.roomId)}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  if (response.ok) {
+    const saved = await response.json();
+    applySettingsToForm(saved);
+    if (showNotification) {
+      setFeedback(
+        `Tiempos actualizados en la sala ${currentRoom.pin} (MC: ${saved.multipleChoiceTimeSeconds}s, Texto: ${saved.textInputTimeSeconds}s, Bloques: ${saved.wordBlocksTimeSeconds}s, Voz: ${saved.voiceTimeSeconds}s, Intro: ${saved.introDurationSeconds}s).`,
+        "ok"
+      );
+    }
+    return saved;
+  }
+  return settings;
+}
+
+if (btnSaveRoomSettings) {
+  btnSaveRoomSettings.addEventListener("click", () => {
+    syncSettingsToActiveRoom(true).catch((err) => {
+      setFeedback(`No se pudieron guardar los parámetros: ${err.message}`, "error");
+    });
+  });
+}
+
 btnCreateRoom.addEventListener("click", async () => {
   btnCreateRoom.disabled = true;
-  setFeedback("Creando nueva sala...", "ok");
+  setFeedback("Creando nueva sala con parámetros configurados...", "ok");
   try {
-    const response = await fetch("/api/rooms", { method: "POST" });
+    const settings = readModeratorSettingsFromForm();
+    applySettingsToForm(settings);
+    const response = await fetch("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || `Error HTTP ${response.status}`);
     }
     renderLobbyPlayers([]);
     attachRoomSession(data);
-    setFeedback(`Sala creada con éxito (PIN: ${data.pin}). El botón 'Crear Sala' se reactivará al finalizar la partida.`, "ok");
+    setFeedback(
+      `Sala creada con éxito (PIN: ${data.pin}). Preguntas ${settings.shuffleQuestions ? "aleatorias variadas" : "secuenciales"}.`,
+      "ok"
+    );
   } catch (error) {
     setFeedback(error.message, "error");
     btnCreateRoom.disabled = false;
@@ -400,6 +506,10 @@ btnReconnectPin.addEventListener("click", async () => {
       throw new Error(data.error || `No se encontró la sala (${response.status})`);
     }
     attachRoomSession(data);
+    fetch(`/api/rooms/${encodeURIComponent(data.roomId)}/settings`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((s) => applySettingsToForm(s))
+      .catch(() => {});
     setFeedback(`Reconectado a la sala ${data.pin} (${data.playerCount ?? 0} aprendices).`, "ok");
   } catch (error) {
     setFeedback(error.message, "error");
@@ -410,8 +520,11 @@ btnStartGame.addEventListener("click", async () => {
   if (!currentRoom?.roomId) return;
   btnStartGame.disabled = true;
   try {
+    const settings = readModeratorSettingsFromForm();
     const response = await fetch(`/api/rooms/${encodeURIComponent(currentRoom.roomId)}/start`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
     });
     const data = await response.json();
     if (!response.ok) {
@@ -463,8 +576,11 @@ btnActivateRoulette.addEventListener("click", async () => {
 btnNextQuestion.addEventListener("click", async () => {
   if (!currentRoom?.roomId) return;
   try {
+    const settings = readModeratorSettingsFromForm();
     const response = await fetch(`/api/rooms/${encodeURIComponent(currentRoom.roomId)}/next`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
     });
     const data = await response.json();
     if (!response.ok) {

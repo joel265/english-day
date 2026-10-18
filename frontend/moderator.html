@@ -268,6 +268,42 @@
         color: var(--primary-dark);
       }
 
+      .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .setting-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .setting-field--full {
+        grid-column: 1 / -1;
+      }
+
+      .setting-field label {
+        color: var(--text-muted);
+        font-size: 0.74rem;
+        font-weight: 800;
+      }
+
+      .setting-field input,
+      .setting-field select {
+        width: 100%;
+        padding: 0.5rem 0.6rem;
+        border: 2px solid var(--border);
+        border-radius: 0.55rem;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+
       .projector-stage {
         display: flex;
         flex-direction: column;
@@ -465,6 +501,42 @@
             <input id="reconnectPinInput" type="text" inputmode="numeric" maxlength="6" placeholder="Reconectar PIN (6 díg.)">
             <button class="mod-btn mod-btn--outline" id="btnReconnectPin" type="button" style="width:auto;">Cargar</button>
           </div>
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">Parámetros de Tiempos y Aleatoriedad</h2>
+          <div class="settings-grid">
+            <div class="setting-field">
+              <label for="cfgTimeMultipleChoice">Selección Múltiple (seg)</label>
+              <input id="cfgTimeMultipleChoice" type="number" min="5" max="180" step="1" value="15">
+            </div>
+            <div class="setting-field">
+              <label for="cfgTimeTextInput">Completar Texto (seg)</label>
+              <input id="cfgTimeTextInput" type="number" min="5" max="180" step="1" value="20">
+            </div>
+            <div class="setting-field">
+              <label for="cfgTimeWordBlocks">Ordenar Bloques (seg)</label>
+              <input id="cfgTimeWordBlocks" type="number" min="5" max="180" step="1" value="20">
+            </div>
+            <div class="setting-field">
+              <label for="cfgTimeVoice">Pronunciación Voz (seg)</label>
+              <input id="cfgTimeVoice" type="number" min="5" max="180" step="1" value="25">
+            </div>
+            <div class="setting-field">
+              <label for="cfgTimeIntro">Pantalla Intro (seg)</label>
+              <input id="cfgTimeIntro" type="number" min="0" max="15" step="1" value="3">
+            </div>
+            <div class="setting-field">
+              <label for="cfgRandomOrder">Orden de Preguntas</label>
+              <select id="cfgRandomOrder">
+                <option value="true" selected>Aleatorio variado</option>
+                <option value="false">Secuencial fijo</option>
+              </select>
+            </div>
+          </div>
+          <button class="mod-btn mod-btn--outline" id="btnSaveRoomSettings" type="button">
+            ⚙️ Aplicar Tiempos y Parámetros
+          </button>
         </section>
 
         <section class="card">

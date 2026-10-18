@@ -14,7 +14,8 @@ import java.util.List;
 /**
  * Inicializador automático del banco de preguntas pedagógicas cuando la tabla Question está vacía
  * en cualquier entorno (H2 o MySQL/producción).
- * Si database/questions_seed.sql ya fue ejecutado en MySQL, detecta count() > 0 y no duplica registros.
+ * Incluye múltiples preguntas para las 4 mecánicas interactivas (MULTIPLE_CHOICE, TEXT_INPUT, WORD_BLOCKS, VOICE)
+ * permitiendo que cada partida aleatoria comience con una mecánica y pregunta distinta.
  */
 @Configuration
 @RequiredArgsConstructor
@@ -119,6 +120,96 @@ public class QuestionDataInitializer {
                             .correctAnswer("Yes, she does.")
                             .timeLimitSeconds(15)
                             .order(10)
+                            .build(),
+                    Question.builder()
+                            .questionId("33333333-3333-4333-8333-333333333334")
+                            .type(QuestionType.TEXT_INPUT)
+                            .prompt("Write the past tense of the verb \"go\".")
+                            .options(null)
+                            .correctAnswer("went")
+                            .timeLimitSeconds(20)
+                            .order(11)
+                            .build(),
+                    Question.builder()
+                            .questionId("33333333-3333-4333-8333-333333333335")
+                            .type(QuestionType.TEXT_INPUT)
+                            .prompt("Complete with the correct verb form: \"She _____ (play) soccer on Saturdays.\"")
+                            .options(null)
+                            .correctAnswer("plays")
+                            .timeLimitSeconds(20)
+                            .order(12)
+                            .build(),
+                    Question.builder()
+                            .questionId("33333333-3333-4333-8333-333333333336")
+                            .type(QuestionType.TEXT_INPUT)
+                            .prompt("Write the opposite of the adjective \"cold\" in English.")
+                            .options(null)
+                            .correctAnswer("hot")
+                            .timeLimitSeconds(20)
+                            .order(13)
+                            .build(),
+                    Question.builder()
+                            .questionId("44444444-4444-4444-8444-444444444445")
+                            .type(QuestionType.WORD_BLOCKS)
+                            .prompt("Arrange the words to make a daily routine sentence.")
+                            .options(List.of("every", "She", "English", "studies", "day"))
+                            .correctAnswer("She studies English every day")
+                            .timeLimitSeconds(20)
+                            .order(14)
+                            .build(),
+                    Question.builder()
+                            .questionId("44444444-4444-4444-8444-444444444446")
+                            .type(QuestionType.WORD_BLOCKS)
+                            .prompt("Arrange the words to form a negative sentence in Simple Present.")
+                            .options(List.of("like", "He", "pizza", "doesn't"))
+                            .correctAnswer("He doesn't like pizza")
+                            .timeLimitSeconds(20)
+                            .order(15)
+                            .build(),
+                    Question.builder()
+                            .questionId("44444444-4444-4444-8444-444444444447")
+                            .type(QuestionType.WORD_BLOCKS)
+                            .prompt("Arrange the words to form a question in English.")
+                            .options(List.of("speak", "you", "English", "Do"))
+                            .correctAnswer("Do you speak English")
+                            .timeLimitSeconds(20)
+                            .order(16)
+                            .build(),
+                    Question.builder()
+                            .questionId("55555555-5555-4555-8555-555555555556")
+                            .type(QuestionType.VOICE)
+                            .prompt("Say the phrase: \"English opens doors to the world\".")
+                            .options(null)
+                            .correctAnswer("English opens doors to the world")
+                            .timeLimitSeconds(25)
+                            .order(17)
+                            .build(),
+                    Question.builder()
+                            .questionId("55555555-5555-4555-8555-555555555557")
+                            .type(QuestionType.VOICE)
+                            .prompt("Say the phrase: \"Practice makes progress every day\".")
+                            .options(null)
+                            .correctAnswer("Practice makes progress every day")
+                            .timeLimitSeconds(25)
+                            .order(18)
+                            .build(),
+                    Question.builder()
+                            .questionId("55555555-5555-4555-8555-555555555558")
+                            .type(QuestionType.VOICE)
+                            .prompt("Say the phrase: \"We love learning technology and English\".")
+                            .options(null)
+                            .correctAnswer("We love learning technology and English")
+                            .timeLimitSeconds(25)
+                            .order(19)
+                            .build(),
+                    Question.builder()
+                            .questionId("90000000-0000-4000-8000-000000000020")
+                            .type(QuestionType.MULTIPLE_CHOICE)
+                            .prompt("_____ is your name?")
+                            .options(List.of("Where", "What", "When", "Who"))
+                            .correctAnswer("What")
+                            .timeLimitSeconds(15)
+                            .order(20)
                             .build()
             );
             questionRepository.saveAll(seedQuestions);

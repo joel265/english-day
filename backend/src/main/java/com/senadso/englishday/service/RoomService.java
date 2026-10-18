@@ -6,16 +6,19 @@ import com.senadso.englishday.dto.JoinRoomResponse;
 import com.senadso.englishday.dto.LobbyPlayerResponse;
 import com.senadso.englishday.dto.QuestionBroadcastResponse;
 import com.senadso.englishday.dto.RoomResponse;
+import com.senadso.englishday.dto.RoomSettingsDto;
 import com.senadso.englishday.exception.PinNotFoundException;
 import com.senadso.englishday.exception.RoomNotFoundException;
 import com.senadso.englishday.model.Player;
 import com.senadso.englishday.model.Question;
 import com.senadso.englishday.model.Room;
+import com.senadso.englishday.model.enums.QuestionType;
 import com.senadso.englishday.model.enums.RoomStatus;
 import com.senadso.englishday.repository.PlayerRepository;
 import com.senadso.englishday.repository.QuestionRepository;
 import com.senadso.englishday.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,16 +26,21 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Servicio de lógica de negocio para la gestión de salas y registro de aprendices.
- * Implementa CU-01 (Crear sala), CU-02 (Unirse a sala con PIN), difusión en el lobby (RF-03)
- * e inicio de partida con emisión de pregunta en tiempo real (CU-03 / RF-08).
+ * Servicio de lógica de negocio para la gestión de salas, configuración de tiempos del moderador,
+ * barajado aleatorio de preguntas por sala y registro de aprendices.
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RoomService {
 
     private final RoomRepository roomRepository;
@@ -41,11 +49,23 @@ public class RoomService {
     private final SimpMessagingTemplate messagingTemplate;
     private final SecureRandom secureRandom = new SecureRandom();
 
+    private final Map<String, RoomSettingsDto> roomSettingsByRoomId = new ConcurrentHashMap<>();
+    private final Map<String, List<Question>> roomQuestionDecks = new ConcurrentHashMap<>();
+    private final Map<String, Question> activeQuestionByRoomId = new ConcurrentHashMap<>();
+    private final Map<String, LocalDateTime> questionStartedAtByRoomId = new ConcurrentHashMap<>();
+    private final AtomicReference<QuestionType> lastOpeningMechanic = new AtomicReference<>(null);
+
     /**
-     * Crea una nueva sala de juego con un PIN único de 6 dígitos (RF-01 / CU-01).
+     * Crea una nueva sala de juego con un PIN único de 6 dígitos (RF-01 / CU-01)
+     * e inicializa sus parámetros de tiempo y orden aleatorio de preguntas.
      */
     @Transactional
     public CreateRoomResponse createRoom() {
+        return createRoom(null);
+    }
+
+    @Transactional
+    public CreateRoomResponse createRoom(RoomSettingsDto initialSettings) {
         String pin = generateUniquePin();
 
         Room room = Room.builder()
@@ -56,6 +76,10 @@ public class RoomService {
 
         Room savedRoom = roomRepository.save(room);
 
+        RoomSettingsDto settings = initialSettings != null ? initialSettings : RoomSettingsDto.defaultSettings();
+        settings.normalize();
+        roomSettingsByRoomId.put(savedRoom.getRoomId(), settings);
+
         return CreateRoomResponse.builder()
                 .roomId(savedRoom.getRoomId())
                 .pin(savedRoom.getPin())
@@ -65,26 +89,161 @@ public class RoomService {
     }
 
     /**
+     * Obtiene la configuración de tiempos y aleatoriedad de una sala.
+     */
+    public RoomSettingsDto getRoomSettings(String roomId) {
+        return roomSettingsByRoomId.computeIfAbsent(roomId, id -> RoomSettingsDto.defaultSettings());
+    }
+
+    /**
+     * Actualiza en caliente los parámetros de tiempo y aleatoriedad configurados por el moderador.
+     */
+    public RoomSettingsDto updateRoomSettings(String roomId, RoomSettingsDto newSettings) {
+        if (!roomRepository.existsById(roomId)) {
+            throw new RoomNotFoundException("Sala no encontrada");
+        }
+        RoomSettingsDto normalized = newSettings != null ? newSettings : RoomSettingsDto.defaultSettings();
+        normalized.normalize();
+        roomSettingsByRoomId.put(roomId, normalized);
+
+        Room room = roomRepository.findById(roomId).orElse(null);
+        if (room != null && room.getStatus() == RoomStatus.WAITING_LOBBY) {
+            roomQuestionDecks.remove(roomId);
+        }
+
+        log.info("Parámetros de sala {} actualizados: MC={}s, TEXT={}s, BLOCKS={}s, VOICE={}s, intro={}s, aleatorio={}",
+                roomId,
+                normalized.getMultipleChoiceTimeSeconds(),
+                normalized.getTextInputTimeSeconds(),
+                normalized.getWordBlocksTimeSeconds(),
+                normalized.getVoiceTimeSeconds(),
+                normalized.getIntroDurationSeconds(),
+                normalized.getShuffleQuestions());
+        return normalized;
+    }
+
+    /**
+     * Obtiene la pregunta actualmente activa en una sala (compatible con orden aleatorio o secuencial).
+     */
+    public Question getCurrentQuestionForRoom(String roomId) {
+        Question active = activeQuestionByRoomId.get(roomId);
+        if (active != null) {
+            return active;
+        }
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("Sala no encontrada: " + roomId));
+        int currentIndex = room.getCurrentQuestionIndex() != null && room.getCurrentQuestionIndex() > 0
+                ? room.getCurrentQuestionIndex()
+                : 1;
+        List<Question> deck = roomQuestionDecks.get(roomId);
+        if (deck != null && currentIndex <= deck.size()) {
+            return deck.get(currentIndex - 1);
+        }
+        return questionRepository.findByOrder(currentIndex)
+                .orElseThrow(() -> new IllegalStateException("Pregunta actual no configurada para la sala"));
+    }
+
+    /**
+     * Calcula el tiempo límite efectivo (en segundos) para una pregunta en una sala dada,
+     * aplicando los parámetros ajustados por el moderador.
+     */
+    public int getEffectiveTimeLimitSeconds(String roomId, Question question) {
+        RoomSettingsDto settings = getRoomSettings(roomId);
+        return settings.resolveTimeLimitForType(question.getType(), question.getTimeLimitSeconds());
+    }
+
+    /**
+     * Devuelve el instante UTC en que comenzó la pregunta actual de la sala.
+     */
+    public LocalDateTime getQuestionStartedAt(String roomId) {
+        return questionStartedAtByRoomId.get(roomId);
+    }
+
+    /**
+     * Construye el mazo de preguntas para una sala.
+     * Si shuffleQuestions es true, baraja tanto las preguntas dentro de cada mecánica como el orden
+     * de las 4 mecánicas (VOICE, TEXT_INPUT, WORD_BLOCKS, MULTIPLE_CHOICE), garantizando que cada nuevo
+     * juego comience con una mecánica distinta (por ejemplo, uno con VOICE y otro escribiendo palabras).
+     */
+    private List<Question> getOrCreateQuestionDeck(String roomId) {
+        return roomQuestionDecks.computeIfAbsent(roomId, id -> {
+            List<Question> allQuestions = new ArrayList<>(questionRepository.findAllByOrderByOrderAsc());
+            if (allQuestions.isEmpty()) {
+                throw new IllegalStateException("No hay preguntas configuradas para iniciar la partida");
+            }
+
+            RoomSettingsDto settings = getRoomSettings(id);
+            if (!Boolean.TRUE.equals(settings.getShuffleQuestions())) {
+                return allQuestions;
+            }
+
+            Map<QuestionType, List<Question>> byType = new EnumMap<>(QuestionType.class);
+            for (QuestionType type : QuestionType.values()) {
+                byType.put(type, new ArrayList<>());
+            }
+            for (Question q : allQuestions) {
+                byType.get(q.getType()).add(q);
+            }
+            for (List<Question> group : byType.values()) {
+                Collections.shuffle(group, secureRandom);
+            }
+
+            List<QuestionType> availableTypes = new ArrayList<>();
+            for (QuestionType type : QuestionType.values()) {
+                if (!byType.get(type).isEmpty()) {
+                    availableTypes.add(type);
+                }
+            }
+
+            // Elegir la primera mecánica de forma aleatoria evitando repetir la misma mecánica inicial del juego anterior
+            Collections.shuffle(availableTypes, secureRandom);
+            QuestionType previousOpening = lastOpeningMechanic.get();
+            if (availableTypes.size() > 1 && availableTypes.get(0) == previousOpening) {
+                int swapIdx = 1 + secureRandom.nextInt(availableTypes.size() - 1);
+                Collections.swap(availableTypes, 0, swapIdx);
+            }
+            if (!availableTypes.isEmpty()) {
+                lastOpeningMechanic.set(availableTypes.get(0));
+            }
+
+            List<Question> randomizedDeck = new ArrayList<>(allQuestions.size());
+            // Primera ronda rotando las 4 mecánicas en orden aleatorio
+            for (QuestionType type : availableTypes) {
+                List<Question> pool = byType.get(type);
+                if (!pool.isEmpty()) {
+                    randomizedDeck.add(pool.remove(0));
+                }
+            }
+
+            // Ciclos subsiguientes mezclando las preguntas restantes de todas las mecánicas
+            List<Question> remaining = new ArrayList<>();
+            for (List<Question> pool : byType.values()) {
+                remaining.addAll(pool);
+            }
+            Collections.shuffle(remaining, secureRandom);
+            randomizedDeck.addAll(remaining);
+
+            log.info("Mazo aleatorio generado para sala {} ({} preguntas). Primera pregunta: [{} - {}]",
+                    id,
+                    randomizedDeck.size(),
+                    randomizedDeck.get(0).getType(),
+                    randomizedDeck.get(0).getPrompt());
+            return randomizedDeck;
+        });
+    }
+
+    /**
      * Registra a un aprendiz en una sala activa mediante su PIN y nickname (RF-02 / CU-02).
-     *
-     * @param pin Código PIN de 6 dígitos ingresado en el móvil.
-     * @param request Datos del aprendiz ({ "nickname": "..." }).
-     * @return Datos del jugador registrado y la sala asignada (HTTP 200 OK).
-     * @throws PinNotFoundException si el PIN no existe (HTTP 404 / CP-03).
-     * @throws IllegalStateException si la sala ya no está en estado WAITING_LOBBY.
      */
     @Transactional
     public JoinRoomResponse joinRoom(String pin, JoinRoomRequest request) {
-        // 1. Buscar la sala por PIN exacto
         Room room = roomRepository.findByPin(pin)
                 .orElseThrow(() -> new PinNotFoundException("PIN no encontrado"));
 
-        // 2. Validar que la sala esté disponible para recibir jugadores
         if (room.getStatus() != RoomStatus.WAITING_LOBBY) {
             throw new IllegalStateException("La sala no está aceptando nuevos jugadores");
         }
 
-        // 3. Crear y persistir la entidad Player vinculada a la Room
         Player player = Player.builder()
                 .room(room)
                 .nickname(request.getNickname().trim())
@@ -93,10 +252,8 @@ public class RoomService {
 
         Player savedPlayer = playerRepository.save(player);
 
-        // 4. Notificar a través de WebSocket STOMP al lobby de la sala en tiempo real (RF-03 / CP-02)
         broadcastLobbyUpdate(room.getRoomId());
 
-        // 5. Mapear y retornar la respuesta síncrona según Contrato §3.2
         return JoinRoomResponse.builder()
                 .playerId(savedPlayer.getPlayerId())
                 .roomId(room.getRoomId())
@@ -107,9 +264,6 @@ public class RoomService {
 
     /**
      * Emite la lista de jugadores conectados al canal STOMP del lobby.
-     * Topic de difusión: /topic/room/{roomId}/lobby (Contrato de Integración §4.1 / RF-03).
-     *
-     * @param roomId Identificador UUID de la sala.
      */
     public void broadcastLobbyUpdate(String roomId) {
         List<LobbyPlayerResponse> lobbyPlayers = getLobbyPlayers(roomId);
@@ -132,39 +286,40 @@ public class RoomService {
 
     /**
      * Inicia la partida interactiva (CU-03 / RF-08).
-     * Cambia el estado de la sala a QUESTION_IN_PROGRESS, carga la primera pregunta (order = 1)
-     * y difunde la pregunta vía WebSocket STOMP al canal /topic/room/{roomId}/question
-     * y la actualización de estado a /topic/room/{roomId}/status.
-     *
-     * @param roomId Identificador UUID de la sala a iniciar.
-     * @return Estado actualizado de la sala (HTTP 200 OK).
      */
     @Transactional
     public RoomResponse startGame(String roomId) {
-        // 1. Buscar la sala por roomId
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RoomNotFoundException("Sala no encontrada"));
 
-        // 2. Validar que la sala se encuentre en lobby de espera
         if (room.getStatus() != RoomStatus.WAITING_LOBBY) {
             throw new IllegalStateException("La partida ya ha sido iniciada o finalizada");
         }
 
-        // 3. Obtener la primera pregunta de la partida (order = 1)
-        Question firstQuestion = questionRepository.findByOrder(1)
-                .orElseThrow(() -> new IllegalStateException("No hay preguntas configuradas para iniciar la partida"));
+        List<Question> deck = getOrCreateQuestionDeck(roomId);
+        Question firstQuestion = deck.get(0);
 
-        // 4. Actualizar el estado de la sala y fijar el índice en la primera pregunta
         room.setStatus(RoomStatus.QUESTION_IN_PROGRESS);
         room.setCurrentQuestionIndex(1);
         Room updatedRoom = roomRepository.save(room);
 
-        // 5. Emitir el cambio de estado a /topic/room/{roomId}/status
-        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/status", Map.of("status", updatedRoom.getStatus().name()));
-
-        // 6. Emitir la primera pregunta al topic en tiempo real /topic/room/{roomId}/question (Contrato §4.3)
+        activeQuestionByRoomId.put(roomId, firstQuestion);
         LocalDateTime serverTimestamp = LocalDateTime.now(ZoneOffset.UTC);
-        QuestionBroadcastResponse broadcastPayload = QuestionBroadcastResponse.fromEntity(firstQuestion, serverTimestamp);
+        RoomSettingsDto settings = getRoomSettings(roomId);
+        int effectiveTimeLimit = settings.resolveTimeLimitForType(firstQuestion.getType(), firstQuestion.getTimeLimitSeconds());
+        int introSeconds = settings.getIntroDurationSeconds() != null ? settings.getIntroDurationSeconds() : 3;
+        questionStartedAtByRoomId.put(roomId, serverTimestamp.plusSeconds(introSeconds));
+
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/status",
+                Map.of("status", updatedRoom.getStatus().name()));
+
+        QuestionBroadcastResponse broadcastPayload = QuestionBroadcastResponse.fromEntity(
+                firstQuestion,
+                serverTimestamp,
+                1,
+                effectiveTimeLimit,
+                introSeconds
+        );
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/question", broadcastPayload);
 
         return RoomResponse.fromEntity(updatedRoom);
@@ -172,9 +327,6 @@ public class RoomService {
 
     /**
      * Consulta el estado actual de una sala mediante su PIN de 6 dígitos (Contrato §3 / Anexo A.4 / RF-03).
-     *
-     * @param pin Código PIN de 6 dígitos.
-     * @return Datos de la sala incluyendo playerCount.
      */
     @Transactional(readOnly = true)
     public RoomResponse getRoomByPin(String pin) {
@@ -189,11 +341,6 @@ public class RoomService {
 
     /**
      * Avanza a la siguiente pregunta de la partida (Contrato §4.2 /app/room/{roomId}/moderator/next y CU-03).
-     * Incrementa currentQuestionIndex, actualiza el estado a QUESTION_IN_PROGRESS y difunde la pregunta
-     * al topic /topic/room/{roomId}/question.
-     *
-     * @param roomId Identificador UUID de la sala.
-     * @return Estado actualizado de la sala.
      */
     @Transactional
     public RoomResponse nextQuestion(String roomId) {
@@ -204,28 +351,39 @@ public class RoomService {
             throw new IllegalStateException("La partida ya ha finalizado");
         }
 
+        List<Question> deck = getOrCreateQuestionDeck(roomId);
         int nextOrder = (room.getCurrentQuestionIndex() == null ? 0 : room.getCurrentQuestionIndex()) + 1;
-        Question nextQuestion = questionRepository.findByOrder(nextOrder)
-                .orElseThrow(() -> new IllegalStateException("No hay más preguntas disponibles en el banco"));
+        if (nextOrder < 1 || nextOrder > deck.size()) {
+            throw new IllegalStateException("No hay más preguntas disponibles en el banco");
+        }
+        Question nextQuestion = deck.get(nextOrder - 1);
 
         room.setStatus(RoomStatus.QUESTION_IN_PROGRESS);
         room.setCurrentQuestionIndex(nextOrder);
         Room updatedRoom = roomRepository.save(room);
 
+        activeQuestionByRoomId.put(roomId, nextQuestion);
+        LocalDateTime serverTimestamp = LocalDateTime.now(ZoneOffset.UTC);
+        RoomSettingsDto settings = getRoomSettings(roomId);
+        int effectiveTimeLimit = settings.resolveTimeLimitForType(nextQuestion.getType(), nextQuestion.getTimeLimitSeconds());
+        int introSeconds = settings.getIntroDurationSeconds() != null ? settings.getIntroDurationSeconds() : 3;
+        questionStartedAtByRoomId.put(roomId, serverTimestamp.plusSeconds(introSeconds));
+
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/status",
                 Map.of("status", updatedRoom.getStatus().name()));
 
-        LocalDateTime serverTimestamp = LocalDateTime.now(ZoneOffset.UTC);
-        QuestionBroadcastResponse broadcastPayload = QuestionBroadcastResponse.fromEntity(nextQuestion, serverTimestamp);
+        QuestionBroadcastResponse broadcastPayload = QuestionBroadcastResponse.fromEntity(
+                nextQuestion,
+                serverTimestamp,
+                nextOrder,
+                effectiveTimeLimit,
+                introSeconds
+        );
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/question", broadcastPayload);
 
         return RoomResponse.fromEntity(updatedRoom);
     }
 
-    /**
-     * Genera un PIN numérico aleatorio de 6 dígitos ("000000" a "999999")
-     * garantizando que no esté colisionando con una sala existente.
-     */
     private String generateUniquePin() {
         String pin;
         do {

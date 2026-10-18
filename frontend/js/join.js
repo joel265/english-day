@@ -173,9 +173,33 @@ function formatAnswerDisplay(value) {
 function normalizeAnswerForComparison(value) {
   const raw = formatAnswerDisplay(value);
   return raw
+    .replace(/[\u2018\u2019\u02BC`´]/g, "'")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase()
-    .replace(/[.,;:!?¿¡"]/g, "")
+    .replace(/[.,;:!?¿¡"()]/g, "")
+    .replace(/\bi'm\b|\bim\b/g, "i am")
+    .replace(/\byou're\b|\byoure\b/g, "you are")
+    .replace(/\bhe's\b/g, "he is")
+    .replace(/\bshe's\b/g, "she is")
+    .replace(/\bit's\b/g, "it is")
+    .replace(/\bwe're\b/g, "we are")
+    .replace(/\bthey're\b/g, "they are")
+    .replace(/\bdon't\b|\bdont\b/g, "do not")
+    .replace(/\bdoesn't\b|\bdoesnt\b/g, "does not")
+    .replace(/\bdidn't\b|\bdidnt\b/g, "did not")
+    .replace(/\bisn't\b|\bisnt\b/g, "is not")
+    .replace(/\baren't\b|\barent\b/g, "are not")
+    .replace(/\bwasn't\b|\bwasnt\b/g, "was not")
+    .replace(/\bweren't\b|\bwerent\b/g, "were not")
+    .replace(/\bcan't\b|\bcant\b|\bcan not\b/g, "cannot")
+    .replace(/\bwon't\b|\bwont\b/g, "will not")
+    .replace(/\b6\b/g, "six")
+    .replace(/\b7\b/g, "seven")
+    .replace(/\b8\b/g, "eight")
+    .replace(/\b9\b/g, "nine")
+    .replace(/\b10\b/g, "ten")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -862,8 +886,12 @@ function renderQuestion(question) {
 
   document.title = `Pregunta ${question.order} | English Day`;
 
-  if (questionTransitionCard && effectiveSeconds >= 4) {
-    const introDurationSeconds = 3;
+  const configuredIntroSeconds = Number.isInteger(question.introDurationSeconds)
+    ? Math.max(0, Math.min(15, question.introDurationSeconds))
+    : 3;
+
+  if (questionTransitionCard && configuredIntroSeconds > 0 && effectiveSeconds >= 4) {
+    const introDurationSeconds = configuredIntroSeconds;
     let introStep = introDurationSeconds;
 
     if (transitionMechanicBadge) {
@@ -888,24 +916,23 @@ function renderQuestion(question) {
       transitionMechanicDesc.textContent = thematicMeta.desc;
     }
     if (transitionSubtext) {
-      transitionSubtext.textContent = `Comenzando en ${introStep} segundos...`;
+      transitionSubtext.textContent = `Comenzando en ${introStep} ${introStep === 1 ? "segundo" : "segundos"}...`;
     }
     if (transitionCountdownTimer) {
-      transitionCountdownTimer.textContent = `00:0${introStep}`;
+      transitionCountdownTimer.textContent = `00:${String(introStep).padStart(2, "0")}`;
     }
     if (transitionProgressBar) {
       transitionProgressBar.max = introDurationSeconds;
       transitionProgressBar.value = introStep;
     }
 
-    // Inicializar deadline temporalmente para permitir envíos inmediatos si un cliente automatizado responde durante la transición
-    startQuestionMainTimer(effectiveSeconds);
+    startQuestionMainTimer(effectiveSeconds + introDurationSeconds);
     showOnlyCard(questionTransitionCard);
 
     transitionInterval = window.setInterval(() => {
       introStep = Math.max(1, introStep - 1);
       if (transitionCountdownTimer) {
-        transitionCountdownTimer.textContent = `00:0${introStep}`;
+        transitionCountdownTimer.textContent = `00:${String(introStep).padStart(2, "0")}`;
       }
       if (transitionProgressBar) {
         transitionProgressBar.value = introStep;
@@ -913,7 +940,7 @@ function renderQuestion(question) {
       if (transitionSubtext) {
         transitionSubtext.textContent = `Comenzando en ${introStep} ${introStep === 1 ? "segundo" : "segundos"}...`;
       }
-    }, 900);
+    }, 950);
 
     transitionTimeout = window.setTimeout(() => {
       window.clearInterval(transitionInterval);
@@ -922,7 +949,7 @@ function renderQuestion(question) {
         showOnlyCard(questionCard);
         questionPrompt.focus();
       }
-    }, 2700);
+    }, introDurationSeconds * 950);
   } else {
     startQuestionMainTimer(effectiveSeconds);
     showOnlyCard(questionCard);
@@ -932,8 +959,8 @@ function renderQuestion(question) {
 
 /**
  * Tarea 10: Pantalla de resultados al cerrar cada pregunta (/topic/room/{roomId}/results).
- * Payload según Contrato §4.5:
- * { "correctAnswer": "went", "top5": [{ "nickname": "camilo_dev", "score": 4200 }] }
+ * Payload según Contrato §4.5 + veredictos autoritativos del servidor:
+ * { "correctAnswer": "went", "top5": [...], "playerVerdicts": { [playerId]: { isCorrect, pointsAwarded, submittedValue } } }
  */
 function renderResultsScreen(payload) {
   if (!payload || typeof payload !== "object" || typeof payload.correctAnswer !== "string" || !Array.isArray(payload.top5)) {
@@ -947,8 +974,12 @@ function renderResultsScreen(payload) {
   window.clearInterval(transitionInterval);
   stopVoiceRecognition();
 
+  const serverVerdict = currentPlayer?.playerId && payload.playerVerdicts
+    ? payload.playerVerdicts[currentPlayer.playerId]
+    : null;
+
   if (playerVerdictBanner) {
-    if (!hasSubmittedAnswer) {
+    if (!hasSubmittedAnswer && !serverVerdict) {
       playerVerdictBanner.dataset.verdict = "expired";
       if (playerVerdictIcon) playerVerdictIcon.textContent = "⏰";
       if (resultsTitle) resultsTitle.textContent = "¡Tiempo agotado!";
@@ -956,17 +987,33 @@ function renderResultsScreen(payload) {
         playerVerdictDetail.textContent = "No alcanzaste a enviar tu respuesta (0 puntos en esta ronda).";
       }
     } else {
-      const normalizedSubmitted = normalizeAnswerForComparison(selectedAnswer);
-      const normalizedExpected = normalizeAnswerForComparison(payload.correctAnswer);
-      const isCorrect = normalizedSubmitted.length > 0 && normalizedSubmitted === normalizedExpected;
+      let isCorrect;
+      let pointsEarned = 0;
+      let displayedAnswer = formatAnswerDisplay(selectedAnswer);
+
+      if (serverVerdict && typeof serverVerdict.isCorrect === "boolean") {
+        isCorrect = serverVerdict.isCorrect;
+        pointsEarned = serverVerdict.pointsAwarded ?? 0;
+        if (serverVerdict.submittedValue) {
+          displayedAnswer = serverVerdict.submittedValue;
+        }
+      } else {
+        const normalizedSubmitted = normalizeAnswerForComparison(selectedAnswer);
+        const normalizedExpected = normalizeAnswerForComparison(payload.correctAnswer);
+        isCorrect = normalizedSubmitted.length > 0 && normalizedSubmitted === normalizedExpected;
+      }
 
       playerVerdictBanner.dataset.verdict = isCorrect ? "correct" : "incorrect";
       if (playerVerdictIcon) playerVerdictIcon.textContent = isCorrect ? "✔" : "✖";
       if (resultsTitle) {
-        resultsTitle.textContent = isCorrect ? "¡Respuesta Correcta!" : "Respuesta Incorrecta";
+        resultsTitle.textContent = isCorrect
+          ? pointsEarned > 0
+            ? `¡Respuesta Correcta! (+${pointsEarned} pts)`
+            : "¡Respuesta Correcta!"
+          : "Respuesta Incorrecta";
       }
       if (playerVerdictDetail) {
-        playerVerdictDetail.textContent = `Tu respuesta: "${formatAnswerDisplay(selectedAnswer)}"`;
+        playerVerdictDetail.textContent = `Tu respuesta: "${displayedAnswer}"`;
       }
       if (isCorrect && window.confetti) {
         window.confetti.burst(window.innerWidth / 2, window.innerHeight / 3, 45);

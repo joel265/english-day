@@ -201,7 +201,11 @@ async function runSuite() {
 
   // 6. CU-03 & RF-08: Iniciar partida y recibir Pregunta #1 (MULTIPLE_CHOICE)
   const q1Promise = stomp.waitForMessage(`/topic/room/${room.roomId}/question`);
-  const startRes = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/start`, { method: "POST" });
+  const startRes = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ shuffleQuestions: false }),
+  });
   const q1 = await q1Promise;
   assert(
     startRes.status === 200 &&
@@ -228,17 +232,18 @@ async function runSuite() {
   });
   await new Promise((r) => setTimeout(r, 250));
 
-  // 8. Cerrar pregunta y verificar Top 5 en /topic/room/{roomId}/results (Tarea 10 Frontend / CP-10)
+  // 8. Cerrar pregunta y verificar Top 5 + playerVerdicts en /topic/room/{roomId}/results (Tarea 10 Frontend / CP-10)
   const resultsPromise = stomp.waitForMessage(`/topic/room/${room.roomId}/results`);
   const closeQ1Res = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/close-question`, { method: "POST" });
   const results1 = await resultsPromise;
   assert(
     closeQ1Res.status === 200 &&
       results1.correctAnswer === "She studies English." &&
+      results1.playerVerdicts?.[player1.playerId]?.isCorrect === true &&
       results1.top5.length === 2 &&
       results1.top5[0].nickname === "camilo_dev" &&
       results1.top5[0].score > results1.top5[1].score,
-    `CP-10 & RF-10: Leaderboard Top 5 recibido (${results1.top5[0].nickname}: ${results1.top5[0].score} pts > ${results1.top5[1].nickname}: ${results1.top5[1].score} pts)`
+    `CP-10 & RF-10: Leaderboard Top 5 y playerVerdicts recibidos (${results1.top5[0].nickname}: ${results1.top5[0].score} pts > ${results1.top5[1].nickname}: ${results1.top5[1].score} pts)`
   );
 
   // 9. CP-09: Activar Ruleta de Retroalimentación (Tarea 11 Frontend / RF-11)
@@ -285,7 +290,7 @@ async function runSuite() {
   });
   await new Promise((r) => setTimeout(r, 200));
 
-  // 12. Avanzar a Pregunta #5 (VOICE - CP-07)
+  // 12. Avanzar a Pregunta #5 (VOICE - CP-07) y validar equivalencia de contracción/apóstrofo curvo ("I’m ready to learn.")
   const q5Promise = stomp.waitForMessage(`/topic/room/${room.roomId}/question`);
   await fetch(`${BASE_URL}/api/rooms/${room.roomId}/next`, { method: "POST" });
   const q5 = await q5Promise;
@@ -294,7 +299,7 @@ async function runSuite() {
   stomp.send(`/app/room/${room.roomId}/answer`, {
     playerId: player1.playerId,
     questionId: q5.questionId,
-    value: "i am ready to learn.",
+    value: "I’m ready to learn.",
     clientTimestamp: new Date(Date.now() - 3000).toISOString().replace(/\.\d{3}Z$/, "Z"),
   });
   await new Promise((r) => setTimeout(r, 250));
@@ -310,6 +315,42 @@ async function runSuite() {
       podiumEvent.top3[0].nickname === "camilo_dev" &&
       podiumEvent.top3[0].score > 3000,
     `CP-11 & CU-06: Podio Final Top 3 emitido en /topic/room/{roomId}/podium (1.° lugar: ${podiumEvent.top3[0].nickname} con ${podiumEvent.top3[0].score} pts)`
+  );
+
+  // 14. CP-12: Verificar ajuste de tiempos del moderador y rotación aleatoria de mecánicas entre salas
+  const roomARes = await fetch(`${BASE_URL}/api/rooms`, { method: "POST" });
+  const roomA = await roomARes.json();
+  await fetch(`${BASE_URL}/api/rooms/${roomA.roomId}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      multipleChoiceTimeSeconds: 32,
+      textInputTimeSeconds: 36,
+      wordBlocksTimeSeconds: 38,
+      voiceTimeSeconds: 42,
+      introDurationSeconds: 4,
+      shuffleQuestions: true,
+    }),
+  });
+  stomp.subscribe("sub-q-roomA", `/topic/room/${roomA.roomId}/question`);
+  await new Promise((r) => setTimeout(r, 100));
+  const roomAQ1Promise = stomp.waitForMessage(`/topic/room/${roomA.roomId}/question`);
+  await fetch(`${BASE_URL}/api/rooms/${roomA.roomId}/start`, { method: "POST" });
+  const roomAQ1 = await roomAQ1Promise;
+
+  const roomBRes = await fetch(`${BASE_URL}/api/rooms`, { method: "POST" });
+  const roomB = await roomBRes.json();
+  stomp.subscribe("sub-q-roomB", `/topic/room/${roomB.roomId}/question`);
+  await new Promise((r) => setTimeout(r, 100));
+  const roomBQ1Promise = stomp.waitForMessage(`/topic/room/${roomB.roomId}/question`);
+  await fetch(`${BASE_URL}/api/rooms/${roomB.roomId}/start`, { method: "POST" });
+  const roomBQ1 = await roomBQ1Promise;
+
+  assert(
+    roomAQ1.introDurationSeconds === 4 &&
+      [32, 36, 38, 42].includes(roomAQ1.timeLimitSeconds) &&
+      roomAQ1.type !== roomBQ1.type,
+    `CP-12: Parámetros de tiempo personalizados aplicados (${roomAQ1.timeLimitSeconds}s, intro ${roomAQ1.introDurationSeconds}s) y mecánicas iniciales aleatorias distintas entre salas (${roomAQ1.type} vs ${roomBQ1.type})`
   );
 
   stomp.close();

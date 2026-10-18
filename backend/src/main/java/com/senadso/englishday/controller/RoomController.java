@@ -1,10 +1,13 @@
 package com.senadso.englishday.controller;
 
+import com.senadso.englishday.dto.CloseQuestionRequest;
 import com.senadso.englishday.dto.CreateRoomResponse;
 import com.senadso.englishday.dto.JoinRoomRequest;
 import com.senadso.englishday.dto.JoinRoomResponse;
 import com.senadso.englishday.dto.PodiumResponse;
+import com.senadso.englishday.dto.QuestionResultsResponse;
 import com.senadso.englishday.dto.RoomResponse;
+import com.senadso.englishday.dto.RoomSettingsDto;
 import com.senadso.englishday.dto.RouletteResultResponse;
 import com.senadso.englishday.service.RoomService;
 import com.senadso.englishday.service.RouletteService;
@@ -29,13 +32,35 @@ public class RoomController {
     private final ScoreService scoreService;
 
     /**
-     * Endpoint para crear una sala y generar el PIN de 6 dígitos.
+     * Endpoint para crear una sala y generar el PIN de 6 dígitos, aceptando
+     * opcionalmente los parámetros de tiempos y aleatoriedad del moderador.
      * Ruta: POST /api/rooms (Contrato §3.1 / RF-01 / CU-01).
      */
     @PostMapping
-    public ResponseEntity<CreateRoomResponse> createRoom() {
-        CreateRoomResponse response = roomService.createRoom();
+    public ResponseEntity<CreateRoomResponse> createRoom(
+            @RequestBody(required = false) RoomSettingsDto initialSettings) {
+        CreateRoomResponse response = roomService.createRoom(initialSettings);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Endpoint para consultar los parámetros de tiempo y aleatoriedad de una sala.
+     */
+    @GetMapping("/{roomId}/settings")
+    public ResponseEntity<RoomSettingsDto> getRoomSettings(@PathVariable String roomId) {
+        return ResponseEntity.ok(roomService.getRoomSettings(roomId));
+    }
+
+    /**
+     * Endpoint para que el moderador actualice en tiempo real los parámetros de tiempos
+     * de las preguntas y el modo aleatorio de la sala.
+     */
+    @PutMapping("/{roomId}/settings")
+    public ResponseEntity<RoomSettingsDto> updateRoomSettings(
+            @PathVariable String roomId,
+            @RequestBody RoomSettingsDto settings) {
+        RoomSettingsDto updated = roomService.updateRoomSettings(roomId, settings);
+        return ResponseEntity.ok(updated);
     }
 
     /**
@@ -66,7 +91,12 @@ public class RoomController {
      * Ruta: POST /api/rooms/{roomId}/start (Contrato §3 / CU-03 / RF-08).
      */
     @PostMapping("/{roomId}/start")
-    public ResponseEntity<RoomResponse> startGame(@PathVariable String roomId) {
+    public ResponseEntity<RoomResponse> startGame(
+            @PathVariable String roomId,
+            @RequestBody(required = false) RoomSettingsDto settings) {
+        if (settings != null) {
+            roomService.updateRoomSettings(roomId, settings);
+        }
         RoomResponse response = roomService.startGame(roomId);
         return ResponseEntity.ok(response);
     }
@@ -76,7 +106,12 @@ public class RoomController {
      * Ruta: POST /api/rooms/{roomId}/next (CU-03 / Tarea 14 Panel de Moderador).
      */
     @PostMapping("/{roomId}/next")
-    public ResponseEntity<RoomResponse> nextQuestion(@PathVariable String roomId) {
+    public ResponseEntity<RoomResponse> nextQuestion(
+            @PathVariable String roomId,
+            @RequestBody(required = false) RoomSettingsDto settings) {
+        if (settings != null) {
+            roomService.updateRoomSettings(roomId, settings);
+        }
         RoomResponse response = roomService.nextQuestion(roomId);
         return ResponseEntity.ok(response);
     }
@@ -86,8 +121,11 @@ public class RoomController {
      * Ruta: POST /api/rooms/{roomId}/close-question (RF-10).
      */
     @PostMapping("/{roomId}/close-question")
-    public ResponseEntity<com.senadso.englishday.dto.QuestionResultsResponse> closeQuestion(@PathVariable String roomId) {
-        com.senadso.englishday.dto.QuestionResultsResponse response = scoreService.broadcastQuestionResults(roomId, null);
+    public ResponseEntity<QuestionResultsResponse> closeQuestion(
+            @PathVariable String roomId,
+            @RequestBody(required = false) CloseQuestionRequest request) {
+        String questionId = request != null ? request.getQuestionId() : null;
+        QuestionResultsResponse response = scoreService.broadcastQuestionResults(roomId, questionId);
         return ResponseEntity.ok(response);
     }
 
