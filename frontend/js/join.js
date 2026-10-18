@@ -1050,6 +1050,58 @@ function renderQuestion(question, options = {}) {
 }
 
 /**
+ * Corrector: pinta la respuesta del aprendiz palabra por palabra (subrayado ondulado rojo = incorrecta,
+ * amarillo = error ortográfico leve, recuadro punteado = palabra faltante) y muestra la explicación
+ * pedagógica de por qué la respuesta correcta es la que es.
+ */
+function renderCorrectorAndExplanation(serverVerdict, payload) {
+  const corrector = document.querySelector("#answerCorrector");
+  const correctorText = document.querySelector("#answerCorrectorText");
+  const correctorHints = document.querySelector("#answerCorrectorHints");
+  const explanationBox = document.querySelector("#answerExplanation");
+  const explanationText = document.querySelector("#answerExplanationText");
+
+  if (corrector && correctorText && correctorHints) {
+    correctorText.replaceChildren();
+    correctorHints.replaceChildren();
+    const segments = Array.isArray(serverVerdict?.segments) ? serverVerdict.segments : [];
+    const hasMarks = segments.some((seg) => seg.status && seg.status !== "OK");
+    // Se muestra el corrector cuando hay algo que revisar (errores o descuidos ortográficos)
+    if (segments.length > 0 && hasMarks) {
+      segments.forEach((seg) => {
+        const word = document.createElement("span");
+        const status = String(seg.status || "OK").toLowerCase();
+        word.className = `corr-word corr-${status}`;
+        word.textContent = seg.text;
+        if ((status === "wrong" || status === "typo") && seg.expected) {
+          const hint = document.createElement("small");
+          hint.textContent = `→ ${seg.expected}`;
+          word.append(hint);
+          word.title = `Debería ser: ${seg.expected}`;
+        } else if (status === "missing") {
+          word.title = "Palabra que faltaba";
+        }
+        correctorText.append(word);
+      });
+      (serverVerdict.hints || []).forEach((hintText) => {
+        const li = document.createElement("li");
+        li.textContent = hintText;
+        correctorHints.append(li);
+      });
+      corrector.hidden = false;
+    } else {
+      corrector.hidden = true;
+    }
+  }
+
+  if (explanationBox && explanationText) {
+    const explanation = typeof payload?.explanation === "string" ? payload.explanation.trim() : "";
+    explanationText.textContent = explanation;
+    explanationBox.hidden = explanation.length === 0;
+  }
+}
+
+/**
  * Tarea 10: Pantalla de resultados al cerrar cada pregunta (/topic/room/{roomId}/results).
  * Payload según Contrato §4.5 + veredictos autoritativos del servidor:
  * { "correctAnswer": "went", "top5": [...], "playerVerdicts": { [playerId]: { isCorrect, pointsAwarded, submittedValue } } }
@@ -1113,6 +1165,7 @@ function renderResultsScreen(payload) {
     }
   }
 
+  renderCorrectorAndExplanation(serverVerdict, payload);
   resultsCorrectAnswer.textContent = payload.correctAnswer;
   resultsTop5List.replaceChildren();
 

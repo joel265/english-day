@@ -483,6 +483,13 @@ function renderProjectorResults(payload) {
     modCorrectAnswerBanner.hidden = false;
     modCorrectAnswerText.textContent = payload.correctAnswer;
   }
+  const modExplanationBanner = document.querySelector("#modExplanationBanner");
+  const modExplanationText = document.querySelector("#modExplanationText");
+  if (modExplanationBanner && modExplanationText) {
+    const explanation = typeof payload.explanation === "string" ? payload.explanation.trim() : "";
+    modExplanationText.textContent = explanation;
+    modExplanationBanner.hidden = explanation.length === 0;
+  }
 
   modRankingList.replaceChildren();
   const top5 = Array.isArray(payload.top5) ? payload.top5 : [];
@@ -723,6 +730,8 @@ function attachRoomSession(roomData) {
   modRankingTitle.textContent = "Clasificación en Vivo";
   modCorrectAnswerBanner.hidden = true;
   modCorrectAnswerText.textContent = "";
+  const modExplanationReset = document.querySelector("#modExplanationBanner");
+  if (modExplanationReset) modExplanationReset.hidden = true;
   modRankingList.replaceChildren();
   const emptyRank = document.createElement("li");
   emptyRank.className = "ranking-row";

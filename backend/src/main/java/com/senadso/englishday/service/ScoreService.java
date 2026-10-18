@@ -1,5 +1,6 @@
 package com.senadso.englishday.service;
 
+import com.senadso.englishday.dto.AnswerSegmentDto;
 import com.senadso.englishday.dto.LeaderboardEntryDto;
 import com.senadso.englishday.dto.PlayerRoundVerdictDto;
 import com.senadso.englishday.dto.PodiumResponse;
@@ -182,15 +183,20 @@ public class ScoreService {
             for (Answer ans : roundAnswers) {
                 Player p = ans.getPlayer();
                 if (p != null) {
+                    boolean answerCorrect = Boolean.TRUE.equals(ans.getIsCorrect());
+                    List<AnswerSegmentDto> segments =
+                            AnswerFeedbackBuilder.buildSegments(question, ans.getValue(), answerCorrect);
                     playerVerdicts.put(
                             p.getPlayerId(),
                             PlayerRoundVerdictDto.builder()
                                     .playerId(p.getPlayerId())
                                     .nickname(p.getNickname())
                                     .submittedValue(ans.getValue())
-                                    .isCorrect(Boolean.TRUE.equals(ans.getIsCorrect()))
+                                    .isCorrect(answerCorrect)
                                     .pointsAwarded(ans.getPointsAwarded() != null ? ans.getPointsAwarded() : 0)
                                     .totalScore(p.getTotalScore() != null ? p.getTotalScore() : 0)
+                                    .segments(segments)
+                                    .hints(AnswerFeedbackBuilder.buildHints(segments))
                                     .build()
                     );
                 }
@@ -206,6 +212,7 @@ public class ScoreService {
                 .correctAnswer(primaryCorrectAnswer)
                 .top5(top5)
                 .playerVerdicts(playerVerdicts)
+                .explanation(AnswerFeedbackBuilder.buildExplanation(question))
                 .build();
 
         if (roomService != null) {
