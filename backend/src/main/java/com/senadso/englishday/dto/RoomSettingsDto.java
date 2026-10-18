@@ -38,6 +38,12 @@ public class RoomSettingsDto {
     @Builder.Default
     private Boolean shuffleQuestions = true;
 
+    /**
+     * Cantidad de preguntas que se jugarán en la partida (se limita al tamaño del banco disponible).
+     */
+    @Builder.Default
+    private Integer questionCount = 10;
+
     public static RoomSettingsDto defaultSettings() {
         return RoomSettingsDto.builder()
                 .multipleChoiceTimeSeconds(15)
@@ -46,6 +52,7 @@ public class RoomSettingsDto {
                 .voiceTimeSeconds(25)
                 .introDurationSeconds(3)
                 .shuffleQuestions(true)
+                .questionCount(10)
                 .build();
     }
 
@@ -55,6 +62,7 @@ public class RoomSettingsDto {
         this.wordBlocksTimeSeconds = clamp(this.wordBlocksTimeSeconds, 5, 180, 20);
         this.voiceTimeSeconds = clamp(this.voiceTimeSeconds, 5, 180, 25);
         this.introDurationSeconds = clamp(this.introDurationSeconds, 0, 15, 3);
+        this.questionCount = clamp(this.questionCount, 1, 100, 10);
         if (this.shuffleQuestions == null) {
             this.shuffleQuestions = true;
         }

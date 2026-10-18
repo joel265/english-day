@@ -435,6 +435,7 @@ async function runSuite() {
       voiceTimeSeconds: 42,
       introDurationSeconds: 4,
       shuffleQuestions: true,
+      questionCount: 3,
     }),
   });
   stomp.subscribe("sub-q-roomA", `/topic/room/${roomA.roomId}/question`);
@@ -461,6 +462,15 @@ async function runSuite() {
       [32, 36, 38, 42].includes(roomAQ1.timeLimitSeconds) &&
       roomAQ1.type !== roomBQ1.type,
     `CP-12: Parámetros de tiempo personalizados aplicados (${roomAQ1.timeLimitSeconds}s, intro ${roomAQ1.introDurationSeconds}s) y mecánicas iniciales aleatorias distintas entre salas (${roomAQ1.type} vs ${roomBQ1.type})`
+  );
+
+  // 15. Número de preguntas configurable: la sala A se configuró con 3 preguntas
+  await fetch(`${BASE_URL}/api/rooms/${roomA.roomId}/next`, { method: "POST" });
+  await fetch(`${BASE_URL}/api/rooms/${roomA.roomId}/next`, { method: "POST" });
+  const overflowRes = await fetch(`${BASE_URL}/api/rooms/${roomA.roomId}/next`, { method: "POST" });
+  assert(
+    roomAQ1.totalQuestions === 3 && overflowRes.status === 400,
+    `Parámetro N.º de preguntas: la sala jugó exactamente 3 preguntas (totalQuestions=${roomAQ1.totalQuestions}) y rechazó la 4.ª con ${overflowRes.status}`
   );
 
   stomp.close();

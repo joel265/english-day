@@ -866,8 +866,9 @@ function renderQuestion(question, options = {}) {
 
   const thematicMeta = getQuestionThematicMetadata(question);
 
+  const totalLabel = Number.isInteger(question.totalQuestions) ? ` de ${question.totalQuestions}` : "";
   questionType.textContent = thematicMeta.badge;
-  questionOrder.textContent = `Pregunta ${question.order}`;
+  questionOrder.textContent = `Pregunta ${question.order}${totalLabel}`;
   questionPrompt.textContent = thematicMeta.cleanPrompt;
   if (questionThemeTag) {
     questionThemeTag.textContent = `📚 Temática: ${thematicMeta.themeLabel}`;
@@ -993,7 +994,7 @@ function renderQuestion(question, options = {}) {
       transitionQuestionNumber.textContent = `#${question.order}`;
     }
     if (transitionHeading) {
-      transitionHeading.textContent = `¡Pregunta ${question.order}!`;
+      transitionHeading.textContent = `¡Pregunta ${question.order}${totalLabel}!`;
     }
     if (transitionThemePill) {
       transitionThemePill.textContent = `📚 ${thematicMeta.themeLabel}`;

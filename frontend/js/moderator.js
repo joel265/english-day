@@ -14,6 +14,7 @@ const btnStartGame = document.querySelector("#btnStartGame");
 const btnCloseQuestion = document.querySelector("#btnCloseQuestion");
 const btnActivateRoulette = document.querySelector("#btnActivateRoulette");
 const btnNextQuestion = document.querySelector("#btnNextQuestion");
+let lastQuestionReached = false;
 const btnFinishGame = document.querySelector("#btnFinishGame");
 const btnReconnectPin = document.querySelector("#btnReconnectPin");
 const reconnectPinInput = document.querySelector("#reconnectPinInput");
@@ -24,6 +25,7 @@ const cfgTimeWordBlocks = document.querySelector("#cfgTimeWordBlocks");
 const cfgTimeVoice = document.querySelector("#cfgTimeVoice");
 const cfgTimeIntro = document.querySelector("#cfgTimeIntro");
 const cfgRandomOrder = document.querySelector("#cfgRandomOrder");
+const cfgQuestionCount = document.querySelector("#cfgQuestionCount");
 const btnSaveRoomSettings = document.querySelector("#btnSaveRoomSettings");
 
 const modRoomStatus = document.querySelector("#modRoomStatus");
@@ -153,6 +155,7 @@ function readModeratorSettingsFromForm() {
     voiceTimeSeconds: clampInt(cfgTimeVoice?.value, 5, 180, 25),
     introDurationSeconds: clampInt(cfgTimeIntro?.value, 0, 15, 3),
     shuffleQuestions: cfgRandomOrder ? cfgRandomOrder.value !== "false" : true,
+    questionCount: clampInt(cfgQuestionCount?.value, 1, 100, 10),
   };
 }
 
@@ -172,6 +175,9 @@ function applySettingsToForm(settings) {
   }
   if (cfgTimeIntro && settings.introDurationSeconds != null) {
     cfgTimeIntro.value = String(settings.introDurationSeconds);
+  }
+  if (cfgQuestionCount && settings.questionCount != null) {
+    cfgQuestionCount.value = String(settings.questionCount);
   }
   if (cfgRandomOrder && settings.shuffleQuestions != null) {
     cfgRandomOrder.value = String(Boolean(settings.shuffleQuestions));
@@ -208,7 +214,7 @@ function updateRoomStatusBadge(status) {
       : "";
   btnCloseQuestion.disabled = !hasRoom || effectiveStatus === "WAITING_LOBBY" || effectiveStatus === "FINISHED";
   btnActivateRoulette.disabled = !hasRoom || effectiveStatus === "WAITING_LOBBY" || effectiveStatus === "FINISHED";
-  btnNextQuestion.disabled = !hasRoom || effectiveStatus === "WAITING_LOBBY" || effectiveStatus === "FINISHED";
+  btnNextQuestion.disabled = !hasRoom || effectiveStatus === "WAITING_LOBBY" || effectiveStatus === "FINISHED" || lastQuestionReached;
   btnFinishGame.disabled = !hasRoom || effectiveStatus === "FINISHED";
 
   if (navPlayerViewLink) {
@@ -336,7 +342,15 @@ function renderProjectorQuestion(question, customRemainingSeconds = null) {
   const thematicMeta = getQuestionThematicMetadata(question);
   const questionSecondsTotal = question.timeLimitSeconds || 15;
 
-  stagePhaseBadge.textContent = `Pregunta ${question.order} · ${thematicMeta.badge} (${questionSecondsTotal}s)`;
+  const totalLabel = Number.isInteger(question.totalQuestions) ? ` de ${question.totalQuestions}` : "";
+  stagePhaseBadge.textContent = `Pregunta ${question.order}${totalLabel} · ${thematicMeta.badge} (${questionSecondsTotal}s)`;
+  lastQuestionReached = Number.isInteger(question.totalQuestions) && question.order >= question.totalQuestions;
+  if (lastQuestionReached) {
+    btnNextQuestion.disabled = true;
+    btnNextQuestion.title = "Es la última pregunta: finaliza el juego para ver el podio.";
+  } else {
+    btnNextQuestion.title = "";
+  }
   stageQuestionPrompt.textContent = thematicMeta.cleanPrompt;
   if (stageQuestionThemeTag) {
     stageQuestionThemeTag.textContent = `📚 Temática: ${thematicMeta.themeLabel}`;
@@ -728,6 +742,7 @@ function attachRoomSession(roomData) {
   modJoinUrl.textContent = `Enlace aprendices: ${playerJoinLink}`;
   renderRoomQrCodes(playerJoinLink, roomData.pin);
   modRankingTitle.textContent = "Clasificación en Vivo";
+  lastQuestionReached = false;
   modCorrectAnswerBanner.hidden = true;
   modCorrectAnswerText.textContent = "";
   const modExplanationReset = document.querySelector("#modExplanationBanner");
@@ -806,7 +821,7 @@ async function syncSettingsToActiveRoom(showNotification = false) {
   if (!currentRoom?.roomId) {
     if (showNotification) {
       setFeedback(
-        `Parámetros listos (MC: ${settings.multipleChoiceTimeSeconds}s, Texto: ${settings.textInputTimeSeconds}s, Bloques: ${settings.wordBlocksTimeSeconds}s, Voz: ${settings.voiceTimeSeconds}s, Intro: ${settings.introDurationSeconds}s). Se aplicarán al crear la sala.`,
+        `Parámetros listos (MC: ${settings.multipleChoiceTimeSeconds}s, Texto: ${settings.textInputTimeSeconds}s, Bloques: ${settings.wordBlocksTimeSeconds}s, Voz: ${settings.voiceTimeSeconds}s, Intro: ${settings.introDurationSeconds}s, Preguntas: ${settings.questionCount}). Se aplicarán al crear la sala.`,
         "ok"
       );
     }
@@ -821,9 +836,13 @@ async function syncSettingsToActiveRoom(showNotification = false) {
   if (response.ok) {
     const saved = await response.json();
     applySettingsToForm(saved);
+    if (Number.isInteger(currentRoom?.currentQuestionIndex) && currentRoom.currentQuestionIndex > 0 && Number.isInteger(saved.questionCount)) {
+      lastQuestionReached = currentRoom.currentQuestionIndex >= saved.questionCount;
+      updateRoomStatusBadge();
+    }
     if (showNotification) {
       setFeedback(
-        `Tiempos actualizados en la sala ${currentRoom.pin} (MC: ${saved.multipleChoiceTimeSeconds}s, Texto: ${saved.textInputTimeSeconds}s, Bloques: ${saved.wordBlocksTimeSeconds}s, Voz: ${saved.voiceTimeSeconds}s, Intro: ${saved.introDurationSeconds}s).`,
+        `Tiempos actualizados en la sala ${currentRoom.pin} (MC: ${saved.multipleChoiceTimeSeconds}s, Texto: ${saved.textInputTimeSeconds}s, Bloques: ${saved.wordBlocksTimeSeconds}s, Voz: ${saved.voiceTimeSeconds}s, Intro: ${saved.introDurationSeconds}s, Preguntas: ${saved.questionCount}).`,
         "ok"
       );
     }

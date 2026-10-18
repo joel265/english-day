@@ -146,14 +146,15 @@ public class RoomService {
             roomQuestionDecks.remove(roomId);
         }
 
-        log.info("Parámetros de sala {} actualizados: MC={}s, TEXT={}s, BLOCKS={}s, VOICE={}s, intro={}s, aleatorio={}",
+        log.info("Parámetros de sala {} actualizados: MC={}s, TEXT={}s, BLOCKS={}s, VOICE={}s, intro={}s, aleatorio={}, preguntas={}",
                 roomId,
                 normalized.getMultipleChoiceTimeSeconds(),
                 normalized.getTextInputTimeSeconds(),
                 normalized.getWordBlocksTimeSeconds(),
                 normalized.getVoiceTimeSeconds(),
                 normalized.getIntroDurationSeconds(),
-                normalized.getShuffleQuestions());
+                normalized.getShuffleQuestions(),
+                normalized.getQuestionCount());
         return normalized;
     }
 
@@ -258,13 +259,24 @@ public class RoomService {
             Collections.shuffle(remaining, secureRandom);
             randomizedDeck.addAll(remaining);
 
-            log.info("Mazo aleatorio generado para sala {} ({} preguntas). Primera pregunta: [{} - {}]",
+            log.info("Mazo aleatorio generado para sala {} ({} preguntas disponibles). Primera pregunta: [{} - {}]",
                     id,
                     randomizedDeck.size(),
                     randomizedDeck.get(0).getType(),
                     randomizedDeck.get(0).getPrompt());
             return randomizedDeck;
         });
+    }
+
+    /**
+     * Total de preguntas que se jugarán en la sala según los parámetros del moderador
+     * (permite ajustarse tanto antes de iniciar como en caliente durante la partida).
+     */
+    public int getTotalQuestionsForRoom(String roomId) {
+        List<Question> deck = getOrCreateQuestionDeck(roomId);
+        RoomSettingsDto settings = getRoomSettings(roomId);
+        int requested = settings.getQuestionCount() != null ? settings.getQuestionCount() : 10;
+        return Math.max(1, Math.min(requested, deck.size()));
     }
 
     /**
@@ -398,6 +410,7 @@ public class RoomService {
                 effectiveTimeLimit,
                 introSeconds
         );
+        broadcastPayload.setTotalQuestions(getTotalQuestionsForRoom(roomId));
         lastBroadcastQuestionByRoomId.put(roomId, broadcastPayload);
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/question", broadcastPayload);
 
@@ -484,9 +497,10 @@ public class RoomService {
         }
 
         List<Question> deck = getOrCreateQuestionDeck(roomId);
+        int totalQuestions = getTotalQuestionsForRoom(roomId);
         int nextOrder = (room.getCurrentQuestionIndex() == null ? 0 : room.getCurrentQuestionIndex()) + 1;
-        if (nextOrder < 1 || nextOrder > deck.size()) {
-            throw new IllegalStateException("No hay más preguntas disponibles en el banco");
+        if (nextOrder < 1 || nextOrder > totalQuestions || nextOrder > deck.size()) {
+            throw new IllegalStateException("Ya se jugaron las preguntas configuradas para la partida. Finaliza el juego para ver el podio.");
         }
         Question nextQuestion = deck.get(nextOrder - 1);
 
@@ -513,6 +527,7 @@ public class RoomService {
                 effectiveTimeLimit,
                 introSeconds
         );
+        broadcastPayload.setTotalQuestions(getTotalQuestionsForRoom(roomId));
         lastBroadcastQuestionByRoomId.put(roomId, broadcastPayload);
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/question", broadcastPayload);
 

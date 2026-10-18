@@ -58,6 +58,11 @@ public class QuestionBroadcastResponse {
     private Integer order;
 
     /**
+     * Cantidad total de preguntas configuradas para la partida (para mostrar "Pregunta X de N").
+     */
+    private Integer totalQuestions;
+
+    /**
      * Marca temporal del servidor en formato ISO-8601 UTC (ej. 2026-09-21T14:10:00Z)
      * utilizada por el cliente para sincronizar el temporizador.
      */
