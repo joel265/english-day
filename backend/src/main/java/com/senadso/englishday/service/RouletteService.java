@@ -117,6 +117,10 @@ public class RouletteService {
                 .timestamp(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
 
+        if (roomService != null) {
+            roomService.recordRouletteResult(roomId, response);
+        }
+
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/roulette", response);
 
         log.info("Ruleta ejecutada en sala {} - Aprendiz: {}, Pregunta: {}, Correcta: {}",

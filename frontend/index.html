@@ -13,7 +13,7 @@
     <header class="site-header">
       <div class="site-header-inner">
         <p class="brand">English Day <span>SENA ADSO</span></p>
-        <a class="moderator-link" href="/moderator.html">Panel Moderador</a>
+        <a class="moderator-link" id="navModeratorLink" href="/moderator.html">Panel Moderador</a>
       </div>
     </header>
 
@@ -249,6 +249,11 @@
         <p class="intro" id="podiumSubtitle">Felicitaciones a todos los participantes del English Day.</p>
         <ol class="podium-stage" id="podiumTop3List" aria-label="Ganadores del podio Top 3"></ol>
         <p class="podium-total" id="podiumTotalPlayers"></p>
+        <div class="lobby-actions">
+          <button class="join-button" id="btnBackToStart" type="button">
+            🏠 Volver al inicio / Unirse a otra sala
+          </button>
+        </div>
       </section>
     </main>
     <script src="./js/audio.js" defer></script>

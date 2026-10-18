@@ -27,6 +27,7 @@ const cfgRandomOrder = document.querySelector("#cfgRandomOrder");
 const btnSaveRoomSettings = document.querySelector("#btnSaveRoomSettings");
 
 const modRoomStatus = document.querySelector("#modRoomStatus");
+const navPlayerViewLink = document.querySelector("#navPlayerViewLink");
 const modPinValue = document.querySelector("#modPinValue");
 const modJoinUrl = document.querySelector("#modJoinUrl");
 const modQrBox = document.querySelector("#modQrBox");
@@ -59,15 +60,64 @@ const modCorrectAnswerBanner = document.querySelector("#modCorrectAnswerBanner")
 const modCorrectAnswerText = document.querySelector("#modCorrectAnswerText");
 const modRankingList = document.querySelector("#modRankingList");
 
+const MODERATOR_STORAGE_KEY = "englishDayModeratorSession";
+
 let currentRoom = null;
 let modSocket = null;
 let modTimerInterval = null;
 let connectedPlayers = [];
 let rouletteWheel = null;
 
+if (navPlayerViewLink) {
+  navPlayerViewLink.addEventListener("click", (event) => {
+    if (navPlayerViewLink.getAttribute("aria-disabled") === "true") {
+      event.preventDefault();
+    }
+  });
+}
+
+function saveModeratorSession(roomData) {
+  if (!roomData?.pin || !roomData?.roomId) return;
+  const payload = JSON.stringify({
+    roomId: roomData.roomId,
+    pin: roomData.pin,
+  });
+  try {
+    window.localStorage.setItem(MODERATOR_STORAGE_KEY, payload);
+    window.sessionStorage.setItem(MODERATOR_STORAGE_KEY, payload);
+  } catch {
+    // Ignorar errores de almacenamiento privado
+  }
+}
+
+function clearModeratorSession() {
+  try {
+    window.localStorage.removeItem(MODERATOR_STORAGE_KEY);
+    window.sessionStorage.removeItem(MODERATOR_STORAGE_KEY);
+  } catch {
+    // Ignorar
+  }
+}
+
+function readSavedModeratorSession() {
+  try {
+    const raw =
+      window.localStorage.getItem(MODERATOR_STORAGE_KEY) ||
+      window.sessionStorage.getItem(MODERATOR_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   if (window.ActiveFeedbackRoulette) {
     rouletteWheel = new window.ActiveFeedbackRoulette("rouletteCanvas");
+  }
+  const saved = readSavedModeratorSession();
+  if (saved?.pin && /^\d{6}$/.test(saved.pin)) {
+    if (reconnectPinInput) reconnectPinInput.value = saved.pin;
+    restoreModeratorStateFromServer(saved.pin, true).catch(() => {});
   }
 });
 
@@ -126,12 +176,27 @@ function updateRoomStatusBadge(status) {
   modRoomStatus.textContent = labels[status] || status || "Sin sala activa";
 
   const hasRoom = Boolean(currentRoom?.roomId);
-  btnCreateRoom.disabled = hasRoom && status !== "FINISHED";
+  const isRoomActive = hasRoom && status !== "FINISHED";
+  btnCreateRoom.disabled = isRoomActive;
   btnStartGame.disabled = !hasRoom || status !== "WAITING_LOBBY";
   btnCloseQuestion.disabled = !hasRoom || status === "WAITING_LOBBY" || status === "FINISHED";
   btnActivateRoulette.disabled = !hasRoom || status === "WAITING_LOBBY" || status === "FINISHED";
   btnNextQuestion.disabled = !hasRoom || status === "WAITING_LOBBY" || status === "FINISHED";
   btnFinishGame.disabled = !hasRoom || status === "FINISHED";
+
+  if (navPlayerViewLink) {
+    if (isRoomActive) {
+      navPlayerViewLink.setAttribute("aria-disabled", "true");
+      navPlayerViewLink.classList.add("is-disabled");
+      navPlayerViewLink.tabIndex = -1;
+      navPlayerViewLink.title = "Deshabilitado mientras hay una partida o sala activa";
+    } else {
+      navPlayerViewLink.removeAttribute("aria-disabled");
+      navPlayerViewLink.classList.remove("is-disabled");
+      navPlayerViewLink.tabIndex = 0;
+      navPlayerViewLink.title = "";
+    }
+  }
 }
 
 function showStageSection(activeSection) {
@@ -165,7 +230,7 @@ function renderLobbyPlayers(players) {
   }
 }
 
-function renderProjectorQuestion(question) {
+function renderProjectorQuestion(question, customRemainingSeconds = null) {
   window.clearInterval(modTimerInterval);
   updateRoomStatusBadge("QUESTION_IN_PROGRESS");
 
@@ -202,8 +267,15 @@ function renderProjectorQuestion(question) {
 
   showStageSection(stageQuestionView);
 
-  const introSeconds = typeof question.introDurationSeconds === "number" ? question.introDurationSeconds : 3;
-  const questionSeconds = question.timeLimitSeconds || 15;
+  const isRestored = typeof customRemainingSeconds === "number";
+  const introSeconds = isRestored
+    ? 0
+    : typeof question.introDurationSeconds === "number"
+      ? question.introDurationSeconds
+      : 3;
+  const questionSeconds = isRestored
+    ? Math.max(0, customRemainingSeconds)
+    : question.timeLimitSeconds || 15;
   const introEndMs = Date.now() + introSeconds * 1000;
   const deadline = introEndMs + questionSeconds * 1000;
   stageTimerBox.classList.remove("is-expired");
@@ -304,6 +376,7 @@ function renderProjectorRoulette(payload) {
 
 function renderProjectorPodium(payload) {
   window.clearInterval(modTimerInterval);
+  clearModeratorSession();
   updateRoomStatusBadge("FINISHED");
   stagePhaseBadge.textContent = "🏆 Podio Final Top 3 (CU-06 / RF-10)";
 
@@ -461,6 +534,11 @@ if (btnCopyJoinUrl) {
 
 function attachRoomSession(roomData) {
   currentRoom = roomData;
+  if (roomData.status !== "FINISHED") {
+    saveModeratorSession(roomData);
+  } else {
+    clearModeratorSession();
+  }
   modPinValue.textContent = roomData.pin;
   const playerJoinLink = `${window.location.origin}/index.html?pin=${roomData.pin}`;
   modJoinUrl.textContent = `Enlace aprendices: ${playerJoinLink}`;
@@ -482,6 +560,58 @@ function attachRoomSession(roomData) {
   }
   showStageSection(stageWelcomeView);
   connectModeratorWebSocket(roomData.roomId);
+}
+
+async function restoreModeratorStateFromServer(pin, isAutoRestore = false) {
+  const response = await fetch(`/api/rooms/${encodeURIComponent(pin)}/state`);
+  const state = await response.json();
+  if (!response.ok) {
+    if (isAutoRestore) {
+      clearModeratorSession();
+    }
+    throw new Error(state.error || `No se encontró la sala (${response.status})`);
+  }
+
+  if (isAutoRestore && state.status === "FINISHED") {
+    clearModeratorSession();
+    return;
+  }
+
+  attachRoomSession(state);
+  if (state.settings) {
+    applySettingsToForm(state.settings);
+  }
+  if (Array.isArray(state.players)) {
+    renderLobbyPlayers(state.players);
+  }
+
+  if (state.status === "QUESTION_IN_PROGRESS" && state.currentQuestion) {
+    if (state.questionClosed && state.lastResults) {
+      renderProjectorQuestion(state.currentQuestion, 0);
+      window.clearInterval(modTimerInterval);
+      stageTimerValue.textContent = "00:00";
+      stageTimerBox.classList.add("is-expired");
+      renderProjectorResults(state.lastResults);
+    } else {
+      renderProjectorQuestion(state.currentQuestion, state.remainingSeconds);
+    }
+  } else if (state.status === "ROULETTE_TIME") {
+    if (state.lastResults) {
+      renderProjectorResults(state.lastResults);
+    }
+    if (state.lastRoulette) {
+      renderProjectorRoulette(state.lastRoulette);
+    }
+  } else if (state.status === "FINISHED" && state.podium) {
+    renderProjectorPodium(state.podium);
+  }
+
+  setFeedback(
+    isAutoRestore
+      ? `Sesión restaurada automáticamente · Sala ${state.pin} (${state.playerCount ?? 0} aprendices).`
+      : `Reconectado a la sala ${state.pin} (${state.playerCount ?? 0} aprendices).`,
+    "ok"
+  );
 }
 
 async function syncSettingsToActiveRoom(showNotification = false) {
@@ -558,17 +688,7 @@ btnReconnectPin.addEventListener("click", async () => {
     return;
   }
   try {
-    const response = await fetch(`/api/rooms/${encodeURIComponent(pin)}`);
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || `No se encontró la sala (${response.status})`);
-    }
-    attachRoomSession(data);
-    fetch(`/api/rooms/${encodeURIComponent(data.roomId)}/settings`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((s) => applySettingsToForm(s))
-      .catch(() => {});
-    setFeedback(`Reconectado a la sala ${data.pin} (${data.playerCount ?? 0} aprendices).`, "ok");
+    await restoreModeratorStateFromServer(pin, false);
   } catch (error) {
     setFeedback(error.message, "error");
   }

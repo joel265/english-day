@@ -77,6 +77,10 @@ const podiumCard = document.querySelector("#podiumCard");
 const podiumTitle = document.querySelector("#podiumTitle");
 const podiumTop3List = document.querySelector("#podiumTop3List");
 const podiumTotalPlayers = document.querySelector("#podiumTotalPlayers");
+const btnBackToStart = document.querySelector("#btnBackToStart");
+const navModeratorLink = document.querySelector("#navModeratorLink");
+
+const PLAYER_STORAGE_KEY = "englishDayPlayerSession";
 
 let lobbySocket;
 let timerInterval;
@@ -98,11 +102,59 @@ let knownRoomPlayers = [];
 let playerRouletteWheel = null;
 let isLeavingIntentionally = false;
 
-document.addEventListener("DOMContentLoaded", () => {
-  if (window.ActiveFeedbackRoulette) {
-    playerRouletteWheel = new window.ActiveFeedbackRoulette("playerRouletteCanvas");
+if (navModeratorLink) {
+  navModeratorLink.addEventListener("click", (event) => {
+    if (navModeratorLink.getAttribute("aria-disabled") === "true") {
+      event.preventDefault();
+    }
+  });
+}
+
+function setTopNavigationLocked(locked) {
+  if (!navModeratorLink) return;
+  if (locked) {
+    navModeratorLink.setAttribute("aria-disabled", "true");
+    navModeratorLink.classList.add("is-disabled");
+    navModeratorLink.tabIndex = -1;
+    navModeratorLink.title = "Deshabilitado mientras estás dentro de una sala o partida en curso";
+  } else {
+    navModeratorLink.removeAttribute("aria-disabled");
+    navModeratorLink.classList.remove("is-disabled");
+    navModeratorLink.tabIndex = 0;
+    navModeratorLink.title = "";
   }
-});
+}
+
+function savePlayerSession(sessionData) {
+  if (!sessionData?.pin || !sessionData?.roomId || !sessionData?.playerId) return;
+  const serialized = JSON.stringify(sessionData);
+  try {
+    window.localStorage.setItem(PLAYER_STORAGE_KEY, serialized);
+    window.sessionStorage.setItem(PLAYER_STORAGE_KEY, serialized);
+  } catch {
+    // Almacenamiento opcional
+  }
+}
+
+function clearPlayerSession() {
+  try {
+    window.localStorage.removeItem(PLAYER_STORAGE_KEY);
+    window.sessionStorage.removeItem(PLAYER_STORAGE_KEY);
+  } catch {
+    // Ignorar
+  }
+}
+
+function readSavedPlayerSession() {
+  try {
+    const raw =
+      window.localStorage.getItem(PLAYER_STORAGE_KEY) ||
+      window.sessionStorage.getItem(PLAYER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 // Navegación cómoda entre los 6 dígitos del PIN
 pinInputs.forEach((input, index) => {
@@ -142,11 +194,27 @@ if (urlPin && /^\d{6}$/.test(urlPin)) {
   nicknameInput?.focus();
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+  if (window.ActiveFeedbackRoulette) {
+    playerRouletteWheel = new window.ActiveFeedbackRoulette("playerRouletteCanvas");
+  }
+  const savedSession = readSavedPlayerSession();
+  if (
+    savedSession?.pin &&
+    savedSession?.roomId &&
+    savedSession?.playerId &&
+    (!urlPin || urlPin === savedSession.pin)
+  ) {
+    restorePlayerSessionFromServer(savedSession, true).catch(() => {});
+  }
+});
+
 function showOnlyCard(activeCard) {
   if (activeCard !== questionTransitionCard && activeCard !== questionCard) {
     window.clearTimeout(transitionTimeout);
     window.clearInterval(transitionInterval);
   }
+  setTopNavigationLocked(activeCard !== joinCard && activeCard !== podiumCard);
   [
     joinCard,
     lobbyCard,
@@ -777,7 +845,7 @@ function getQuestionThematicMetadata(question) {
   };
 }
 
-function renderQuestion(question) {
+function renderQuestion(question, options = {}) {
   validateQuestion(question);
   window.clearInterval(timerInterval);
   window.clearTimeout(autoCloseTimeout);
@@ -855,9 +923,11 @@ function renderQuestion(question) {
   const serverTimeMs = Date.parse(question.serverTimestamp);
   const clockSkewAdjustedStart = Number.isFinite(serverTimeMs) ? serverTimeMs : Date.now();
   const remainingFromServer = Math.round((clockSkewAdjustedStart + question.timeLimitSeconds * 1000 - Date.now()) / 1000);
-  const effectiveSeconds = remainingFromServer > 1 && remainingFromServer <= question.timeLimitSeconds + 5
-    ? remainingFromServer
-    : question.timeLimitSeconds;
+  const effectiveSeconds = typeof options.remainingSeconds === "number"
+    ? Math.max(0, options.remainingSeconds)
+    : remainingFromServer > 1 && remainingFromServer <= question.timeLimitSeconds + 5
+      ? remainingFromServer
+      : question.timeLimitSeconds;
 
   const startQuestionMainTimer = (secondsForQuestion) => {
     window.clearInterval(timerInterval);
@@ -891,9 +961,20 @@ function renderQuestion(question) {
 
   document.title = `Pregunta ${question.order} | English Day`;
 
-  const configuredIntroSeconds = Number.isInteger(question.introDurationSeconds)
-    ? Math.max(0, Math.min(15, question.introDurationSeconds))
-    : 3;
+  if (options.alreadySubmittedAnswer != null) {
+    hasSubmittedAnswer = true;
+    selectedAnswer = options.alreadySubmittedAnswer;
+    lockQuestionInputs();
+    startQuestionMainTimer(effectiveSeconds);
+    showWaitingForOthersScreen(options.alreadySubmittedAnswer);
+    return;
+  }
+
+  const configuredIntroSeconds = options.skipIntro
+    ? 0
+    : Number.isInteger(question.introDurationSeconds)
+      ? Math.max(0, Math.min(15, question.introDurationSeconds))
+      : 3;
 
   if (questionTransitionCard && configuredIntroSeconds > 0 && effectiveSeconds >= 4) {
     const introDurationSeconds = configuredIntroSeconds;
@@ -1205,6 +1286,7 @@ function renderPodiumScreen(payload) {
     podiumTotalPlayers.textContent = "";
   }
 
+  clearPlayerSession();
   showOnlyCard(podiumCard);
   document.title = "¡Podio Final! | English Day";
   podiumTitle?.focus();
@@ -1292,6 +1374,15 @@ function showConnectionError(message) {
 }
 
 function subscribeToLobby(roomId, player) {
+  if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN) {
+    isLeavingIntentionally = true;
+    try {
+      lobbySocket.close();
+    } catch {
+      // Ignorar
+    }
+  }
+
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const url = `${protocol}//${window.location.host}/ws-englishday`;
 
@@ -1348,35 +1439,85 @@ function subscribeToLobby(roomId, player) {
   });
 }
 
-async function leaveCurrentLobby() {
-  if (!currentRoomId || !currentPlayer?.playerId) {
-    showOnlyCard(joinCard);
-    return;
+async function restorePlayerSessionFromServer(session, isAutoRestore = false) {
+  const response = await fetch(
+    `/api/rooms/${encodeURIComponent(session.pin)}/state?playerId=${encodeURIComponent(session.playerId)}`
+  );
+  if (!response.ok) {
+    if (isAutoRestore) {
+      clearPlayerSession();
+    }
+    return false;
   }
 
-  const roomIdToLeave = currentRoomId;
-  const playerIdToLeave = currentPlayer.playerId;
-
-  if (btnLeaveLobby) {
-    btnLeaveLobby.disabled = true;
-    btnLeaveLobby.textContent = "Saliendo de la sala...";
+  const state = await response.json();
+  if (!state.player || state.status === "FINISHED") {
+    clearPlayerSession();
+    if (!isAutoRestore && state.status === "FINISHED" && state.podium) {
+      renderPodiumScreen(state.podium);
+      return true;
+    }
+    return false;
   }
 
+  savePlayerSession({
+    pin: state.pin,
+    roomId: state.roomId,
+    playerId: state.player.playerId,
+    nickname: state.player.nickname,
+  });
+
+  lobbyPin.textContent = `PIN de la partida: ${state.pin}`;
+  subscribeToLobby(state.roomId, {
+    playerId: state.player.playerId,
+    nickname: state.player.nickname,
+  });
+
+  if (Array.isArray(state.players)) {
+    renderLobbyPlayers(state.players, state.player.playerId);
+  }
+
+  if (state.status === "WAITING_LOBBY") {
+    showOnlyCard(lobbyCard);
+    if (isAutoRestore) {
+      setLobbyStatus(`Sesión restaurada como ${state.player.nickname}. Esperando inicio de la partida...`, "connected");
+    }
+  } else if (state.status === "QUESTION_IN_PROGRESS") {
+    if (state.questionClosed && state.lastResults) {
+      currentQuestion = state.currentQuestion || null;
+      hasSubmittedAnswer = state.playerSubmittedAnswer != null;
+      selectedAnswer = state.playerSubmittedAnswer;
+      renderResultsScreen(state.lastResults);
+    } else if (state.currentQuestion) {
+      renderQuestion(state.currentQuestion, {
+        skipIntro: true,
+        remainingSeconds: state.remainingSeconds,
+        alreadySubmittedAnswer: state.playerSubmittedAnswer,
+      });
+    } else {
+      showOnlyCard(lobbyCard);
+    }
+  } else if (state.status === "ROULETTE_TIME") {
+    currentQuestion = state.currentQuestion || null;
+    if (state.lastRoulette) {
+      renderRouletteScreen(state.lastRoulette);
+    } else if (state.lastResults) {
+      renderResultsScreen(state.lastResults);
+    } else {
+      showOnlyCard(lobbyCard);
+    }
+  }
+
+  return true;
+}
+
+function resetLocalPlayerUIState() {
   isLeavingIntentionally = true;
   window.clearInterval(timerInterval);
   window.clearTimeout(autoCloseTimeout);
   window.clearTimeout(transitionTimeout);
   window.clearInterval(transitionInterval);
   stopVoiceRecognition();
-
-  try {
-    await fetch(
-      `/api/rooms/${encodeURIComponent(roomIdToLeave)}/players/${encodeURIComponent(playerIdToLeave)}`,
-      { method: "DELETE" }
-    );
-  } catch {
-    // Continuar desconexión local aunque el servidor no responda
-  }
 
   if (lobbySocket) {
     try {
@@ -1387,11 +1528,7 @@ async function leaveCurrentLobby() {
     lobbySocket = null;
   }
 
-  try {
-    window.sessionStorage.removeItem("englishDayPlayerSession");
-  } catch {
-    // sessionStorage opcional
-  }
+  clearPlayerSession();
 
   currentRoomId = null;
   currentPlayer = null;
@@ -1406,7 +1543,35 @@ async function leaveCurrentLobby() {
     btnLeaveLobby.disabled = false;
     btnLeaveLobby.textContent = "🚪 Salir de la sala de espera";
   }
+}
 
+async function leaveCurrentLobby() {
+  if (!currentRoomId || !currentPlayer?.playerId) {
+    resetLocalPlayerUIState();
+    showOnlyCard(joinCard);
+    return;
+  }
+
+  const roomIdToLeave = currentRoomId;
+  const playerIdToLeave = currentPlayer.playerId;
+
+  if (btnLeaveLobby) {
+    btnLeaveLobby.disabled = true;
+    btnLeaveLobby.textContent = "Saliendo de la sala...";
+  }
+
+  isLeavingIntentionally = true;
+
+  try {
+    await fetch(
+      `/api/rooms/${encodeURIComponent(roomIdToLeave)}/players/${encodeURIComponent(playerIdToLeave)}`,
+      { method: "DELETE" }
+    );
+  } catch {
+    // Continuar desconexión local aunque el servidor no responda
+  }
+
+  resetLocalPlayerUIState();
   showOnlyCard(joinCard);
   document.title = "Unirse a la partida | English Day";
   formMessage.dataset.state = "loading";
@@ -1416,6 +1581,16 @@ async function leaveCurrentLobby() {
 
 if (btnLeaveLobby) {
   btnLeaveLobby.addEventListener("click", leaveCurrentLobby);
+}
+
+if (btnBackToStart) {
+  btnBackToStart.addEventListener("click", () => {
+    resetLocalPlayerUIState();
+    showOnlyCard(joinCard);
+    document.title = "Unirse a la partida | English Day";
+    formMessage.textContent = "";
+    nicknameInput?.focus();
+  });
 }
 
 window.addEventListener("beforeunload", () => {
@@ -1481,26 +1656,23 @@ joinForm.addEventListener("submit", async (event) => {
       throw new Error("El servidor no devolvió los datos de la sala necesarios para abrir el lobby.");
     }
 
-    try {
-      window.sessionStorage.setItem(
-        "englishDayPlayerSession",
-        JSON.stringify({
-          pin,
-          roomId: result.roomId,
-          playerId: result.playerId,
-          nickname: result.nickname,
-        })
-      );
-    } catch {
-      // sessionStorage opcional
-    }
-
-    showOnlyCard(lobbyCard);
-    lobbyPin.textContent = `PIN de la partida: ${pin}`;
-    subscribeToLobby(result.roomId, {
+    const sessionPayload = {
+      pin,
+      roomId: result.roomId,
       playerId: result.playerId,
       nickname: result.nickname,
-    });
+    };
+    savePlayerSession(sessionPayload);
+
+    const restored = await restorePlayerSessionFromServer(sessionPayload, false).catch(() => false);
+    if (!restored) {
+      showOnlyCard(lobbyCard);
+      lobbyPin.textContent = `PIN de la partida: ${pin}`;
+      subscribeToLobby(result.roomId, {
+        playerId: result.playerId,
+        nickname: result.nickname,
+      });
+    }
   } catch (error) {
     formMessage.dataset.state = "error";
     formMessage.textContent = error instanceof TypeError

@@ -204,6 +204,10 @@ public class ScoreService {
                 .playerVerdicts(playerVerdicts)
                 .build();
 
+        if (roomService != null) {
+            roomService.recordQuestionResults(roomId, response);
+        }
+
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/results", response);
         log.info("Leaderboard Top 5 emitido en /topic/room/{}/results para pregunta '{}' con {} participantes",
                 roomId, question.getPrompt(), top5.size());

@@ -5,8 +5,10 @@ import com.senadso.englishday.dto.JoinRoomRequest;
 import com.senadso.englishday.dto.JoinRoomResponse;
 import com.senadso.englishday.dto.LobbyPlayerResponse;
 import com.senadso.englishday.dto.QuestionBroadcastResponse;
+import com.senadso.englishday.dto.QuestionResultsResponse;
 import com.senadso.englishday.dto.RoomResponse;
 import com.senadso.englishday.dto.RoomSettingsDto;
+import com.senadso.englishday.dto.RouletteResultResponse;
 import com.senadso.englishday.exception.PinNotFoundException;
 import com.senadso.englishday.exception.RoomNotFoundException;
 import com.senadso.englishday.model.Player;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -31,6 +34,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -53,6 +57,10 @@ public class RoomService {
     private final Map<String, List<Question>> roomQuestionDecks = new ConcurrentHashMap<>();
     private final Map<String, Question> activeQuestionByRoomId = new ConcurrentHashMap<>();
     private final Map<String, LocalDateTime> questionStartedAtByRoomId = new ConcurrentHashMap<>();
+    private final Map<String, QuestionBroadcastResponse> lastBroadcastQuestionByRoomId = new ConcurrentHashMap<>();
+    private final Map<String, QuestionResultsResponse> lastQuestionResultsByRoomId = new ConcurrentHashMap<>();
+    private final Map<String, RouletteResultResponse> lastRouletteByRoomId = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> questionClosedByRoomId = new ConcurrentHashMap<>();
     private final AtomicReference<QuestionType> lastOpeningMechanic = new AtomicReference<>(null);
 
     /**
@@ -234,11 +242,30 @@ public class RoomService {
 
     /**
      * Registra a un aprendiz en una sala activa mediante su PIN y nickname (RF-02 / CU-02).
+     * Si el aprendiz ya estaba registrado en la sala con el mismo nickname y la partida sigue activa,
+     * devuelve su sesión existente para permitir reconexión transparente tras reiniciar el navegador.
      */
     @Transactional
     public JoinRoomResponse joinRoom(String pin, JoinRoomRequest request) {
         Room room = roomRepository.findByPin(pin)
                 .orElseThrow(() -> new PinNotFoundException("PIN no encontrado"));
+
+        String normalizedNickname = request.getNickname().trim();
+        Optional<Player> existingPlayer = playerRepository.findByRoom_RoomId(room.getRoomId())
+                .stream()
+                .filter(p -> p.getNickname() != null && p.getNickname().trim().equalsIgnoreCase(normalizedNickname))
+                .findFirst();
+
+        if (existingPlayer.isPresent() && room.getStatus() != RoomStatus.FINISHED) {
+            Player existing = existingPlayer.get();
+            broadcastLobbyUpdate(room.getRoomId());
+            return JoinRoomResponse.builder()
+                    .playerId(existing.getPlayerId())
+                    .roomId(room.getRoomId())
+                    .nickname(existing.getNickname())
+                    .joinedAt(existing.getJoinedAt())
+                    .build();
+        }
 
         if (room.getStatus() != RoomStatus.WAITING_LOBBY) {
             throw new IllegalStateException("La sala no está aceptando nuevos jugadores");
@@ -246,7 +273,7 @@ public class RoomService {
 
         Player player = Player.builder()
                 .room(room)
-                .nickname(request.getNickname().trim())
+                .nickname(normalizedNickname)
                 .totalScore(0)
                 .build();
 
@@ -327,6 +354,8 @@ public class RoomService {
         int effectiveTimeLimit = settings.resolveTimeLimitForType(firstQuestion.getType(), firstQuestion.getTimeLimitSeconds());
         int introSeconds = settings.getIntroDurationSeconds() != null ? settings.getIntroDurationSeconds() : 3;
         questionStartedAtByRoomId.put(roomId, serverTimestamp.plusSeconds(introSeconds));
+        questionClosedByRoomId.put(roomId, false);
+        lastRouletteByRoomId.remove(roomId);
 
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/status",
                 Map.of("status", updatedRoom.getStatus().name()));
@@ -338,6 +367,7 @@ public class RoomService {
                 effectiveTimeLimit,
                 introSeconds
         );
+        lastBroadcastQuestionByRoomId.put(roomId, broadcastPayload);
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/question", broadcastPayload);
 
         return RoomResponse.fromEntity(updatedRoom);
@@ -355,6 +385,59 @@ public class RoomService {
                 .orElseThrow(() -> new PinNotFoundException("PIN no encontrado"));
         int playerCount = playerRepository.findByRoom_RoomId(room.getRoomId()).size();
         return RoomResponse.fromEntityWithCount(room, playerCount);
+    }
+
+    @Transactional(readOnly = true)
+    public Room findRoomByPinOrThrow(String pin) {
+        if (pin == null || !pin.matches("^[0-9]{6}$")) {
+            throw new IllegalArgumentException("El PIN debe tener 6 dígitos");
+        }
+        return roomRepository.findByPin(pin)
+                .orElseThrow(() -> new PinNotFoundException("PIN no encontrado"));
+    }
+
+    public void recordQuestionResults(String roomId, QuestionResultsResponse results) {
+        if (roomId != null && results != null) {
+            lastQuestionResultsByRoomId.put(roomId, results);
+            questionClosedByRoomId.put(roomId, true);
+        }
+    }
+
+    public void recordRouletteResult(String roomId, RouletteResultResponse roulette) {
+        if (roomId != null && roulette != null) {
+            lastRouletteByRoomId.put(roomId, roulette);
+        }
+    }
+
+    public QuestionBroadcastResponse getLastBroadcastQuestion(String roomId) {
+        return lastBroadcastQuestionByRoomId.get(roomId);
+    }
+
+    public QuestionResultsResponse getLastQuestionResults(String roomId) {
+        return lastQuestionResultsByRoomId.get(roomId);
+    }
+
+    public RouletteResultResponse getLastRouletteResult(String roomId) {
+        return lastRouletteByRoomId.get(roomId);
+    }
+
+    public boolean isQuestionClosed(String roomId) {
+        return Boolean.TRUE.equals(questionClosedByRoomId.get(roomId));
+    }
+
+    public int getRemainingQuestionSeconds(String roomId) {
+        if (isQuestionClosed(roomId)) {
+            return 0;
+        }
+        QuestionBroadcastResponse currentQ = lastBroadcastQuestionByRoomId.get(roomId);
+        LocalDateTime startedAt = questionStartedAtByRoomId.get(roomId);
+        if (currentQ == null || startedAt == null) {
+            return 0;
+        }
+        int limitSec = currentQ.getTimeLimitSeconds() != null ? currentQ.getTimeLimitSeconds() : 15;
+        LocalDateTime deadline = startedAt.plusSeconds(limitSec);
+        long remaining = Duration.between(LocalDateTime.now(ZoneOffset.UTC), deadline).getSeconds();
+        return (int) Math.max(0, Math.min(limitSec, remaining));
     }
 
     /**
@@ -386,6 +469,8 @@ public class RoomService {
         int effectiveTimeLimit = settings.resolveTimeLimitForType(nextQuestion.getType(), nextQuestion.getTimeLimitSeconds());
         int introSeconds = settings.getIntroDurationSeconds() != null ? settings.getIntroDurationSeconds() : 3;
         questionStartedAtByRoomId.put(roomId, serverTimestamp.plusSeconds(introSeconds));
+        questionClosedByRoomId.put(roomId, false);
+        lastRouletteByRoomId.remove(roomId);
 
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/status",
                 Map.of("status", updatedRoom.getStatus().name()));
@@ -397,6 +482,7 @@ public class RoomService {
                 effectiveTimeLimit,
                 introSeconds
         );
+        lastBroadcastQuestionByRoomId.put(roomId, broadcastPayload);
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/question", broadcastPayload);
 
         return RoomResponse.fromEntity(updatedRoom);

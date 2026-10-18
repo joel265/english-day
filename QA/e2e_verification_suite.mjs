@@ -142,8 +142,9 @@ async function runSuite() {
     indexRes.status === 200 &&
       indexHtml.includes("voiceUI") &&
       indexHtml.includes("podiumCard") &&
-      indexHtml.includes("btnLeaveLobby"),
-    "Frontend Tarea 8-12: /index.html sirve las pantallas de PIN, Lobby (con botón Salir de la sala), Pregunta (4 mecánicas), Resultados, Ruleta y Podio"
+      indexHtml.includes("btnLeaveLobby") &&
+      indexHtml.includes("navModeratorLink"),
+    "Frontend Tarea 8-12: /index.html sirve las pantallas de PIN, Lobby (con botón Salir de la sala), Pregunta (4 mecánicas), Resultados, Ruleta, Podio y bloqueo de botón superior"
   );
 
   const modRes = await fetch(`${BASE_URL}/moderator.html`);
@@ -153,8 +154,9 @@ async function runSuite() {
       modHtml.includes("btnCreateRoom") &&
       modHtml.includes("btnActivateRoulette") &&
       modHtml.includes("modQrCanvas") &&
-      modHtml.includes("stageQrCanvas"),
-    "Frontend Tarea 14: /moderator.html sirve el Panel de Moderador con todos los botones operativos y generador QR integrado"
+      modHtml.includes("stageQrCanvas") &&
+      modHtml.includes("navPlayerViewLink"),
+    "Frontend Tarea 14: /moderator.html sirve el Panel de Moderador con todos los botones operativos, generador QR integrado y bloqueo de botón superior"
   );
 
   const qrScriptRes = await fetch(`${BASE_URL}/js/qrcode.js`);
@@ -275,6 +277,29 @@ async function runSuite() {
     clientTimestamp: slowIso,
   });
   await new Promise((r) => setTimeout(r, 250));
+
+  // 7b. Verificar persistencia de estado en vivo (GET /api/rooms/{pin}/state?playerId=...) y reconexión de jugador en juego
+  const syncStateRes = await fetch(`${BASE_URL}/api/rooms/${room.pin}/state?playerId=${player1.playerId}`);
+  const syncStateBody = await syncStateRes.json();
+  assert(
+    syncStateRes.status === 200 &&
+      syncStateBody.status === "QUESTION_IN_PROGRESS" &&
+      syncStateBody.currentQuestion?.questionId === q1.questionId &&
+      syncStateBody.player?.playerId === player1.playerId &&
+      syncStateBody.playerSubmittedAnswer === "She studies English.",
+    "Persistencia Moderador/Aprendiz: GET /api/rooms/{pin}/state sincroniza estado en vivo, pregunta actual y respuesta ya enviada tras recargar el navegador"
+  );
+
+  const rejoinActiveRes = await fetch(`${BASE_URL}/api/rooms/${room.pin}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname: "camilo_dev" }),
+  });
+  const rejoinActivePlayer = await rejoinActiveRes.json();
+  assert(
+    rejoinActiveRes.status === 200 && rejoinActivePlayer.playerId === player1.playerId,
+    "Persistencia Aprendiz: Reingreso con mismo PIN y nickname durante partida en curso recupera el mismo playerId sin duplicar ni rechazar"
+  );
 
   // 8. Cerrar pregunta y verificar Top 5 + playerVerdicts en /topic/room/{roomId}/results (Tarea 10 Frontend / CP-10)
   const resultsPromise = stomp.waitForMessage(`/topic/room/${room.roomId}/results`);

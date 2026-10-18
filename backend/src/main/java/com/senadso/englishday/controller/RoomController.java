@@ -4,11 +4,18 @@ import com.senadso.englishday.dto.CloseQuestionRequest;
 import com.senadso.englishday.dto.CreateRoomResponse;
 import com.senadso.englishday.dto.JoinRoomRequest;
 import com.senadso.englishday.dto.JoinRoomResponse;
+import com.senadso.englishday.dto.LobbyPlayerResponse;
 import com.senadso.englishday.dto.PodiumResponse;
+import com.senadso.englishday.dto.QuestionBroadcastResponse;
 import com.senadso.englishday.dto.QuestionResultsResponse;
 import com.senadso.englishday.dto.RoomResponse;
 import com.senadso.englishday.dto.RoomSettingsDto;
+import com.senadso.englishday.dto.RoomSyncStateResponse;
 import com.senadso.englishday.dto.RouletteResultResponse;
+import com.senadso.englishday.model.Answer;
+import com.senadso.englishday.model.Room;
+import com.senadso.englishday.model.enums.RoomStatus;
+import com.senadso.englishday.repository.AnswerRepository;
 import com.senadso.englishday.service.RoomService;
 import com.senadso.englishday.service.RouletteService;
 import com.senadso.englishday.service.ScoreService;
@@ -17,6 +24,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * Controlador REST para operaciones síncronas de salas de juego.
@@ -30,6 +39,7 @@ public class RoomController {
     private final RoomService roomService;
     private final RouletteService rouletteService;
     private final ScoreService scoreService;
+    private final AnswerRepository answerRepository;
 
     /**
      * Endpoint para crear una sala y generar el PIN de 6 dígitos, aceptando
@@ -103,6 +113,61 @@ public class RoomController {
     public ResponseEntity<RoomResponse> getRoomByPin(@PathVariable String pin) {
         RoomResponse response = roomService.getRoomByPin(pin);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint de sincronización completa del estado de la sala para persistencia y restauración
+     * de sesión tanto del Moderador como del Aprendiz tras recargar o reiniciar el navegador.
+     */
+    @GetMapping("/{pin}/state")
+    public ResponseEntity<RoomSyncStateResponse> getRoomSyncState(
+            @PathVariable String pin,
+            @RequestParam(required = false) String playerId) {
+        Room room = roomService.findRoomByPinOrThrow(pin);
+        String roomId = room.getRoomId();
+        List<LobbyPlayerResponse> players = roomService.getLobbyPlayers(roomId);
+        QuestionBroadcastResponse currentQ = roomService.getLastBroadcastQuestion(roomId);
+        boolean questionClosed = roomService.isQuestionClosed(roomId);
+        int remainingSec = roomService.getRemainingQuestionSeconds(roomId);
+
+        LobbyPlayerResponse matchedPlayer = null;
+        String submittedAnswer = null;
+        if (playerId != null && !playerId.isBlank()) {
+            matchedPlayer = players.stream()
+                    .filter(p -> playerId.equals(p.getPlayerId()))
+                    .findFirst()
+                    .orElse(null);
+            if (matchedPlayer != null && currentQ != null && currentQ.getQuestionId() != null) {
+                submittedAnswer = answerRepository
+                        .findByPlayer_PlayerIdAndQuestion_QuestionId(playerId, currentQ.getQuestionId())
+                        .map(Answer::getValue)
+                        .orElse(null);
+            }
+        }
+
+        PodiumResponse podium = room.getStatus() == RoomStatus.FINISHED
+                ? scoreService.getPodiumResults(roomId)
+                : null;
+
+        RoomSyncStateResponse sync = RoomSyncStateResponse.builder()
+                .roomId(roomId)
+                .pin(room.getPin())
+                .status(room.getStatus())
+                .currentQuestionIndex(room.getCurrentQuestionIndex())
+                .playerCount(players.size())
+                .players(players)
+                .settings(roomService.getRoomSettings(roomId))
+                .questionClosed(questionClosed)
+                .remainingSeconds(remainingSec)
+                .currentQuestion(currentQ)
+                .lastResults(roomService.getLastQuestionResults(roomId))
+                .lastRoulette(roomService.getLastRouletteResult(roomId))
+                .podium(podium)
+                .player(matchedPlayer)
+                .playerSubmittedAnswer(submittedAnswer)
+                .build();
+
+        return ResponseEntity.ok(sync);
     }
 
     /**
