@@ -40,4 +40,9 @@ public class QuestionResultsResponse {
      * Mapa playerId -> veredicto oficial validado por el servidor en esta pregunta.
      */
     private Map<String, PlayerRoundVerdictDto> playerVerdicts;
+
+    /**
+     * Breve explicación pedagógica (en español) de por qué la respuesta correcta es esa.
+     */
+    private String explanation;
 }

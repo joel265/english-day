@@ -88,7 +88,7 @@ class AnswerValidationTest {
     void testFuzzySpellingAndPronunciationTolerance() {
         // Error común en Simple Present (-y -> -ies) y typo de 1 letra
         assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "studys", "studies")).isTrue();
-        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "studie", "studies")).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "studeis", "studies")).isTrue();
 
         // Error común en Present Continuous (-ing)
         assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "are studing", "are studying")).isTrue();
@@ -99,6 +99,58 @@ class AnswerValidationTest {
         assertThat(answerService.validateAnswer(QuestionType.VOICE, "she lived in london", "She lives in London")).isFalse();
         assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "do", "does")).isFalse();
         assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "he", "she")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Sentido: error de concordancia (friend/friends) o palabra faltante NO es un descuido ortográfico")
+    void testGrammarAgreementIsNotSpellingSlip() {
+        String expected = "They are my best friends";
+        assertThat(answerService.validateAnswer(QuestionType.VOICE, "they are my best friend", expected)).isFalse();
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "they are best friends", expected)).isFalse();
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "they are me best friends", expected)).isFalse();
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "she studie", "she studies")).isFalse();
+        // Un artículo omitido sí se tolera
+        assertThat(answerService.validateAnswer(QuestionType.VOICE, "he is software developer", "he is a software developer")).isTrue();
+    }
+
+    @Test
+    @DisplayName("Teclas vecinas: 'ny' se reconoce como typo de 'my'")
+    void testKeyboardNeighborTypoOnShortWords() {
+        String expected = "They are my best friends";
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "they are ny best friends", expected)).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "they are me best friends", expected)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Corrector: marca la palabra con error, el typo y la palabra faltante")
+    void testFeedbackBuilderMarksWrongTypoAndMissing() {
+        com.senadso.englishday.model.Question q = com.senadso.englishday.model.Question.builder()
+                .questionId("55555555-5555-4555-8555-555555555556")
+                .type(QuestionType.VOICE)
+                .prompt("[Pronouns] Say the sentence: \"They are my best friends\".")
+                .correctAnswer("They are my best friends")
+                .timeLimitSeconds(25)
+                .order(9)
+                .build();
+
+        var segments = AnswerFeedbackBuilder.buildSegments(q, "they are ny best friend", false);
+        assertThat(segments).extracting("status").containsExactly("OK", "OK", "TYPO", "OK", "WRONG");
+        assertThat(segments.get(2).getExpected()).isEqualTo("my");
+        assertThat(segments.get(4).getExpected()).isEqualTo("friends");
+
+        var missing = AnswerFeedbackBuilder.buildSegments(q, "they are best friends", false);
+        assertThat(missing).extracting("status").contains("MISSING");
+
+        assertThat(AnswerFeedbackBuilder.buildHints(segments)).isNotEmpty();
+        assertThat(AnswerFeedbackBuilder.buildExplanation(q)).contains("plural");
+    }
+
+    @Test
+    @DisplayName("RF-05: WORD_BLOCKS - Rechaza cláusulas que terminan en verbo sin complemento")
+    void testWordBlocksRejectsDanglingVerb() {
+        assertThat(answerService.validateAnswer(QuestionType.WORD_BLOCKS, "He doesn't like", "He doesn't like pizza today")).isFalse();
+        assertThat(answerService.validateAnswer(QuestionType.WORD_BLOCKS, "Do you speak", "Do you speak English every day")).isFalse();
+        assertThat(answerService.validateAnswer(QuestionType.WORD_BLOCKS, "Do you speak English", "Do you speak English every day")).isTrue();
     }
 
     @Test

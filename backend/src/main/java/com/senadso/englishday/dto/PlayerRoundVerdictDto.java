@@ -24,4 +24,14 @@ public class PlayerRoundVerdictDto {
     private Boolean isCorrect;
     private Integer pointsAwarded;
     private Integer totalScore;
+
+    /**
+     * Corrector: palabras de la respuesta marcadas como correctas, con error leve, incorrectas o faltantes.
+     */
+    private java.util.List<AnswerSegmentDto> segments;
+
+    /**
+     * Pistas breves en español que explican los errores detectados.
+     */
+    private java.util.List<String> hints;
 }

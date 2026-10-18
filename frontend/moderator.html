@@ -834,6 +834,10 @@
               <input id="cfgTimeIntro" type="number" min="0" max="15" step="1" value="3">
             </div>
             <div class="setting-field">
+              <label for="cfgQuestionCount">N.º de Preguntas</label>
+              <input id="cfgQuestionCount" type="number" min="1" max="100" step="1" value="10">
+            </div>
+            <div class="setting-field">
               <label for="cfgRandomOrder">Orden de Preguntas</label>
               <select id="cfgRandomOrder">
                 <option value="true" selected>Aleatorio variado</option>
@@ -969,6 +973,9 @@
             <h2 class="card-title" id="modRankingTitle">Clasificación en Vivo (Top 5 / Podio Top 3)</h2>
             <p id="modCorrectAnswerBanner" hidden>
               <strong>Respuesta correcta:</strong> <span id="modCorrectAnswerText"></span>
+            </p>
+            <p id="modExplanationBanner" hidden style="margin:0.4rem 0 0.8rem;padding:0.6rem 0.8rem;border:2px solid #9ccfff;border-radius:0.6rem;background:#eaf5ff;color:#0b3a66;font-weight:600;">
+              <strong>💡 ¿Por qué?</strong> <span id="modExplanationText"></span>
             </p>
             <ol class="ranking-table" id="modRankingList">
               <li class="ranking-row">Los puntajes aparecerán al cerrar cada pregunta.</li>

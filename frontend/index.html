@@ -178,9 +178,23 @@
           <h1 class="player-verdict-title" id="resultsTitle" tabindex="-1">¡Respuesta Correcta!</h1>
           <p class="player-verdict-detail" id="playerVerdictDetail"></p>
         </div>
+        <div class="answer-corrector" id="answerCorrector" hidden>
+          <span class="answer-corrector-label">Corrector · revisa tu respuesta</span>
+          <p class="answer-corrector-text" id="answerCorrectorText" lang="en"></p>
+          <ul class="answer-corrector-hints" id="answerCorrectorHints"></ul>
+          <p class="answer-corrector-legend">
+            <span class="corr-legend corr-wrong">Incorrecto</span>
+            <span class="corr-legend corr-typo">Ortografía</span>
+            <span class="corr-legend corr-missing">Falta</span>
+          </p>
+        </div>
         <div class="correct-answer-banner">
           <span class="correct-answer-label">Respuesta correcta</span>
           <strong class="correct-answer-value" id="resultsCorrectAnswer"></strong>
+        </div>
+        <div class="answer-explanation" id="answerExplanation" hidden>
+          <span class="answer-explanation-label">💡 ¿Por qué es correcta?</span>
+          <p class="answer-explanation-text" id="answerExplanationText"></p>
         </div>
         <h2 class="players-heading">Clasificación parcial (Top 5)</h2>
         <ol class="leaderboard-list" id="resultsTop5List" aria-live="polite"></ol>

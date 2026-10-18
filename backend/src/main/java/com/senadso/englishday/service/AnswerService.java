@@ -58,6 +58,17 @@ public class AnswerService {
             Set.of("like", "likes", "liked"),
             Set.of("know", "knows", "knew"),
             Set.of("help", "helps", "helped")
+            ,
+            // Familias pronombre sujeto / objeto / adjetivo posesivo: no son errores de escritura entre sí
+            Set.of("i", "me", "my", "mine"),
+            Set.of("you", "your", "yours"),
+            Set.of("he", "him", "his"),
+            Set.of("she", "her", "hers"),
+            Set.of("we", "us", "our", "ours"),
+            Set.of("they", "them", "their", "theirs"),
+            Set.of("a", "an", "the"),
+            Set.of("in", "on", "at", "to", "of", "for", "with", "by", "from"),
+            Set.of("this", "that", "these", "those")
     );
 
     /**
@@ -321,17 +332,29 @@ public class AnswerService {
         if (!strippedSub.isEmpty() && strippedSub.equals(strippedExp)) {
             return true;
         }
+        if (strippedSub.isEmpty() || strippedExp.isEmpty()) {
+            return false;
+        }
 
-        List<String> subTokens = Arrays.asList(canonSub.split("\\s+"));
-        List<String> expTokens = Arrays.asList(canonExp.split("\\s+"));
+        // Se evalúa la cláusula núcleo (sin modificadores opcionales de tiempo/modo), de modo que
+        // "Every day she helps" no pueda colarse y "Today I am happy" se trate como la misma cláusula.
+        List<String> subTokens = Arrays.asList(strippedSub.split("\\s+"));
+        List<String> expTokens = Arrays.asList(strippedExp.split("\\s+"));
 
-        if (subTokens.size() < 3 || expTokens.size() < 4) {
+        if (subTokens.size() < 3 || expTokens.size() < 3) {
             return false;
         }
 
         // No debe terminar en un pronombre, auxiliar, preposición o artículo suelto
         String lastToken = subTokens.get(subTokens.size() - 1);
         if (DANGLING_END_TOKENS.contains(lastToken)) {
+            return false;
+        }
+
+        // Un verbo principal al final deja la oración incompleta (ej. "He does not like", "Do you speak"),
+        // salvo que ese verbo sea también el último bloque de la oración objetivo.
+        String expLast = expTokens.get(expTokens.size() - 1);
+        if (CLAUSE_VERBS_AND_AUXILIARIES.contains(lastToken) && !lastToken.equals(expLast)) {
             return false;
         }
 
@@ -401,49 +424,55 @@ public class AnswerService {
 
         // Si tienen la misma cantidad de palabras, verificar palabra por palabra con margen ortográfico
         if (subTokens.length == expTokens.length) {
-            int fuzzyCount = 0;
-            for (int i = 0; i < expTokens.length; i++) {
-                if (subTokens[i].equals(expTokens[i])) {
-                    continue;
-                }
-                if (isTokenFuzzyMatch(subTokens[i], expTokens[i])) {
-                    fuzzyCount++;
-                } else {
-                    return false;
-                }
-            }
-            int maxFuzzyWords = expTokens.length <= 3 ? 1 : 2;
-            return fuzzyCount <= maxFuzzyWords;
+            return equalLengthFuzzyMatch(subTokens, expTokens);
         }
 
-        // Si difieren en 1 palabra en frases de 4+ palabras (p. ej. artículo u omisión menor en voz),
-        // verificar alineación secuencial >= 80% sin conflictos gramaticales
+        // Si difieren en 1 palabra, solo se tolera cuando la palabra omitida o sobrante es un artículo
+        // (a, an, the): cualquier otra palabra faltante cambia el significado de la oración.
         if (expTokens.length >= 4 && Math.abs(subTokens.length - expTokens.length) == 1) {
-            for (String sTok : subTokens) {
-                for (String eTok : expTokens) {
-                    if (areConflictingGrammarTokens(sTok, eTok) && !Arrays.asList(expTokens).contains(sTok)) {
-                        return false;
+            String[] longer = subTokens.length > expTokens.length ? subTokens : expTokens;
+            String[] shorter = subTokens.length > expTokens.length ? expTokens : subTokens;
+            for (int i = 0; i < longer.length; i++) {
+                if (!OPTIONAL_ARTICLES.contains(longer[i])) {
+                    continue;
+                }
+                String[] reduced = new String[shorter.length];
+                for (int k = 0, w = 0; k < longer.length; k++) {
+                    if (k != i) {
+                        reduced[w++] = longer[k];
                     }
                 }
-            }
-            int matched = 0;
-            int sIdx = 0;
-            for (String eTok : expTokens) {
-                for (int j = sIdx; j < subTokens.length; j++) {
-                    if (isTokenFuzzyMatch(subTokens[j], eTok)) {
-                        matched++;
-                        sIdx = j + 1;
-                        break;
-                    }
+                boolean ok = subTokens.length > expTokens.length
+                        ? equalLengthFuzzyMatch(reduced, expTokens)
+                        : equalLengthFuzzyMatch(subTokens, reduced);
+                if (ok) {
+                    return true;
                 }
             }
-            return matched >= expTokens.length - 1;
         }
 
         return false;
     }
 
-    private boolean isTokenFuzzyMatch(String subToken, String expToken) {
+    private static final Set<String> OPTIONAL_ARTICLES = Set.of("a", "an", "the");
+
+    private static boolean equalLengthFuzzyMatch(String[] subTokens, String[] expTokens) {
+        int fuzzyCount = 0;
+        for (int i = 0; i < expTokens.length; i++) {
+            if (subTokens[i].equals(expTokens[i])) {
+                continue;
+            }
+            if (isTokenFuzzyMatch(subTokens[i], expTokens[i])) {
+                fuzzyCount++;
+            } else {
+                return false;
+            }
+        }
+        int maxFuzzyWords = expTokens.length <= 3 ? 1 : 2;
+        return fuzzyCount <= maxFuzzyWords;
+    }
+
+    public static boolean isTokenFuzzyMatch(String subToken, String expToken) {
         if (subToken.equals(expToken)) {
             return true;
         }
@@ -457,12 +486,18 @@ public class AnswerService {
             return true;
         }
 
-        int len = expToken.length();
-        if (len <= 2 || subToken.length() <= 2) {
+        // Una diferencia de terminación gramatical (plural -s, -ed, -ing...) es un error de gramática,
+        // no un descuido ortográfico: "friend" != "friends", "play" != "played".
+        if (isInflectionDifference(subToken, expToken)) {
             return false;
         }
 
+        int len = expToken.length();
         int dist = damerauLevenshtein(subToken, expToken);
+        if (len <= 2 || subToken.length() <= 2) {
+            // Palabras cortas (my, is, he...): solo se tolera una tecla vecina del teclado (ny -> my)
+            return len == subToken.length() && dist == 1 && isKeyboardNeighborSubstitution(subToken, expToken);
+        }
         if (len == 3) {
             // Para palabras de 3 letras (ej. "are" -> "aer", "our" -> "oru"), solo permitir transposición/typo
             // si comparten la primera letra y no son palabras gramaticales conflictivas
@@ -474,7 +509,39 @@ public class AnswerService {
         return dist <= 2;
     }
 
-    private boolean areConflictingGrammarTokens(String a, String b) {
+    private static final List<String> INFLECTION_SUFFIXES = List.of("s", "es", "d", "ed", "ing", "ly", "er", "est");
+
+    private static boolean isInflectionDifference(String a, String b) {
+        String shorter = a.length() <= b.length() ? a : b;
+        String longer = a.length() <= b.length() ? b : a;
+        if (shorter.equals(longer) || !longer.startsWith(shorter)) {
+            return false;
+        }
+        return INFLECTION_SUFFIXES.contains(longer.substring(shorter.length()));
+    }
+
+    private static final List<String> KEYBOARD_ROWS = List.of("qwertyuiop", "asdfghjkl", "zxcvbnm");
+
+    private static boolean isKeyboardNeighborSubstitution(String a, String b) {
+        for (int i = 0; i < a.length(); i++) {
+            char x = a.charAt(i);
+            char y = b.charAt(i);
+            if (x == y) {
+                continue;
+            }
+            for (String row : KEYBOARD_ROWS) {
+                int ix = row.indexOf(x);
+                int iy = row.indexOf(y);
+                if (ix >= 0 && iy >= 0 && Math.abs(ix - iy) == 1) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return false;
+    }
+
+    private static boolean areConflictingGrammarTokens(String a, String b) {
         if (a.equals(b)) {
             return false;
         }
@@ -486,7 +553,7 @@ public class AnswerService {
         return false;
     }
 
-    private String normalizeLearnerSpelling(String word) {
+    private static String normalizeLearnerSpelling(String word) {
         String w = word;
         if (w.endsWith("ys") && w.length() >= 4) {
             w = w.substring(0, w.length() - 2) + "ies";
@@ -508,7 +575,7 @@ public class AnswerService {
     /**
      * Distancia de edición Damerau-Levenshtein (inserción, eliminación, sustitución y transposición adyacente).
      */
-    public int damerauLevenshtein(String a, String b) {
+    public static int damerauLevenshtein(String a, String b) {
         int lenA = a.length();
         int lenB = b.length();
         int[][] dp = new int[lenA + 1][lenB + 1];
@@ -554,7 +621,7 @@ public class AnswerService {
      * 3. Pasa todo a minúsculas y quita diacríticos.
      * 4. Quita puntuación . , ; : ! ? ¿ ¡ y comillas dobles.
      */
-    public String normalizeText(String text) {
+    public static String normalizeText(String text) {
         if (text == null) {
             return "";
         }
@@ -567,7 +634,7 @@ public class AnswerService {
         return normalized;
     }
 
-    public String expandEnglishContractions(String normalizedText) {
+    public static String expandEnglishContractions(String normalizedText) {
         if (normalizedText == null || normalizedText.isEmpty()) {
             return "";
         }
