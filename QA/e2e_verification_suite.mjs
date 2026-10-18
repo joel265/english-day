@@ -371,7 +371,7 @@ async function runSuite() {
   stomp.send(`/app/room/${room.roomId}/answer`, {
     playerId: player1.playerId,
     questionId: q3.questionId,
-    value: "  ATE! ",
+    value: "  STUDYS! ",
     clientTimestamp: new Date(Date.now() - 2000).toISOString().replace(/\.\d{3}Z$/, "Z"),
   });
   await new Promise((r) => setTimeout(r, 200));

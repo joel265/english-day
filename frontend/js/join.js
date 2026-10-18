@@ -793,21 +793,26 @@ function resetWordBlocks(question) {
 }
 
 function getQuestionThematicMetadata(question) {
-  const promptLower = (question.prompt || "").toLowerCase();
-  let themeLabel = "Grammar & Vocabulary · Inglés A2–B1";
+  const rawPrompt = String(question.prompt || "").trim();
+  const bracketMatch = rawPrompt.match(/^\[([^\]]+)\]\s*(.*)$/);
+  const cleanPrompt = bracketMatch && bracketMatch[2] ? bracketMatch[2].trim() : rawPrompt;
+  const promptLower = rawPrompt.toLowerCase();
+  let themeLabel = bracketMatch ? bracketMatch[1].trim() : "Simple Present · Affirmative";
 
-  if (promptLower.includes("yesterday") || promptLower.includes("last ") || promptLower.includes("went") || promptLower.includes("did")) {
-    themeLabel = "Past Simple · Eventos Pasados";
-  } else if (promptLower.includes("right now") || promptLower.includes("at the moment") || promptLower.includes("currently") || promptLower.includes("studying")) {
-    themeLabel = "Present Continuous · Acciones en Progreso";
-  } else if (promptLower.includes("every ") || promptLower.includes("always") || promptLower.includes("usually") || promptLower.includes("she ") || promptLower.includes("he ")) {
-    themeLabel = "Simple Present · Rutinas y Hábitos";
-  } else if (question.type === "WORD_BLOCKS") {
-    themeLabel = "Sentence Structure · Orden Gramatical";
-  } else if (question.type === "VOICE") {
-    themeLabel = "Speaking & Pronunciation · Expresión Oral";
-  } else if (question.type === "TEXT_INPUT") {
-    themeLabel = "Written Production · Escritura Precisa";
+  if (!bracketMatch) {
+    if (promptLower.includes("pronoun")) {
+      themeLabel = "Pronouns";
+    } else if (promptLower.includes("possessive")) {
+      themeLabel = "Possessive Adjectives";
+    } else if (promptLower.includes("verb to be") || /\b(am|is|are)\b/.test(promptLower)) {
+      themeLabel = "Verb To Be";
+    } else if (promptLower.includes("right now") || promptLower.includes("present continuous") || promptLower.includes("-ing")) {
+      themeLabel = "Present Continuous (Affirmative, Negative, Interrogative)";
+    } else if (/^\s*(what|where|when|who|why|how)\b/i.test(cleanPrompt) || promptLower.includes("wh question")) {
+      themeLabel = "WH Question";
+    } else {
+      themeLabel = "Simple Present (Affirmative, Negative, Interrogative)";
+    }
   }
 
   const mechanicsByType = {
@@ -815,25 +820,25 @@ function getQuestionThematicMetadata(question) {
       badge: "Selección múltiple",
       title: "🎯 Mecánica: Selección Múltiple (4 Opciones)",
       desc: "Lee el enunciado y toca una de las 4 tarjetas (A, B, C o D). Tu respuesta se enviará inmediatamente al tocar la opción elegida.",
-      shortGuide: "💡 Cómo responder: Analiza el contexto gramatical y toca una sola tarjeta (A, B, C o D). ¡Entre más rápido aciertes, más puntos ganas!",
+      shortGuide: "💡 Cómo responder: Analiza la temática gramatical y toca una sola tarjeta (A, B, C o D). ¡Entre más rápido aciertes, más puntos ganas!",
     },
     WORD_BLOCKS: {
       badge: "Ordena los bloques",
       title: "🧩 Mecánica: Construcción con Bloques (Word Blocks)",
-      desc: "Toca las palabras del banco inferior en el orden gramatical correcto para armar la oración en inglés y pulsa «Enviar oración».",
-      shortGuide: "💡 Cómo responder: Toca cada palabra en orden (Sujeto + Verbo + Complemento). Si te equivocas, toca un bloque superior para quitarlo y luego pulsa «Enviar oración».",
+      desc: "Toca las palabras del banco inferior en orden gramatical para armar la oración y pulsa «Enviar respuesta». Se aceptan cláusulas parciales que tengan sentido gramatical completo.",
+      shortGuide: "💡 Cómo responder: Ordena los bloques (Sujeto + Verbo + Complemento). Se valida la oración completa o una cláusula parcial con sentido gramatical.",
     },
     TEXT_INPUT: {
       badge: "Respuesta escrita",
       title: "✍️ Mecánica: Completar Texto en Inglés (Text Input)",
-      desc: "Escribe la palabra o forma verbal exacta que completa la oración en el campo de texto y presiona «Enviar respuesta» o Enter.",
-      shortGuide: "💡 Cómo responder: Escribe únicamente la palabra o verbo faltante en inglés (sin repetir toda la oración) y pulsa «Enviar respuesta».",
+      desc: "Escribe la palabra o forma verbal en el campo de texto y presiona «Enviar respuesta». Cuenta con margen de tolerancia ante errores leves de escritura.",
+      shortGuide: "💡 Cómo responder: Escribe la palabra o verbo faltante en inglés y pulsa «Enviar respuesta» (incluye margen de tolerancia ortográfica).",
     },
     VOICE: {
       badge: "Respuesta por voz",
       title: "🎙️ Mecánica: Pronunciación por Voz (Speaking en-US)",
-      desc: "Toca el botón del micrófono, pronuncia la frase en inglés con claridad y confirma con «Enviar respuesta por voz» (o usa el teclado si no tienes micrófono).",
-      shortGuide: "💡 Cómo responder: Toca el micrófono 🎙️, pronuncia la oración en inglés y pulsa «Enviar respuesta por voz». Si deseas repetir, toca «Repetir».",
+      desc: "Toca el botón del micrófono, pronuncia la frase en inglés y confirma con «Enviar». Cuenta con margen de tolerancia fonética y de transcripción.",
+      shortGuide: "💡 Cómo responder: Toca el micrófono 🎙️, pronuncia la frase en inglés y pulsa «Enviar» (con tolerancia ante variaciones leves de pronunciación).",
     },
   };
 
@@ -841,6 +846,7 @@ function getQuestionThematicMetadata(question) {
 
   return {
     themeLabel,
+    cleanPrompt,
     ...mechanic,
   };
 }
@@ -862,7 +868,7 @@ function renderQuestion(question, options = {}) {
 
   questionType.textContent = thematicMeta.badge;
   questionOrder.textContent = `Pregunta ${question.order}`;
-  questionPrompt.textContent = question.prompt;
+  questionPrompt.textContent = thematicMeta.cleanPrompt;
   if (questionThemeTag) {
     questionThemeTag.textContent = `📚 Temática: ${thematicMeta.themeLabel}`;
   }

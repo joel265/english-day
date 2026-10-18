@@ -225,6 +225,7 @@ class RoomControllerTest {
                 .build());
 
         CreateRoomResponse room = roomService.createRoom();
+        roomService.joinRoom(room.getPin(), JoinRoomRequest.builder().nickname("camilo_dev").build());
         roomService.startGame(room.getRoomId());
 
         mockMvc.perform(post("/api/rooms/" + room.getRoomId() + "/next")
@@ -233,5 +234,15 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.roomId", is(room.getRoomId())))
                 .andExpect(jsonPath("$.status", is("QUESTION_IN_PROGRESS")))
                 .andExpect(jsonPath("$.currentQuestionIndex", is(2)));
+    }
+
+    @Test
+    @DisplayName("Validación Lobby: POST /api/rooms/{roomId}/start sin jugadores retorna 400 Bad Request")
+    void testStartGameWithoutPlayersReturnsBadRequest() throws Exception {
+        CreateRoomResponse room = roomService.createRoom();
+
+        mockMvc.perform(post("/api/rooms/" + room.getRoomId() + "/start")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
     }
 }

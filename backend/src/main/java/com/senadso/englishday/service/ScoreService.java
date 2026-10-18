@@ -197,9 +197,13 @@ public class ScoreService {
             }
         }
 
+        String primaryCorrectAnswer = question.getCorrectAnswer() != null
+                ? question.getCorrectAnswer().split("\\|")[0].trim()
+                : "";
+
         QuestionResultsResponse response = QuestionResultsResponse.builder()
                 .questionId(question.getQuestionId())
-                .correctAnswer(question.getCorrectAnswer())
+                .correctAnswer(primaryCorrectAnswer)
                 .top5(top5)
                 .playerVerdicts(playerVerdicts)
                 .build();
