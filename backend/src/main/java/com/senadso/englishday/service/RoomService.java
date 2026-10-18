@@ -92,8 +92,35 @@ public class RoomService {
                 .roomId(savedRoom.getRoomId())
                 .pin(savedRoom.getPin())
                 .status(savedRoom.getStatus())
+                .lanIp(resolveLocalLanIp())
                 .createdAt(savedRoom.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * Detecta la dirección IPv4 de red local (LAN) del servidor para que el código QR
+     * proyectado funcione al ser escaneado desde celulares conectados a la misma red Wi-Fi.
+     */
+    public String resolveLocalLanIp() {
+        try {
+            java.util.Enumeration<java.net.NetworkInterface> interfaces = java.net.NetworkInterface.getNetworkInterfaces();
+            while (interfaces != null && interfaces.hasMoreElements()) {
+                java.net.NetworkInterface iface = interfaces.nextElement();
+                if (!iface.isUp() || iface.isLoopback() || iface.isVirtual()) {
+                    continue;
+                }
+                java.util.Enumeration<java.net.InetAddress> addresses = iface.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    java.net.InetAddress addr = addresses.nextElement();
+                    if (addr instanceof java.net.Inet4Address && !addr.isLoopbackAddress() && addr.isSiteLocalAddress()) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Fallback silencioso a hostname actual del navegador
+        }
+        return null;
     }
 
     /**
@@ -339,6 +366,10 @@ public class RoomService {
 
         if (room.getStatus() != RoomStatus.WAITING_LOBBY) {
             throw new IllegalStateException("La partida ya ha sido iniciada o finalizada");
+        }
+
+        if (playerRepository.findByRoom_RoomId(roomId).isEmpty()) {
+            throw new IllegalStateException("Debe haber al menos 1 aprendiz conectado en la sala para iniciar la partida");
         }
 
         List<Question> deck = getOrCreateQuestionDeck(roomId);

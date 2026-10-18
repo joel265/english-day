@@ -83,9 +83,10 @@ class QuestionWebSocketIntegrationTest {
                 .build();
         questionRepository.save(question);
 
-        // 2. Crear la sala en estado WAITING_LOBBY
+        // 2. Crear la sala en estado WAITING_LOBBY y registrar un aprendiz
         CreateRoomResponse room = roomService.createRoom();
         String roomId = room.getRoomId();
+        roomService.joinRoom(room.getPin(), new com.senadso.englishday.dto.JoinRoomRequest("aprendiz_ws"));
 
         // 3. Conectar cliente WebSocket STOMP
         String wsUrl = "ws://localhost:" + port + "/ws-englishday";

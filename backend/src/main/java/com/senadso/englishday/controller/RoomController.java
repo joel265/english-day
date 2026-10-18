@@ -152,6 +152,7 @@ public class RoomController {
         RoomSyncStateResponse sync = RoomSyncStateResponse.builder()
                 .roomId(roomId)
                 .pin(room.getPin())
+                .lanIp(roomService.resolveLocalLanIp())
                 .status(room.getStatus())
                 .currentQuestionIndex(room.getCurrentQuestionIndex())
                 .playerCount(players.size())

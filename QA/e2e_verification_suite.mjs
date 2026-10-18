@@ -155,15 +155,35 @@ async function runSuite() {
       modHtml.includes("btnActivateRoulette") &&
       modHtml.includes("modQrCanvas") &&
       modHtml.includes("stageQrCanvas") &&
-      modHtml.includes("navPlayerViewLink"),
-    "Frontend Tarea 14: /moderator.html sirve el Panel de Moderador con todos los botones operativos, generador QR integrado y bloqueo de botón superior"
+      modHtml.includes("navPlayerViewLink") &&
+      modHtml.includes("stageTransitionView") &&
+      modHtml.includes("stageQuestionProgress") &&
+      modHtml.includes("stageQuestionTopicBanner"),
+    "Frontend Tarea 14: /moderator.html sirve el Panel de Moderador con animaciones de transición, barra de progreso, temática, generador QR y bloqueo superior"
   );
 
   const qrScriptRes = await fetch(`${BASE_URL}/js/qrcode.js`);
   const qrScriptText = await qrScriptRes.text();
+  new Function(qrScriptText)();
+  const testQrMatrix = globalThis.EnglishDayQR?.generateMatrix("http://192.168.1.10:8080/index.html?pin=123456");
+  // Extraer los 15 bits de información de formato (copia 1: col 8 filas 0..5,7,8 y fila 8 cols 7,5..0) y verificar BCH(15,5)
+  let formatCopy1 = 0;
+  for (let i = 0; i <= 5; i++) if (testQrMatrix.modules[i][8]) formatCopy1 |= 1 << i;
+  if (testQrMatrix.modules[7][8]) formatCopy1 |= 1 << 6;
+  if (testQrMatrix.modules[8][8]) formatCopy1 |= 1 << 7;
+  if (testQrMatrix.modules[8][7]) formatCopy1 |= 1 << 8;
+  for (let i = 9; i < 15; i++) if (testQrMatrix.modules[8][14 - i]) formatCopy1 |= 1 << i;
+  let unmaskedFmt = formatCopy1 ^ 0x5412;
+  let bchCheck = unmaskedFmt;
+  for (let b = 14; b >= 10; b--) {
+    if ((bchCheck >>> b) & 1) bchCheck ^= 0x537 << (b - 10);
+  }
   assert(
-    qrScriptRes.status === 200 && qrScriptText.includes("EnglishDayQR"),
-    "Generador QR: /js/qrcode.js se sirve correctamente para renderizar códigos QR en Canvas"
+    qrScriptRes.status === 200 &&
+      testQrMatrix &&
+      bchCheck === 0 &&
+      ((unmaskedFmt >>> 13) & 0b11) === 0b01,
+    "Generador QR ISO/IEC 18004: /js/qrcode.js genera matriz con bits de formato BCH(15,5) válidos para cámaras móviles"
   );
 
   // 1. CP-01: Crear sala
@@ -171,6 +191,17 @@ async function runSuite() {
   const room = await createRes.json();
   assert(createRes.status === 201 && /^\d{6}$/.test(room.pin) && room.status === "WAITING_LOBBY",
     `CP-01: Sala creada exitosamente con PIN ${room.pin} y roomId ${room.roomId}`);
+
+  // 1b. Validar que el moderador NO puede iniciar la partida sin jugadores en la sala
+  const emptyStartRes = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  const emptyStartBody = await emptyStartRes.json();
+  assert(
+    emptyStartRes.status === 400 && emptyStartBody.code === "INVALID_ROOM_STATE",
+    "Validación Inicio de Partida: POST /api/rooms/{roomId}/start sin aprendices conectados es rechazado con 400 INVALID_ROOM_STATE"
+  );
 
   // 2. CP-03: PIN inválido / inexistente
   const badJoinRes = await fetch(`${BASE_URL}/api/rooms/000000/join`, {
@@ -389,6 +420,11 @@ async function runSuite() {
   // 14. CP-12: Verificar ajuste de tiempos del moderador y rotación aleatoria de mecánicas entre salas
   const roomARes = await fetch(`${BASE_URL}/api/rooms`, { method: "POST" });
   const roomA = await roomARes.json();
+  await fetch(`${BASE_URL}/api/rooms/${roomA.pin}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname: "player_room_a" }),
+  });
   await fetch(`${BASE_URL}/api/rooms/${roomA.roomId}/settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -409,6 +445,11 @@ async function runSuite() {
 
   const roomBRes = await fetch(`${BASE_URL}/api/rooms`, { method: "POST" });
   const roomB = await roomBRes.json();
+  await fetch(`${BASE_URL}/api/rooms/${roomB.pin}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname: "player_room_b" }),
+  });
   stomp.subscribe("sub-q-roomB", `/topic/room/${roomB.roomId}/question`);
   await new Promise((r) => setTimeout(r, 100));
   const roomBQ1Promise = stomp.waitForMessage(`/topic/room/${roomB.roomId}/question`);

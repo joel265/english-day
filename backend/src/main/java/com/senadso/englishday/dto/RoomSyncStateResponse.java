@@ -24,6 +24,7 @@ public class RoomSyncStateResponse {
 
     private String roomId;
     private String pin;
+    private String lanIp;
     private RoomStatus status;
     private Integer currentQuestionIndex;
     private Integer playerCount;

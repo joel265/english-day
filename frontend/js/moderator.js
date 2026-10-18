@@ -45,7 +45,24 @@ const stageQrBox = document.querySelector("#stageQrBox");
 const stageQrCanvas = document.querySelector("#stageQrCanvas");
 const stageQrUrl = document.querySelector("#stageQrUrl");
 const stageQrPinPill = document.querySelector("#stageQrPinPill");
+
+const stageTransitionView = document.querySelector("#stageTransitionView");
+const stageTransitionBadge = document.querySelector("#stageTransitionBadge");
+const stageTransitionCountdown = document.querySelector("#stageTransitionCountdown");
+const stageTransitionProgress = document.querySelector("#stageTransitionProgress");
+const stageTransitionNumber = document.querySelector("#stageTransitionNumber");
+const stageTransitionHeading = document.querySelector("#stageTransitionHeading");
+const stageTransitionSubtext = document.querySelector("#stageTransitionSubtext");
+const stageTransitionThemePill = document.querySelector("#stageTransitionThemePill");
+const stageTransitionTimePill = document.querySelector("#stageTransitionTimePill");
+const stageTransitionMechanicTitle = document.querySelector("#stageTransitionMechanicTitle");
+const stageTransitionMechanicDesc = document.querySelector("#stageTransitionMechanicDesc");
+
 const stageQuestionView = document.querySelector("#stageQuestionView");
+const stageQuestionProgress = document.querySelector("#stageQuestionProgress");
+const stageQuestionThemeTag = document.querySelector("#stageQuestionThemeTag");
+const stageQuestionPointsTag = document.querySelector("#stageQuestionPointsTag");
+const stageQuestionMechanicGuide = document.querySelector("#stageQuestionMechanicGuide");
 const stageQuestionPrompt = document.querySelector("#stageQuestionPrompt");
 const stageQuestionOptions = document.querySelector("#stageQuestionOptions");
 const stageRouletteView = document.querySelector("#stageRouletteView");
@@ -65,6 +82,7 @@ const MODERATOR_STORAGE_KEY = "englishDayModeratorSession";
 let currentRoom = null;
 let modSocket = null;
 let modTimerInterval = null;
+let modIntroTimeout = null;
 let connectedPlayers = [];
 let rouletteWheel = null;
 
@@ -166,23 +184,32 @@ function setFeedback(message, state = "ok") {
 }
 
 function updateRoomStatusBadge(status) {
-  modRoomStatus.dataset.status = status || "NONE";
+  const effectiveStatus = status || currentRoom?.status || "NONE";
+  if (currentRoom && status) {
+    currentRoom.status = status;
+  }
+  modRoomStatus.dataset.status = effectiveStatus;
   const labels = {
     WAITING_LOBBY: "WAITING_LOBBY · En espera",
     QUESTION_IN_PROGRESS: "QUESTION_IN_PROGRESS · Pregunta activa",
     ROULETTE_TIME: "ROULETTE_TIME · Ruleta activa",
     FINISHED: "FINISHED · Partida finalizada",
   };
-  modRoomStatus.textContent = labels[status] || status || "Sin sala activa";
+  modRoomStatus.textContent = labels[effectiveStatus] || effectiveStatus || "Sin sala activa";
 
   const hasRoom = Boolean(currentRoom?.roomId);
-  const isRoomActive = hasRoom && status !== "FINISHED";
+  const hasPlayers = connectedPlayers.length > 0;
+  const isRoomActive = hasRoom && effectiveStatus !== "FINISHED";
   btnCreateRoom.disabled = isRoomActive;
-  btnStartGame.disabled = !hasRoom || status !== "WAITING_LOBBY";
-  btnCloseQuestion.disabled = !hasRoom || status === "WAITING_LOBBY" || status === "FINISHED";
-  btnActivateRoulette.disabled = !hasRoom || status === "WAITING_LOBBY" || status === "FINISHED";
-  btnNextQuestion.disabled = !hasRoom || status === "WAITING_LOBBY" || status === "FINISHED";
-  btnFinishGame.disabled = !hasRoom || status === "FINISHED";
+  btnStartGame.disabled = !hasRoom || effectiveStatus !== "WAITING_LOBBY" || !hasPlayers;
+  btnStartGame.title =
+    hasRoom && effectiveStatus === "WAITING_LOBBY" && !hasPlayers
+      ? "Se requiere al menos 1 aprendiz conectado en el lobby para iniciar la partida"
+      : "";
+  btnCloseQuestion.disabled = !hasRoom || effectiveStatus === "WAITING_LOBBY" || effectiveStatus === "FINISHED";
+  btnActivateRoulette.disabled = !hasRoom || effectiveStatus === "WAITING_LOBBY" || effectiveStatus === "FINISHED";
+  btnNextQuestion.disabled = !hasRoom || effectiveStatus === "WAITING_LOBBY" || effectiveStatus === "FINISHED";
+  btnFinishGame.disabled = !hasRoom || effectiveStatus === "FINISHED";
 
   if (navPlayerViewLink) {
     if (isRoomActive) {
@@ -200,15 +227,79 @@ function updateRoomStatusBadge(status) {
 }
 
 function showStageSection(activeSection) {
-  [stageWelcomeView, stageQuestionView, stageRouletteView].forEach((sec) => {
-    if (sec) sec.hidden = sec !== activeSection;
+  [stageWelcomeView, stageTransitionView, stageQuestionView, stageRouletteView].forEach((sec) => {
+    if (!sec) return;
+    if (sec === activeSection) {
+      sec.hidden = false;
+      sec.classList.remove("card-enter");
+      void sec.offsetWidth;
+      sec.classList.add("card-enter");
+    } else {
+      sec.hidden = true;
+      sec.classList.remove("card-enter");
+    }
   });
+}
+
+function getQuestionThematicMetadata(question) {
+  const promptLower = (question.prompt || "").toLowerCase();
+  let themeLabel = "Grammar & Vocabulary · Inglés A2–B1";
+
+  if (promptLower.includes("yesterday") || promptLower.includes("last ") || promptLower.includes("went") || promptLower.includes("did")) {
+    themeLabel = "Past Simple · Eventos Pasados";
+  } else if (promptLower.includes("right now") || promptLower.includes("at the moment") || promptLower.includes("currently") || promptLower.includes("studying")) {
+    themeLabel = "Present Continuous · Acciones en Progreso";
+  } else if (promptLower.includes("every ") || promptLower.includes("always") || promptLower.includes("usually") || promptLower.includes("she ") || promptLower.includes("he ")) {
+    themeLabel = "Simple Present · Rutinas y Hábitos";
+  } else if (question.type === "WORD_BLOCKS") {
+    themeLabel = "Sentence Structure · Orden Gramatical";
+  } else if (question.type === "VOICE") {
+    themeLabel = "Speaking & Pronunciation · Expresión Oral";
+  } else if (question.type === "TEXT_INPUT") {
+    themeLabel = "Written Production · Escritura Precisa";
+  }
+
+  const mechanicsByType = {
+    MULTIPLE_CHOICE: {
+      badge: "Selección múltiple (RF-04)",
+      title: "🎯 Mecánica: Selección Múltiple (4 Opciones)",
+      desc: "Los aprendices leen el enunciado y tocan una de las 4 tarjetas (A, B, C o D) en su móvil.",
+      shortGuide: "💡 Dinámica en curso: Analiza el contexto gramatical y selecciona la tarjeta correcta (A, B, C o D).",
+    },
+    WORD_BLOCKS: {
+      badge: "Word Blocks · Ordenar Oración (RF-05)",
+      title: "🧩 Mecánica: Construcción con Bloques (Word Blocks)",
+      desc: "Los aprendices tocan las palabras del banco en el orden gramatical correcto para armar la oración.",
+      shortGuide: "💡 Dinámica en curso: Ordena los bloques (Sujeto + Verbo + Complemento) y envía la oración.",
+    },
+    TEXT_INPUT: {
+      badge: "Text Input · Escritura (RF-06)",
+      title: "✍️ Mecánica: Completar Texto en Inglés (Text Input)",
+      desc: "Los aprendices escriben la palabra o forma verbal exacta que completa la oración en su dispositivo.",
+      shortGuide: "💡 Dinámica en curso: Escribe únicamente la palabra o verbo faltante en inglés y envía la respuesta.",
+    },
+    VOICE: {
+      badge: "Voice Challenge · Pronunciación (RF-07)",
+      title: "🎙️ Mecánica: Pronunciación por Voz (Speaking en-US)",
+      desc: "Los aprendices activan el micrófono de su móvil y pronuncian la frase en inglés con claridad.",
+      shortGuide: "💡 Dinámica en curso: Toca el micrófono 🎙️ en tu móvil, pronuncia la oración en inglés y envíala.",
+    },
+  };
+
+  return {
+    themeLabel,
+    ...(mechanicsByType[question.type] || mechanicsByType.MULTIPLE_CHOICE),
+  };
 }
 
 function renderLobbyPlayers(players) {
   connectedPlayers = Array.isArray(players) ? players : [];
   modLobbyCount.textContent = String(connectedPlayers.length);
   modLobbyList.replaceChildren();
+
+  if (currentRoom?.status) {
+    updateRoomStatusBadge(currentRoom.status);
+  }
 
   if (connectedPlayers.length === 0) {
     const empty = document.createElement("li");
@@ -218,9 +309,10 @@ function renderLobbyPlayers(players) {
     return;
   }
 
-  connectedPlayers.forEach((p) => {
+  connectedPlayers.forEach((p, idx) => {
     const chip = document.createElement("li");
-    chip.className = "player-chip";
+    chip.className = "player-chip stagger-item";
+    chip.style.animationDelay = `${idx * 45}ms`;
     chip.textContent = p.nickname;
     modLobbyList.append(chip);
   });
@@ -232,23 +324,30 @@ function renderLobbyPlayers(players) {
 
 function renderProjectorQuestion(question, customRemainingSeconds = null) {
   window.clearInterval(modTimerInterval);
+  window.clearTimeout(modIntroTimeout);
   updateRoomStatusBadge("QUESTION_IN_PROGRESS");
 
-  const typeLabels = {
-    MULTIPLE_CHOICE: "Selección Múltiple (RF-04)",
-    WORD_BLOCKS: "Word Blocks · Ordenar Oración (RF-05)",
-    TEXT_INPUT: "Text Input · Escritura (RF-06)",
-    VOICE: "Voice Challenge · Pronunciación (RF-07)",
-  };
+  const thematicMeta = getQuestionThematicMetadata(question);
+  const questionSecondsTotal = question.timeLimitSeconds || 15;
 
-  stagePhaseBadge.textContent = `Pregunta ${question.order} · ${typeLabels[question.type] || question.type} (${question.timeLimitSeconds}s)`;
+  stagePhaseBadge.textContent = `Pregunta ${question.order} · ${thematicMeta.badge} (${questionSecondsTotal}s)`;
   stageQuestionPrompt.textContent = question.prompt;
+  if (stageQuestionThemeTag) {
+    stageQuestionThemeTag.textContent = `📚 Temática: ${thematicMeta.themeLabel}`;
+  }
+  if (stageQuestionPointsTag) {
+    stageQuestionPointsTag.textContent = `⚡ Hasta 1,000 pts · ${questionSecondsTotal}s`;
+  }
+  if (stageQuestionMechanicGuide) {
+    stageQuestionMechanicGuide.textContent = thematicMeta.shortGuide;
+  }
   stageQuestionOptions.replaceChildren();
 
   if (Array.isArray(question.options) && question.options.length > 0) {
     question.options.forEach((opt, idx) => {
       const li = document.createElement("li");
-      li.className = `projector-option opt-${idx % 4}`;
+      li.className = `projector-option opt-${idx % 4} stagger-item`;
+      li.style.animationDelay = `${idx * 70}ms`;
       const prefix = question.type === "MULTIPLE_CHOICE"
         ? `${String.fromCharCode(65 + idx)}. `
         : `Bloque ${idx + 1}: `;
@@ -257,7 +356,7 @@ function renderProjectorQuestion(question, customRemainingSeconds = null) {
     });
   } else {
     const li = document.createElement("li");
-    li.className = "projector-option opt-1";
+    li.className = "projector-option opt-1 stagger-item";
     li.style.gridColumn = "1 / -1";
     li.textContent = question.type === "VOICE"
       ? "🎤 Los aprendices están pronunciando la frase desde el micrófono de su móvil."
@@ -265,17 +364,61 @@ function renderProjectorQuestion(question, customRemainingSeconds = null) {
     stageQuestionOptions.append(li);
   }
 
-  showStageSection(stageQuestionView);
-
   const isRestored = typeof customRemainingSeconds === "number";
   const introSeconds = isRestored
     ? 0
     : typeof question.introDurationSeconds === "number"
-      ? question.introDurationSeconds
+      ? Math.max(0, Math.min(15, question.introDurationSeconds))
       : 3;
   const questionSeconds = isRestored
     ? Math.max(0, customRemainingSeconds)
-    : question.timeLimitSeconds || 15;
+    : questionSecondsTotal;
+
+  if (stageQuestionProgress) {
+    stageQuestionProgress.max = questionSecondsTotal;
+    stageQuestionProgress.value = Math.min(questionSecondsTotal, questionSeconds);
+  }
+
+  if (stageTransitionView && introSeconds > 0) {
+    if (stageTransitionBadge) {
+      stageTransitionBadge.textContent = `English Day · ${thematicMeta.badge}`;
+    }
+    if (stageTransitionNumber) {
+      stageTransitionNumber.textContent = `#${question.order}`;
+    }
+    if (stageTransitionHeading) {
+      stageTransitionHeading.textContent = `¡Pregunta ${question.order}!`;
+    }
+    if (stageTransitionThemePill) {
+      stageTransitionThemePill.textContent = `📚 ${thematicMeta.themeLabel}`;
+    }
+    if (stageTransitionTimePill) {
+      stageTransitionTimePill.textContent = `⏱ ${questionSecondsTotal}s para responder · 1,000 pts máx.`;
+    }
+    if (stageTransitionMechanicTitle) {
+      stageTransitionMechanicTitle.textContent = thematicMeta.title;
+    }
+    if (stageTransitionMechanicDesc) {
+      stageTransitionMechanicDesc.textContent = thematicMeta.desc;
+    }
+    if (stageTransitionProgress) {
+      stageTransitionProgress.max = introSeconds;
+      stageTransitionProgress.value = introSeconds;
+    }
+    if (stageTransitionCountdown) {
+      stageTransitionCountdown.textContent = `00:${String(introSeconds).padStart(2, "0")}`;
+    }
+    if (stageTransitionSubtext) {
+      stageTransitionSubtext.textContent = `Comenzando en ${introSeconds} ${introSeconds === 1 ? "segundo" : "segundos"}...`;
+    }
+    showStageSection(stageTransitionView);
+    modIntroTimeout = window.setTimeout(() => {
+      showStageSection(stageQuestionView);
+    }, introSeconds * 1000);
+  } else {
+    showStageSection(stageQuestionView);
+  }
+
   const introEndMs = Date.now() + introSeconds * 1000;
   const deadline = introEndMs + questionSeconds * 1000;
   stageTimerBox.classList.remove("is-expired");
@@ -284,14 +427,31 @@ function renderProjectorQuestion(question, customRemainingSeconds = null) {
     const now = Date.now();
     if (now < introEndMs) {
       const introLeft = Math.max(1, Math.ceil((introEndMs - now) / 1000));
-      stageTimerValue.textContent = `Intro 00:0${introLeft}`;
+      const formattedIntro = `00:${String(introLeft).padStart(2, "0")}`;
+      stageTimerValue.textContent = `Intro ${formattedIntro}`;
+      if (stageTransitionCountdown) {
+        stageTransitionCountdown.textContent = formattedIntro;
+      }
+      if (stageTransitionProgress) {
+        stageTransitionProgress.value = introLeft;
+      }
+      if (stageTransitionSubtext) {
+        stageTransitionSubtext.textContent = `Comenzando en ${introLeft} ${introLeft === 1 ? "segundo" : "segundos"}...`;
+      }
       return;
+    }
+
+    if (stageQuestionView && stageQuestionView.hidden && stageTransitionView && !stageTransitionView.hidden) {
+      showStageSection(stageQuestionView);
     }
 
     const secondsLeft = Math.max(0, Math.ceil((deadline - now) / 1000));
     const mins = Math.floor(secondsLeft / 60);
     const secs = secondsLeft % 60;
     stageTimerValue.textContent = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    if (stageQuestionProgress) {
+      stageQuestionProgress.value = Math.min(questionSecondsTotal, secondsLeft);
+    }
     if (secondsLeft === 0) {
       window.clearInterval(modTimerInterval);
       stageTimerBox.classList.add("is-expired");
@@ -311,6 +471,7 @@ function renderProjectorQuestion(question, customRemainingSeconds = null) {
 
 function renderProjectorResults(payload) {
   window.clearInterval(modTimerInterval);
+  window.clearTimeout(modIntroTimeout);
   modRankingTitle.textContent = "Clasificación Parcial Top 5 (RF-10)";
   if (payload.correctAnswer) {
     modCorrectAnswerBanner.hidden = false;
@@ -329,7 +490,8 @@ function renderProjectorResults(payload) {
 
   top5.forEach((entry, idx) => {
     const li = document.createElement("li");
-    li.className = `ranking-row rank-${idx + 1}`;
+    li.className = `ranking-row rank-${idx + 1} stagger-item`;
+    li.style.animationDelay = `${idx * 65}ms`;
     const left = document.createElement("span");
     left.textContent = `#${idx + 1} · ${entry.nickname}`;
     const right = document.createElement("strong");
@@ -491,19 +653,28 @@ function connectModeratorWebSocket(roomId) {
   });
 }
 
+function buildPlayerJoinUrl(pin, lanIp) {
+  const loc = window.location;
+  const isLoopback = loc.hostname === "localhost" || loc.hostname === "127.0.0.1";
+  const host = isLoopback && lanIp ? (loc.port ? `${lanIp}:${loc.port}` : lanIp) : loc.host;
+  return `${loc.protocol}//${host}/index.html?pin=${pin}`;
+}
+
 function renderRoomQrCodes(joinUrl, pin) {
   if (window.EnglishDayQR && typeof window.EnglishDayQR.renderToCanvas === "function") {
     if (modQrCanvas) {
       window.EnglishDayQR.renderToCanvas(modQrCanvas, joinUrl, {
-        size: 160,
-        darkColor: "#111d22",
+        size: 176,
+        quietZone: 4,
+        darkColor: "#000000",
         lightColor: "#ffffff",
       });
     }
     if (stageQrCanvas) {
       window.EnglishDayQR.renderToCanvas(stageQrCanvas, joinUrl, {
-        size: 240,
-        darkColor: "#00354d",
+        size: 260,
+        quietZone: 4,
+        darkColor: "#000000",
         lightColor: "#ffffff",
       });
     }
@@ -517,7 +688,7 @@ function renderRoomQrCodes(joinUrl, pin) {
 if (btnCopyJoinUrl) {
   btnCopyJoinUrl.addEventListener("click", async () => {
     if (!currentRoom?.pin) return;
-    const joinUrl = `${window.location.origin}/index.html?pin=${currentRoom.pin}`;
+    const joinUrl = buildPlayerJoinUrl(currentRoom.pin, currentRoom.lanIp);
     try {
       await navigator.clipboard.writeText(joinUrl);
       const prev = btnCopyJoinUrl.textContent;
@@ -540,7 +711,7 @@ function attachRoomSession(roomData) {
     clearModeratorSession();
   }
   modPinValue.textContent = roomData.pin;
-  const playerJoinLink = `${window.location.origin}/index.html?pin=${roomData.pin}`;
+  const playerJoinLink = buildPlayerJoinUrl(roomData.pin, roomData.lanIp);
   modJoinUrl.textContent = `Enlace aprendices: ${playerJoinLink}`;
   renderRoomQrCodes(playerJoinLink, roomData.pin);
   modRankingTitle.textContent = "Clasificación en Vivo";
@@ -672,7 +843,7 @@ btnCreateRoom.addEventListener("click", async () => {
     renderLobbyPlayers([]);
     attachRoomSession(data);
     setFeedback(
-      `Sala creada con éxito (PIN: ${data.pin}). Preguntas ${settings.shuffleQuestions ? "aleatorias variadas" : "secuenciales"}.`,
+      `Sala creada con éxito (PIN: ${data.pin}). Esperando al menos 1 aprendiz para iniciar la partida.`,
       "ok"
     );
   } catch (error) {
@@ -696,6 +867,11 @@ btnReconnectPin.addEventListener("click", async () => {
 
 btnStartGame.addEventListener("click", async () => {
   if (!currentRoom?.roomId) return;
+  if (connectedPlayers.length === 0) {
+    setFeedback("Debe haber al menos 1 aprendiz conectado en la sala para iniciar la partida.", "error");
+    btnStartGame.disabled = true;
+    return;
+  }
   btnStartGame.disabled = true;
   try {
     const settings = readModeratorSettingsFromForm();
@@ -708,12 +884,12 @@ btnStartGame.addEventListener("click", async () => {
     if (!response.ok) {
       throw new Error(data.error || `No se pudo iniciar (${response.status})`);
     }
-    currentRoom = data;
+    currentRoom = { ...currentRoom, ...data };
     updateRoomStatusBadge(data.status);
     setFeedback("Partida iniciada y primera pregunta difundida.", "ok");
   } catch (error) {
     setFeedback(error.message, "error");
-    btnStartGame.disabled = false;
+    updateRoomStatusBadge(currentRoom?.status);
   }
 });
 

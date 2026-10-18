@@ -1,7 +1,7 @@
 /**
- * qrcode.js - Generador nativo de Códigos QR (ISO/IEC 18004) en Canvas 2D / SVG sin dependencias externas.
- * Soporta modo Byte (UTF-8) con corrección de errores Reed-Solomon (Nivel L) para versiones 1 a 6 (hasta 134 bytes).
- * Diseñado para proyectar el acceso directo con PIN en el Panel de Moderador de English Day.
+ * qrcode.js - Generador nativo de Códigos QR (ISO/IEC 18004) en Canvas 2D sin dependencias externas.
+ * Soporta modo Byte (UTF-8) con corrección de errores Reed-Solomon (Nivel L) para versiones 1 a 6 (hasta 134 bytes),
+ * evaluación de las 8 máscaras estándar ISO/IEC 18004 y zona silenciosa de 4 módulos para lectura inmediata en móviles.
  */
 (function (global) {
   "use strict";
@@ -164,7 +164,7 @@
       isFunction[r][c] = 1;
     };
 
-    // Patrones de búsqueda (Finder patterns 7x7 + separadores)
+    // Patrones de búsqueda (Finder patterns 7x7 + separadores blancos)
     const drawFinder = (rowOffset, colOffset) => {
       for (let dr = -1; dr <= 7; dr++) {
         for (let dc = -1; dc <= 7; dc++) {
@@ -183,7 +183,7 @@
     drawFinder(0, size - 7);
     drawFinder(size - 7, 0);
 
-    // Patrones de sincronización (Timing patterns)
+    // Patrones de sincronización (Timing patterns en fila 6 y columna 6)
     for (let i = 8; i < size - 8; i++) {
       const dark = i % 2 === 0;
       setFunctionModule(6, i, dark);
@@ -212,7 +212,7 @@
       }
     }
 
-    // Módulo oscuro fijo y reserva de áreas de información de formato
+    // Módulo oscuro fijo (fila size - 8, columna 8) y reserva de áreas de formato
     setFunctionModule(size - 8, 8, true);
     for (let i = 0; i < 9; i++) {
       if (!isFunction[8][i]) setFunctionModule(8, i, false);
@@ -226,6 +226,33 @@
     return { size, modules, isFunction };
   }
 
+  function shouldInvertMask(maskPattern, r, c) {
+    switch (maskPattern) {
+      case 0:
+        return (r + c) % 2 === 0;
+      case 1:
+        return r % 2 === 0;
+      case 2:
+        return c % 3 === 0;
+      case 3:
+        return (r + c) % 3 === 0;
+      case 4:
+        return (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0;
+      case 5:
+        return ((r * c) % 2) + ((r * c) % 3) === 0;
+      case 6:
+        return (((r * c) % 2) + ((r * c) % 3)) % 2 === 0;
+      case 7:
+        return (((r + c) % 2) + ((r * c) % 3)) % 2 === 0;
+      default:
+        return (r + c) % 2 === 0;
+    }
+  }
+
+  /**
+   * Dibuja los 15 bits de información de formato según ISO/IEC 18004 Figura 25.
+   * Nota: m[r][c] está indexado como [fila][columna].
+   */
   function drawFormatBits(matrix, maskPattern) {
     // Nivel ECC L = 01 (bits 14..13) + maskPattern (bits 12..10)
     const data = (0b01 << 3) | maskPattern;
@@ -239,14 +266,22 @@
     const m = matrix.modules;
     const bit = (i) => ((bits >>> i) & 1) === 1;
 
-    for (let i = 0; i <= 5; i++) m[8][i] = bit(i) ? 1 : 0;
-    m[8][7] = bit(6) ? 1 : 0;
+    // Primera copia alrededor del patrón de búsqueda superior izquierdo:
+    // bits 0..5 en columna 8, filas 0..5
+    for (let i = 0; i <= 5; i++) m[i][8] = bit(i) ? 1 : 0;
+    // bit 6 en fila 7, columna 8; bit 7 en fila 8, columna 8; bit 8 en fila 8, columna 7
+    m[7][8] = bit(6) ? 1 : 0;
     m[8][8] = bit(7) ? 1 : 0;
-    m[7][8] = bit(8) ? 1 : 0;
-    for (let i = 9; i < 15; i++) m[14 - i][8] = bit(i) ? 1 : 0;
+    m[8][7] = bit(8) ? 1 : 0;
+    // bits 9..14 en fila 8, columnas 5..0
+    for (let i = 9; i < 15; i++) m[8][14 - i] = bit(i) ? 1 : 0;
 
-    for (let i = 0; i < 8; i++) m[size - 1 - i][8] = bit(i) ? 1 : 0;
-    for (let i = 8; i < 15; i++) m[8][size - 15 + i] = bit(i) ? 1 : 0;
+    // Segunda copia:
+    // bits 0..7 en fila 8, columnas size - 1 .. size - 8 (superior derecha)
+    for (let i = 0; i < 8; i++) m[8][size - 1 - i] = bit(i) ? 1 : 0;
+    // bits 8..14 en columna 8, filas size - 7 .. size - 1 (inferior izquierda)
+    for (let i = 8; i < 15; i++) m[size - 15 + i][8] = bit(i) ? 1 : 0;
+    // Módulo oscuro fijo en fila size - 8, columna 8
     m[size - 8][8] = 1;
   }
 
@@ -271,8 +306,9 @@
               dark = ((codewords[bitIdx >>> 3] >>> (7 - (bitIdx & 7))) & 1) !== 0;
               bitIdx++;
             }
-            const invert = maskPattern === 0 ? (r + c) % 2 === 0 : r % 2 === 0;
-            if (invert) dark = !dark;
+            if (shouldInvertMask(maskPattern, r, c)) {
+              dark = !dark;
+            }
             m[r][c] = dark ? 1 : 0;
           }
         }
@@ -280,33 +316,92 @@
     }
   }
 
+  function computePenaltyScore(matrix) {
+    const size = matrix.size;
+    const m = matrix.modules;
+    let penalty = 0;
+
+    // Regla 1: módulos consecutivos del mismo color en filas y columnas
+    for (let r = 0; r < size; r++) {
+      let runColor = m[r][0];
+      let runLen = 1;
+      for (let c = 1; c < size; c++) {
+        if (m[r][c] === runColor) {
+          runLen++;
+          if (runLen === 5) penalty += 3;
+          else if (runLen > 5) penalty += 1;
+        } else {
+          runColor = m[r][c];
+          runLen = 1;
+        }
+      }
+    }
+    for (let c = 0; c < size; c++) {
+      let runColor = m[0][c];
+      let runLen = 1;
+      for (let r = 1; r < size; r++) {
+        if (m[r][c] === runColor) {
+          runLen++;
+          if (runLen === 5) penalty += 3;
+          else if (runLen > 5) penalty += 1;
+        } else {
+          runColor = m[r][c];
+          runLen = 1;
+        }
+      }
+    }
+
+    // Regla 2: bloques 2x2 del mismo color
+    for (let r = 0; r < size - 1; r++) {
+      for (let c = 0; c < size - 1; c++) {
+        const color = m[r][c];
+        if (color === m[r][c + 1] && color === m[r + 1][c] && color === m[r + 1][c + 1]) {
+          penalty += 3;
+        }
+      }
+    }
+
+    return penalty;
+  }
+
   function generateMatrix(text) {
     const utf8 = new TextEncoder().encode(text);
     const version = pickVersion(utf8.length);
     const codewords = encodeDataCodewords(utf8, VERSION_TABLE[version]);
-    const matrix = createMatrix(version);
-    const maskPattern = 0;
-    placeCodewords(matrix, codewords, maskPattern);
-    drawFormatBits(matrix, maskPattern);
-    return matrix;
+
+    let bestMatrix = null;
+    let bestPenalty = Infinity;
+
+    for (let mask = 0; mask < 8; mask++) {
+      const candidate = createMatrix(version);
+      placeCodewords(candidate, codewords, mask);
+      drawFormatBits(candidate, mask);
+      const penalty = computePenaltyScore(candidate);
+      if (penalty < bestPenalty) {
+        bestPenalty = penalty;
+        bestMatrix = candidate;
+      }
+    }
+    return bestMatrix;
   }
 
   function renderToCanvas(canvas, text, options = {}) {
     if (!canvas || !text) return;
     const matrix = generateMatrix(text);
-    const quietZone = options.quietZone ?? 3;
+    const quietZone = options.quietZone ?? 4;
     const totalModules = matrix.size + quietZone * 2;
     const targetPx = options.size ?? 220;
-    const scale = Math.max(3, Math.floor(targetPx / totalModules));
+    const scale = Math.max(4, Math.floor(targetPx / totalModules));
     const realSize = totalModules * scale;
 
     canvas.width = realSize;
     canvas.height = realSize;
     const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = options.lightColor || "#ffffff";
     ctx.fillRect(0, 0, realSize, realSize);
 
-    ctx.fillStyle = options.darkColor || "#111d22";
+    ctx.fillStyle = options.darkColor || "#000000";
     for (let r = 0; r < matrix.size; r++) {
       for (let c = 0; c < matrix.size; c++) {
         if (matrix.modules[r][c]) {

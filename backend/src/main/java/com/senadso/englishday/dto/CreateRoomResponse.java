@@ -20,6 +20,7 @@ public class CreateRoomResponse {
     private String roomId;
     private String pin;
     private RoomStatus status;
+    private String lanIp;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     private LocalDateTime createdAt;
