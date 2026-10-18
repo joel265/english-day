@@ -43,36 +43,35 @@ class ActiveFeedbackRoulette {
         });
     }
 
-    resize() {
+    resize(defaultSize = 320) {
         if (!this.canvas) return;
         const rect = this.canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const size = Math.min(rect.width || 360, 420);
-        this.canvas.width = size * dpr;
-        this.canvas.height = size * dpr;
+        const cssSize = rect.width > 40 ? Math.min(rect.width, 400) : defaultSize;
+        this.logicalSize = cssSize;
+        this.canvas.width = cssSize * dpr;
+        this.canvas.height = cssSize * dpr;
         if (this.ctx) {
-            this.ctx.scale(dpr, dpr);
+            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
     }
 
     setPlayers(players) {
         this.players = players && players.length > 0 ? players : [
-            { name: 'Carlos ADSO', answer: 'git checkout -b', isCorrect: true },
-            { name: 'Laura Dev', answer: 'git branch -d', isCorrect: false },
-            { name: 'Andrés Code', answer: 'git checkout -b', isCorrect: true },
-            { name: 'Valentina Tech', answer: 'git status', isCorrect: false },
-            { name: 'Mateo Frontend', answer: 'git checkout -b', isCorrect: true }
+            { name: 'Aprendiz 1' },
+            { name: 'Aprendiz 2' },
+            { name: 'Aprendiz 3' }
         ];
         this.draw();
     }
 
     draw() {
         if (!this.canvas || !this.ctx) return;
-        const width = this.canvas.width / (window.devicePixelRatio || 1);
-        const height = this.canvas.height / (window.devicePixelRatio || 1);
+        const width = this.logicalSize || (this.canvas.width / (window.devicePixelRatio || 1));
+        const height = this.logicalSize || (this.canvas.height / (window.devicePixelRatio || 1));
         const centerX = width / 2;
         const centerY = height / 2;
-        const radius = Math.min(centerX, centerY) - 18;
+        const radius = Math.max(40, Math.min(centerX, centerY) - 18);
 
         this.ctx.clearRect(0, 0, width, height);
 
@@ -117,13 +116,13 @@ class ActiveFeedbackRoulette {
             this.ctx.rotate(startAngle + arc / 2);
             this.ctx.textAlign = 'right';
             this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = 'bold 13px "Plus Jakarta Sans", sans-serif';
+            this.ctx.font = 'bold 13px "Rubik", sans-serif';
             this.ctx.shadowColor = 'rgba(0,0,0,0.8)';
             this.ctx.shadowBlur = 4;
 
             const name = this.players[i].name || `Player ${i + 1}`;
             const displayName = name.length > 13 ? name.substring(0, 11) + '..' : name;
-            this.ctx.fillText(displayName, radius - 22, 5);
+            this.ctx.fillText(displayName, radius - 20, 5);
             this.ctx.restore();
         }
 
@@ -142,7 +141,7 @@ class ActiveFeedbackRoulette {
         // 4. Centro metálico
         this.ctx.save();
         this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, 28, 0, Math.PI * 2);
+        this.ctx.arc(centerX, centerY, 26, 0, Math.PI * 2);
         this.ctx.fillStyle = '#1e293b';
         this.ctx.shadowColor = 'rgba(0,0,0,0.5)';
         this.ctx.shadowBlur = 8;
@@ -152,12 +151,12 @@ class ActiveFeedbackRoulette {
         this.ctx.stroke();
 
         this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, 10, 0, Math.PI * 2);
+        this.ctx.arc(centerX, centerY, 9, 0, Math.PI * 2);
         this.ctx.fillStyle = '#39A900';
         this.ctx.fill();
         this.ctx.restore();
 
-        // 5. Aguja / Puntero fijo en la parte superior derecha (apunta hacia la ruleta)
+        // 5. Aguja / Puntero fijo en la parte superior
         this.drawPointer(centerX, centerY - radius);
     }
 
@@ -182,63 +181,81 @@ class ActiveFeedbackRoulette {
         this.ctx.restore();
     }
 
-    spin(callback) {
-        if (this.isSpinning) return;
+    spin(callback, targetWinnerName = null) {
+        if (!this.canvas || !this.ctx) {
+            if (callback) callback(null);
+            return;
+        }
+        this.resize();
         this.onFinishCallback = callback;
         this.isSpinning = true;
-
-        // Impulso aleatorio entre 0.35 y 0.5 rad/frame
-        this.spinVelocity = Math.random() * 0.15 + 0.38;
         this.lastTickSegment = -1;
 
         if (window.soundFx) {
             window.soundFx.init();
         }
 
-        this.animate();
-    }
-
-    animate() {
-        if (!this.isSpinning) return;
-
-        this.currentAngle = (this.currentAngle + this.spinVelocity) % (Math.PI * 2);
-        this.spinVelocity *= this.deceleration;
-
-        // Calcular en qué segmento se encuentra la aguja superior (-PI/2)
-        const numSegments = this.players.length;
+        const numSegments = Math.max(1, this.players.length);
         const arc = (Math.PI * 2) / numSegments;
-        const normalizedAngle = ((Math.PI * 2) - this.currentAngle + (3 * Math.PI / 2)) % (Math.PI * 2);
-        const currentSegment = Math.floor(normalizedAngle / arc) % numSegments;
-
-        if (currentSegment !== this.lastTickSegment) {
-            this.lastTickSegment = currentSegment;
-            if (window.soundFx) {
-                window.soundFx.playWheelTick();
-            }
+        let winnerIdx = 0;
+        if (targetWinnerName) {
+            const found = this.players.findIndex(
+                (p) => (p.name || '').toLowerCase() === String(targetWinnerName).toLowerCase()
+            );
+            winnerIdx = found !== -1 ? found : 0;
+        } else {
+            winnerIdx = Math.floor(Math.random() * numSegments);
         }
 
-        this.draw();
+        const startAngle = this.currentAngle % (Math.PI * 2);
+        const desiredModAngle = (((1.5 * Math.PI) - (winnerIdx + 0.5) * arc) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+        const extraRotations = 5 * Math.PI * 2;
+        const delta = ((desiredModAngle - startAngle) + Math.PI * 2) % (Math.PI * 2);
+        const targetAngle = startAngle + extraRotations + delta;
+        const durationMs = 2500;
+        const startTime = performance.now();
 
-        // Condición de parada cuando la velocidad es imperceptible
-        if (this.spinVelocity < 0.0018) {
-            this.isSpinning = false;
-            this.spinVelocity = 0;
-            this.selectedPlayer = this.players[currentSegment];
+        const animateStep = (now) => {
+            if (!this.isSpinning) return;
+            const elapsed = now - startTime;
+            const progress = Math.min(1, elapsed / durationMs);
+            const eased = 1 - Math.pow(1 - progress, 3);
 
-            if (window.soundFx) {
-                window.soundFx.playCorrect();
+            this.currentAngle = startAngle + (targetAngle - startAngle) * eased;
+
+            const normalizedAngle = ((Math.PI * 2) - (this.currentAngle % (Math.PI * 2)) + (1.5 * Math.PI)) % (Math.PI * 2);
+            const currentSegment = Math.floor(normalizedAngle / arc) % numSegments;
+
+            if (currentSegment !== this.lastTickSegment) {
+                this.lastTickSegment = currentSegment;
+                if (window.soundFx) {
+                    window.soundFx.playWheelTick();
+                }
             }
-            if (window.confetti) {
-                window.confetti.burst(window.innerWidth / 2, window.innerHeight / 2, 60);
-            }
 
-            if (this.onFinishCallback) {
-                this.onFinishCallback(this.selectedPlayer);
-            }
-            return;
-        }
+            this.draw();
 
-        requestAnimationFrame(() => this.animate());
+            if (progress < 1) {
+                requestAnimationFrame(animateStep);
+            } else {
+                this.isSpinning = false;
+                this.currentAngle = desiredModAngle;
+                this.draw();
+                this.selectedPlayer = this.players[winnerIdx];
+
+                if (window.soundFx) {
+                    window.soundFx.playCorrect();
+                }
+                if (window.confetti) {
+                    window.confetti.burst(window.innerWidth / 2, window.innerHeight / 2, 55);
+                }
+                if (this.onFinishCallback) {
+                    this.onFinishCallback(this.selectedPlayer);
+                }
+            }
+        };
+
+        requestAnimationFrame(animateStep);
     }
 }
 

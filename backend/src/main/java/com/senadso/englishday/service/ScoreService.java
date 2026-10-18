@@ -1,15 +1,18 @@
 package com.senadso.englishday.service;
 
 import com.senadso.englishday.dto.LeaderboardEntryDto;
+import com.senadso.englishday.dto.PlayerRoundVerdictDto;
 import com.senadso.englishday.dto.PodiumResponse;
 import com.senadso.englishday.dto.QuestionResultsResponse;
 import com.senadso.englishday.exception.RoomNotFoundException;
+import com.senadso.englishday.model.Answer;
 import com.senadso.englishday.model.Player;
 import com.senadso.englishday.model.Question;
 import com.senadso.englishday.model.Room;
 import com.senadso.englishday.model.Score;
 import com.senadso.englishday.model.ScoreId;
 import com.senadso.englishday.model.enums.RoomStatus;
+import com.senadso.englishday.repository.AnswerRepository;
 import com.senadso.englishday.repository.PlayerRepository;
 import com.senadso.englishday.repository.QuestionRepository;
 import com.senadso.englishday.repository.RoomRepository;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,7 +35,6 @@ import java.util.Map;
  * y la emisión del leaderboard Top 5 a /topic/room/{roomId}/results (RF-10 / Contrato §4.5).
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ScoreService {
 
@@ -44,16 +47,40 @@ public class ScoreService {
     private final PlayerRepository playerRepository;
     private final QuestionRepository questionRepository;
     private final RoomRepository roomRepository;
+    private final AnswerRepository answerRepository;
+    private final RoomService roomService;
     private final SimpMessagingTemplate messagingTemplate;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ScoreService(
+            ScoreRepository scoreRepository,
+            PlayerRepository playerRepository,
+            QuestionRepository questionRepository,
+            RoomRepository roomRepository,
+            AnswerRepository answerRepository,
+            RoomService roomService,
+            SimpMessagingTemplate messagingTemplate) {
+        this.scoreRepository = scoreRepository;
+        this.playerRepository = playerRepository;
+        this.questionRepository = questionRepository;
+        this.roomRepository = roomRepository;
+        this.answerRepository = answerRepository;
+        this.roomService = roomService;
+        this.messagingTemplate = messagingTemplate;
+    }
+
+    public ScoreService(
+            ScoreRepository scoreRepository,
+            PlayerRepository playerRepository,
+            QuestionRepository questionRepository,
+            RoomRepository roomRepository,
+            SimpMessagingTemplate messagingTemplate) {
+        this(scoreRepository, playerRepository, questionRepository, roomRepository, null, null, messagingTemplate);
+    }
 
     /**
      * Calcula los puntos otorgados según la fórmula de velocidad y acierto (RF-09 / Contrato §5):
      * pointsAwarded = round(BASE_POINTS * (isCorrect ? 1 : 0) * max(0.5, 1 - (responseTimeMs / (timeLimitSeconds * 1000))))
-     *
-     * @param isCorrect Indica si la respuesta del aprendiz fue validada como correcta.
-     * @param responseTimeMs Tiempo transcurrido en responder en milisegundos.
-     * @param timeLimitSeconds Tiempo límite configurado para la pregunta (en segundos).
-     * @return Puntos calculados (entre 0 y 1000).
      */
     public int calculatePoints(boolean isCorrect, int responseTimeMs, Integer timeLimitSeconds) {
         if (!isCorrect) {
@@ -64,7 +91,6 @@ public class ScoreService {
         double limitMs = limitSec * 1000.0;
         double timeTaken = Math.max(0.0, (double) responseTimeMs);
 
-        // Bonificación por velocidad: se degrada linealmente hasta un piso mínimo de 0.5 (500 pts)
         double speedFactor = Math.max(0.5, 1.0 - (timeTaken / limitMs));
 
         return (int) Math.round(BASE_POINTS * speedFactor);
@@ -72,21 +98,14 @@ public class ScoreService {
 
     /**
      * Actualiza el puntaje acumulado de un jugador tanto en su entidad Player como en la entidad Score.
-     *
-     * @param player Aprendiz que respondió.
-     * @param room Sala en la que participa.
-     * @param pointsAwarded Puntos obtenidos en la última respuesta.
-     * @return Puntaje acumulado total actualizado del jugador.
      */
     @Transactional
     public int updatePlayerScore(Player player, Room room, int pointsAwarded) {
-        // 1. Acumular en la entidad Player
         int currentScore = (player.getTotalScore() != null) ? player.getTotalScore() : 0;
         int newTotal = currentScore + pointsAwarded;
         player.setTotalScore(newTotal);
         playerRepository.save(player);
 
-        // 2. Sincronizar en la entidad Score de la sala
         Score score = scoreRepository.findById_PlayerIdAndId_RoomId(player.getPlayerId(), room.getRoomId())
                 .orElseGet(() -> Score.builder()
                         .id(new ScoreId(player.getPlayerId(), room.getRoomId()))
@@ -104,9 +123,6 @@ public class ScoreService {
 
     /**
      * Obtiene el Top 5 de aprendices con mayor puntaje en la sala para el leaderboard (RF-10).
-     *
-     * @param roomId Identificador UUID de la sala.
-     * @return Lista de hasta 5 participantes ordenados descendentemente por puntaje.
      */
     @Transactional(readOnly = true)
     public List<LeaderboardEntryDto> getTop5Leaderboard(String roomId) {
@@ -133,20 +149,19 @@ public class ScoreService {
     }
 
     /**
-     * Cierra la pregunta actual, actualiza los rankings de la sala y difunde los resultados
-     * y la respuesta correcta al canal STOMP /topic/room/{roomId}/results (RF-10 / Contrato §4.5).
-     *
-     * @param roomId Identificador UUID de la sala.
-     * @param questionId Identificador UUID de la pregunta (opcional; si es null, toma la actual de la sala).
-     * @return Payload de resultados emitido.
+     * Cierra la pregunta actual, actualiza los rankings de la sala y difunde los resultados,
+     * la respuesta correcta y los veredictos individuales al canal STOMP /topic/room/{roomId}/results.
      */
     @Transactional
     public QuestionResultsResponse broadcastQuestionResults(String roomId, String questionId) {
-        // 1. Obtener la pregunta finalizada
         Question question;
         if (questionId != null && !questionId.isBlank()) {
             question = questionRepository.findById(questionId)
-                    .orElseThrow(() -> new IllegalArgumentException("Pregunta no encontrada: " + questionId));
+                    .orElseGet(() -> roomService != null
+                            ? roomService.getCurrentQuestionForRoom(roomId)
+                            : questionRepository.findByOrder(1).orElseThrow());
+        } else if (roomService != null) {
+            question = roomService.getCurrentQuestionForRoom(roomId);
         } else {
             Room room = roomRepository.findById(roomId)
                     .orElseThrow(() -> new IllegalArgumentException("Sala no encontrada: " + roomId));
@@ -154,19 +169,49 @@ public class ScoreService {
                     .orElseThrow(() -> new IllegalStateException("Pregunta actual no configurada para la sala"));
         }
 
-        // 2. Actualizar posiciones (ranks) en la base de datos
         updateRoomRanks(roomId);
 
-        // 3. Obtener el Top 5 ordenado
         List<LeaderboardEntryDto> top5 = getTop5Leaderboard(roomId);
 
-        // 4. Construir el payload según Contrato §4.5
+        Map<String, PlayerRoundVerdictDto> playerVerdicts = new LinkedHashMap<>();
+        if (answerRepository != null) {
+            List<Answer> roundAnswers = answerRepository.findByPlayer_Room_RoomIdAndQuestion_QuestionId(
+                    roomId,
+                    question.getQuestionId()
+            );
+            for (Answer ans : roundAnswers) {
+                Player p = ans.getPlayer();
+                if (p != null) {
+                    playerVerdicts.put(
+                            p.getPlayerId(),
+                            PlayerRoundVerdictDto.builder()
+                                    .playerId(p.getPlayerId())
+                                    .nickname(p.getNickname())
+                                    .submittedValue(ans.getValue())
+                                    .isCorrect(Boolean.TRUE.equals(ans.getIsCorrect()))
+                                    .pointsAwarded(ans.getPointsAwarded() != null ? ans.getPointsAwarded() : 0)
+                                    .totalScore(p.getTotalScore() != null ? p.getTotalScore() : 0)
+                                    .build()
+                    );
+                }
+            }
+        }
+
+        String primaryCorrectAnswer = question.getCorrectAnswer() != null
+                ? question.getCorrectAnswer().split("\\|")[0].trim()
+                : "";
+
         QuestionResultsResponse response = QuestionResultsResponse.builder()
-                .correctAnswer(question.getCorrectAnswer())
+                .questionId(question.getQuestionId())
+                .correctAnswer(primaryCorrectAnswer)
                 .top5(top5)
+                .playerVerdicts(playerVerdicts)
                 .build();
 
-        // 5. Emitir por WebSocket STOMP
+        if (roomService != null) {
+            roomService.recordQuestionResults(roomId, response);
+        }
+
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/results", response);
         log.info("Leaderboard Top 5 emitido en /topic/room/{}/results para pregunta '{}' con {} participantes",
                 roomId, question.getPrompt(), top5.size());
@@ -176,9 +221,6 @@ public class ScoreService {
 
     /**
      * Obtiene el Top 3 de aprendices con mayor puntaje en la sala para el podio final (RF-10 / CU-06).
-     *
-     * @param roomId Identificador UUID de la sala.
-     * @return Lista de hasta 3 participantes ordenados descendentemente por puntaje.
      */
     @Transactional(readOnly = true)
     public List<LeaderboardEntryDto> getTop3Podium(String roomId) {
@@ -193,10 +235,6 @@ public class ScoreService {
 
     /**
      * Obtiene el podio final actual de la sala (Top 3) para la consulta REST (RF-10 / CU-06).
-     * Ruta: GET /api/rooms/{roomId}/results (Contrato §3).
-     *
-     * @param roomId Identificador UUID de la sala.
-     * @return DTO con el Top 3, cantidad total de jugadores y metadatos.
      */
     @Transactional(readOnly = true)
     public PodiumResponse getPodiumResults(String roomId) {
@@ -216,31 +254,21 @@ public class ScoreService {
     }
 
     /**
-     * Finaliza oficialmente la partida, actualiza los rankings finales en base de datos,
-     * cambia el estado de la sala a FINISHED y emite el podio final vía WebSocket STOMP
-     * a /topic/room/{roomId}/podium y /topic/room/{roomId}/status (RF-10 / CU-06 / CP-11).
-     *
-     * @param roomId Identificador UUID de la sala.
-     * @return DTO emitido con el Top 3 de ganadores.
+     * Finaliza oficialmente la partida y emite el podio final vía WebSocket STOMP.
      */
     @Transactional
     public PodiumResponse finalizeGameAndBroadcastPodium(String roomId) {
-        // 1. Obtener la sala
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RoomNotFoundException("Sala no encontrada"));
 
-        // 2. Transicionar estado a FINISHED
         room.setStatus(RoomStatus.FINISHED);
         Room savedRoom = roomRepository.save(room);
 
-        // 3. Recalcular puestos finales en la entidad Score
         updateRoomRanks(roomId);
 
-        // 4. Obtener el podio Top 3 y total de jugadores
         List<LeaderboardEntryDto> top3 = getTop3Podium(roomId);
         int totalPlayers = playerRepository.findByRoom_RoomId(roomId).size();
 
-        // 5. Construir payload del podio
         PodiumResponse podiumResponse = PodiumResponse.builder()
                 .roomId(savedRoom.getRoomId())
                 .status(savedRoom.getStatus())
@@ -249,11 +277,9 @@ public class ScoreService {
                 .timestamp(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
 
-        // 6. Emitir cambio de estado a FINISHED en /topic/room/{roomId}/status
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/status",
                 Map.of("status", RoomStatus.FINISHED.name()));
 
-        // 7. Emitir el podio al canal de difusión /topic/room/{roomId}/podium (Contrato §4.1)
         messagingTemplate.convertAndSend("/topic/room/" + roomId + "/podium", podiumResponse);
         log.info("Podio final emitido a /topic/room/{}/podium con {} jugadores clasificados", roomId, top3.size());
 

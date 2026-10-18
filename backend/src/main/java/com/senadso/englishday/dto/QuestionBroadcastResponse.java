@@ -48,6 +48,11 @@ public class QuestionBroadcastResponse {
     private Integer timeLimitSeconds;
 
     /**
+     * Duración en segundos de la pantalla de introducción antes de iniciar el conteo de respuesta.
+     */
+    private Integer introDurationSeconds;
+
+    /**
      * Posición u orden de la pregunta en la secuencia de la partida.
      */
     private Integer order;
@@ -64,13 +69,29 @@ public class QuestionBroadcastResponse {
      * garantizando que correctAnswer quede excluido de la difusión.
      */
     public static QuestionBroadcastResponse fromEntity(Question question, LocalDateTime serverTimestamp) {
+        return fromEntity(
+                question,
+                serverTimestamp,
+                question.getOrder(),
+                question.getTimeLimitSeconds(),
+                3
+        );
+    }
+
+    public static QuestionBroadcastResponse fromEntity(
+            Question question,
+            LocalDateTime serverTimestamp,
+            Integer displayOrder,
+            Integer effectiveTimeLimitSeconds,
+            Integer introDurationSeconds) {
         return QuestionBroadcastResponse.builder()
                 .questionId(question.getQuestionId())
                 .type(question.getType())
                 .prompt(question.getPrompt())
                 .options(question.getOptions())
-                .timeLimitSeconds(question.getTimeLimitSeconds())
-                .order(question.getOrder())
+                .timeLimitSeconds(effectiveTimeLimitSeconds != null ? effectiveTimeLimitSeconds : question.getTimeLimitSeconds())
+                .introDurationSeconds(introDurationSeconds != null ? introDurationSeconds : 3)
+                .order(displayOrder != null ? displayOrder : question.getOrder())
                 .serverTimestamp(serverTimestamp)
                 .build();
     }

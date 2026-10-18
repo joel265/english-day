@@ -13,7 +13,7 @@
     <header class="site-header">
       <div class="site-header-inner">
         <p class="brand">English Day <span>SENA ADSO</span></p>
-        <a class="moderator-link" href="/moderator.html">Panel Moderador</a>
+        <a class="moderator-link" id="navModeratorLink" href="/moderator.html">Panel Moderador</a>
       </div>
     </header>
 
@@ -61,6 +61,11 @@
         <p class="lobby-status" id="lobbyStatus" role="status" aria-live="polite"></p>
         <h2 class="players-heading">Aprendices conectados <span id="playerCount">0</span></h2>
         <ul class="lobby-players" id="lobbyPlayers" aria-live="polite"></ul>
+        <div class="lobby-actions">
+          <button class="leave-lobby-button" id="btnLeaveLobby" type="button">
+            🚪 Salir de la sala de espera
+          </button>
+        </div>
       </section>
 
       <section class="question-card" id="questionCard" aria-labelledby="questionPrompt" hidden>
@@ -75,6 +80,13 @@
           </div>
         </div>
         <progress class="question-progress" id="questionProgress" value="0" max="1" aria-label="Tiempo restante"></progress>
+        <div class="question-topic-banner" id="questionTopicBanner">
+          <div class="question-topic-tags">
+            <span class="topic-pill topic-pill--theme" id="questionThemeTag">📘 Grammar & Vocabulary</span>
+            <span class="topic-pill topic-pill--points" id="questionPointsTag">⚡ Hasta 1,000 pts</span>
+          </div>
+          <p class="question-mechanic-guide" id="questionMechanicGuide"></p>
+        </div>
         <h1 class="question-prompt" id="questionPrompt" tabindex="-1"></h1>
         <ul class="question-options" id="questionOptions" aria-label="Opciones disponibles" hidden></ul>
 
@@ -144,31 +156,91 @@
         <p class="question-status" id="questionStatus" role="status" aria-live="polite"></p>
       </section>
 
+      <section class="waiting-answer-card" id="waitingAnswerCard" aria-labelledby="waitingAnswerTitle" hidden>
+        <p class="eyebrow" id="waitingQuestionOrder">English Day · Ronda en curso</p>
+        <div class="waiting-pulse-icon" aria-hidden="true">⏳</div>
+        <h1 id="waitingAnswerTitle" tabindex="-1">¡Respuesta enviada!</h1>
+        <p class="intro">Tu respuesta quedó registrada. Esperando a que finalice el tiempo de la pregunta...</p>
+        <div class="waiting-submitted-box">
+          <span class="waiting-submitted-label">Tu respuesta registrada</span>
+          <strong class="waiting-submitted-value" id="waitingSubmittedValue"></strong>
+        </div>
+        <div class="waiting-timer-pill">
+          <span>Tiempo restante para ver resultados:</span>
+          <strong id="waitingTimerValue">00:00</strong>
+        </div>
+      </section>
+
       <section class="results-card" id="resultsCard" aria-labelledby="resultsTitle" hidden>
         <p class="eyebrow">English Day · Resultados de la ronda</p>
-        <h1 id="resultsTitle" tabindex="-1">Clasificación parcial (Top 5)</h1>
+        <div class="player-verdict-banner" id="playerVerdictBanner" data-verdict="expired" role="status" aria-live="assertive">
+          <span class="player-verdict-icon" id="playerVerdictIcon" aria-hidden="true">✔</span>
+          <h1 class="player-verdict-title" id="resultsTitle" tabindex="-1">¡Respuesta Correcta!</h1>
+          <p class="player-verdict-detail" id="playerVerdictDetail"></p>
+        </div>
         <div class="correct-answer-banner">
           <span class="correct-answer-label">Respuesta correcta</span>
           <strong class="correct-answer-value" id="resultsCorrectAnswer"></strong>
         </div>
-        <h2 class="players-heading">Top 5 aprendices</h2>
+        <h2 class="players-heading">Clasificación parcial (Top 5)</h2>
         <ol class="leaderboard-list" id="resultsTop5List" aria-live="polite"></ol>
-        <p class="results-wait-hint">Espera a que el moderador active la ruleta o avance a la siguiente pregunta.</p>
+        <div class="next-question-wait-box" role="status" aria-live="polite">
+          <span class="wait-spinner" aria-hidden="true">⏳</span>
+          <div>
+            <strong>Esperando la siguiente pregunta...</strong>
+            <p class="results-wait-hint">Atento a la pantalla: el moderador girará la ruleta o lanzará la siguiente pregunta en breve.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="question-transition-card" id="questionTransitionCard" aria-live="polite" hidden>
+        <div class="transition-top-row">
+          <p class="eyebrow" id="transitionMechanicBadge">English Day · Nueva ronda</p>
+          <div class="transition-timer-chip">
+            <span>Iniciando en</span>
+            <strong id="transitionCountdownTimer">00:03</strong>
+          </div>
+        </div>
+        <progress class="question-progress transition-progress" id="transitionProgressBar" value="3" max="3" aria-label="Cuenta regresiva de introducción"></progress>
+        <div class="transition-badge-circle" id="transitionQuestionNumber">#1</div>
+        <h1 id="transitionHeading">¡Pregunta 1!</h1>
+        <p class="transition-subtext" id="transitionSubtext">Selección múltiple · 15 segundos</p>
+
+        <div class="transition-info-box">
+          <div class="transition-info-pills">
+            <span class="topic-pill topic-pill--theme" id="transitionThemePill">📘 Temática: Simple Present</span>
+            <span class="topic-pill topic-pill--time" id="transitionTimePill">⏱ 15s para responder</span>
+            <span class="topic-pill topic-pill--points">⚡ Máx. 1,000 pts</span>
+          </div>
+          <h2 class="transition-mechanic-title" id="transitionMechanicTitle">🔘 Dinámica: Selección Múltiple</h2>
+          <p class="transition-mechanic-desc" id="transitionMechanicDesc">
+            Lee la oración en inglés y selecciona la única opción correcta entre las 4 alternativas.
+          </p>
+        </div>
       </section>
 
       <section class="roulette-card" id="rouletteCard" aria-labelledby="rouletteTitle" hidden>
         <p class="eyebrow">English Day · Ruleta de Retroalimentación (RF-11)</p>
-        <h1 id="rouletteTitle" tabindex="-1">¡Aprendiz seleccionado al azar!</h1>
-        <div class="roulette-wheel-banner" id="rouletteBanner">
+        <h1 id="rouletteTitle" tabindex="-1">🎡 Girando la ruleta...</h1>
+        <div class="player-roulette-canvas-wrap">
+          <canvas id="playerRouletteCanvas" width="280" height="280" aria-label="Ruleta de selección de aprendiz"></canvas>
+        </div>
+        <div class="roulette-wheel-banner" id="rouletteBanner" hidden>
           <span class="roulette-badge" id="rouletteBadge">Sorteo en vivo</span>
           <h2 class="roulette-winner-name" id="rouletteWinnerName"></h2>
         </div>
-        <div class="roulette-answer-box">
+        <div class="roulette-answer-box" id="rouletteAnswerBox" hidden>
           <span class="roulette-answer-label">Respuesta registrada</span>
           <p class="roulette-answer-value" id="rouletteAnswerValue"></p>
           <p class="roulette-answer-verdict" id="rouletteAnswerVerdict"></p>
         </div>
-        <p class="results-wait-hint">El moderador realizará la retroalimentación pedagógica con el grupo.</p>
+        <div class="next-question-wait-box" role="status" aria-live="polite">
+          <span class="wait-spinner" aria-hidden="true">⏳</span>
+          <div>
+            <strong>Retroalimentación en curso...</strong>
+            <p class="results-wait-hint">El moderador realizará la retroalimentación y avanzará a la siguiente pregunta.</p>
+          </div>
+        </div>
       </section>
 
       <section class="podium-card" id="podiumCard" aria-labelledby="podiumTitle" hidden>
@@ -177,8 +249,16 @@
         <p class="intro" id="podiumSubtitle">Felicitaciones a todos los participantes del English Day.</p>
         <ol class="podium-stage" id="podiumTop3List" aria-label="Ganadores del podio Top 3"></ol>
         <p class="podium-total" id="podiumTotalPlayers"></p>
+        <div class="lobby-actions">
+          <button class="join-button" id="btnBackToStart" type="button">
+            🏠 Volver al inicio / Unirse a otra sala
+          </button>
+        </div>
       </section>
     </main>
+    <script src="./js/audio.js" defer></script>
+    <script src="./js/confetti.js" defer></script>
+    <script src="./js/roulette.js" defer></script>
     <script src="./js/join.js" defer></script>
   </body>
 </html>

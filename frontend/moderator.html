@@ -106,6 +106,16 @@
         font-size: 0.85rem;
         font-weight: 800;
         text-decoration: none;
+        transition: opacity 150ms ease;
+      }
+
+      .player-view-link.is-disabled,
+      .player-view-link[aria-disabled="true"] {
+        opacity: 0.45;
+        color: var(--text-muted);
+        background: var(--surface-low);
+        pointer-events: none;
+        cursor: not-allowed;
       }
 
       .mod-layout {
@@ -173,6 +183,97 @@
         font-size: 0.8rem;
         font-weight: 700;
         word-break: break-all;
+      }
+
+      .pin-qr-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px dashed rgba(31, 81, 0, 0.25);
+      }
+
+      .pin-qr-canvas {
+        width: 152px;
+        height: 152px;
+        padding: 0.35rem;
+        border: 2px solid var(--primary-dark);
+        border-radius: 0.75rem;
+        background: #ffffff;
+        box-shadow: 0 3px 0 rgba(43, 108, 0, 0.2);
+      }
+
+      .copy-url-btn {
+        padding: 0.4rem 0.8rem;
+        border: 2px solid var(--primary-dark);
+        border-radius: 999px;
+        background: #ffffff;
+        color: var(--primary-dark);
+        font: inherit;
+        font-size: 0.78rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 100ms ease, background 120ms ease;
+      }
+
+      .copy-url-btn:hover {
+        background: #f3faff;
+      }
+
+      .copy-url-btn:active {
+        transform: translateY(1px);
+      }
+
+      .stage-qr-showcase {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1.5rem;
+        margin-top: 1.25rem;
+        padding: 1.25rem;
+        border: 2px dashed rgba(255, 255, 255, 0.45);
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      .stage-qr-canvas {
+        width: 210px;
+        height: 210px;
+        padding: 0.5rem;
+        border-radius: 0.9rem;
+        background: #ffffff;
+        box-shadow: 0 8px 20px rgba(0, 30, 46, 0.28);
+      }
+
+      .stage-qr-details {
+        flex: 1;
+        min-width: 220px;
+      }
+
+      .stage-qr-details h3 {
+        margin: 0 0 0.4rem;
+        font-size: 1.35rem;
+        font-weight: 900;
+      }
+
+      .stage-qr-details p {
+        margin: 0.25rem 0;
+        font-size: 1rem;
+        opacity: 0.95;
+      }
+
+      .stage-qr-pin-pill {
+        display: inline-block;
+        margin-top: 0.5rem;
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        background: #ddf4c5;
+        color: #1f5100;
+        font-size: 1.1rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
       }
 
       .controls-stack {
@@ -266,6 +367,42 @@
 
       .mod-feedback[data-state="ok"] {
         color: var(--primary-dark);
+      }
+
+      .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .setting-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .setting-field--full {
+        grid-column: 1 / -1;
+      }
+
+      .setting-field label {
+        color: var(--text-muted);
+        font-size: 0.74rem;
+        font-weight: 800;
+      }
+
+      .setting-field input,
+      .setting-field select {
+        width: 100%;
+        padding: 0.5rem 0.6rem;
+        border: 2px solid var(--border);
+        border-radius: 0.55rem;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 700;
       }
 
       .projector-stage {
@@ -427,6 +564,208 @@
         background: #fff9db;
       }
 
+      .card-enter {
+        animation: cardSlideEnter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      @keyframes cardSlideEnter {
+        from {
+          opacity: 0;
+          transform: translateY(16px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .stagger-item {
+        animation: staggerFadeUp 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      @keyframes staggerFadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes popBounce {
+        0% {
+          opacity: 0;
+          transform: scale(0.5);
+        }
+        70% {
+          transform: scale(1.08);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .stage-progress {
+        display: block;
+        width: 100%;
+        height: 0.75rem;
+        margin: 1rem 0 1.25rem;
+        overflow: hidden;
+        border: 0;
+        border-radius: 999px;
+        background: var(--border);
+        accent-color: var(--primary);
+      }
+
+      .stage-progress::-webkit-progress-bar {
+        border-radius: 999px;
+        background: var(--border);
+      }
+
+      .stage-progress::-webkit-progress-value {
+        border-radius: 999px;
+        background: var(--primary);
+        transition: width 0.3s linear;
+      }
+
+      .stage-progress::-moz-progress-bar {
+        border-radius: 999px;
+        background: var(--primary);
+      }
+
+      .stage-transition-view {
+        padding: 0.75rem 0.25rem;
+        text-align: center;
+      }
+
+      .stage-transition-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+      }
+
+      .stage-transition-eyebrow {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 0.85rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .stage-transition-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.85rem;
+        border: 2px solid var(--secondary);
+        border-radius: 999px;
+        background: var(--surface-low);
+        color: var(--secondary);
+        font-size: 0.92rem;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .stage-transition-badge-circle {
+        display: inline-grid;
+        width: 5.5rem;
+        height: 5.5rem;
+        margin: 0.35rem auto 0.85rem;
+        place-items: center;
+        border: 4px solid var(--primary-dark);
+        border-radius: 50%;
+        background: var(--primary);
+        box-shadow: 0 6px 0 var(--primary-dark);
+        color: #ffffff;
+        font-size: 2rem;
+        font-weight: 900;
+        animation: popBounce 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      .stage-transition-heading {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 900;
+      }
+
+      .stage-transition-subtext {
+        margin: 0.35rem 0 1rem;
+        color: var(--text-muted);
+        font-weight: 700;
+      }
+
+      .stage-transition-info-box {
+        display: grid;
+        gap: 0.5rem;
+        margin: 0.75rem 0 0.25rem;
+        padding: 1.1rem 1.25rem;
+        border: 2px solid var(--border);
+        border-radius: 0.85rem;
+        background: var(--surface);
+        text-align: left;
+      }
+
+      .stage-topic-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .stage-topic-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.3rem 0.75rem;
+        border: 1.5px solid #9fd8f8;
+        border-radius: 999px;
+        background: var(--surface-low);
+        color: var(--secondary);
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      .stage-topic-pill--points {
+        border-color: #f4bf00;
+        background: #fff4c2;
+        color: #5c4300;
+      }
+
+      .stage-transition-mechanic-title {
+        margin: 0.2rem 0 0;
+        font-size: 1.08rem;
+        font-weight: 800;
+      }
+
+      .stage-transition-mechanic-desc {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
+
+      .stage-question-topic-banner {
+        display: grid;
+        gap: 0.45rem;
+        margin: 0 0 1rem;
+        padding: 0.85rem 1.1rem;
+        border: 2px solid var(--border);
+        border-left: 5px solid var(--secondary);
+        border-radius: 0.75rem;
+        background: var(--surface);
+      }
+
+      .stage-question-guide {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 0.88rem;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+
       [hidden] {
         display: none !important;
       }
@@ -448,23 +787,63 @@
       </h1>
       <div class="mod-header-right">
         <span class="status-pill" id="modRoomStatus" data-status="NONE">Sin sala activa</span>
-        <a class="player-view-link" href="/index.html" target="_blank" rel="noopener">Abrir vista de Aprendiz ↗</a>
+        <a class="player-view-link" id="navPlayerViewLink" href="/index.html" target="_blank" rel="noopener">Abrir vista de Aprendiz ↗</a>
       </div>
     </header>
 
     <div class="mod-layout">
       <aside class="mod-panel" aria-label="Controles del moderador">
         <section class="card">
-          <h2 class="card-title">PIN de Acceso en Proyector</h2>
+          <h2 class="card-title">PIN de Acceso y Código QR</h2>
           <div class="pin-banner">
             <span class="pin-banner-label">PIN de 6 dígitos</span>
             <strong class="pin-banner-value" id="modPinValue">------</strong>
             <span class="pin-join-url" id="modJoinUrl">Crea una sala para generar el PIN</span>
+            <div class="pin-qr-box" id="modQrBox" hidden>
+              <canvas class="pin-qr-canvas" id="modQrCanvas" width="160" height="160" aria-label="Código QR para unirse a la sala"></canvas>
+              <button class="copy-url-btn" id="btnCopyJoinUrl" type="button">📋 Copiar enlace de invitación</button>
+            </div>
           </div>
           <div class="reconnect-row">
             <input id="reconnectPinInput" type="text" inputmode="numeric" maxlength="6" placeholder="Reconectar PIN (6 díg.)">
             <button class="mod-btn mod-btn--outline" id="btnReconnectPin" type="button" style="width:auto;">Cargar</button>
           </div>
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">Parámetros de Tiempos y Aleatoriedad</h2>
+          <div class="settings-grid">
+            <div class="setting-field">
+              <label for="cfgTimeMultipleChoice">Selección Múltiple (seg)</label>
+              <input id="cfgTimeMultipleChoice" type="number" min="5" max="180" step="1" value="15">
+            </div>
+            <div class="setting-field">
+              <label for="cfgTimeTextInput">Completar Texto (seg)</label>
+              <input id="cfgTimeTextInput" type="number" min="5" max="180" step="1" value="20">
+            </div>
+            <div class="setting-field">
+              <label for="cfgTimeWordBlocks">Ordenar Bloques (seg)</label>
+              <input id="cfgTimeWordBlocks" type="number" min="5" max="180" step="1" value="20">
+            </div>
+            <div class="setting-field">
+              <label for="cfgTimeVoice">Pronunciación Voz (seg)</label>
+              <input id="cfgTimeVoice" type="number" min="5" max="180" step="1" value="25">
+            </div>
+            <div class="setting-field">
+              <label for="cfgTimeIntro">Pantalla Intro (seg)</label>
+              <input id="cfgTimeIntro" type="number" min="0" max="15" step="1" value="3">
+            </div>
+            <div class="setting-field">
+              <label for="cfgRandomOrder">Orden de Preguntas</label>
+              <select id="cfgRandomOrder">
+                <option value="true" selected>Aleatorio variado</option>
+                <option value="false">Secuencial fijo</option>
+              </select>
+            </div>
+          </div>
+          <button class="mod-btn mod-btn--outline" id="btnSaveRoomSettings" type="button">
+            ⚙️ Aplicar Tiempos y Parámetros
+          </button>
         </section>
 
         <section class="card">
@@ -507,13 +886,55 @@
               <h2 class="stage-prompt" id="stageMainHeading">
                 Bienvenido al Panel de Moderador del English Day
               </h2>
-              <p>
-                Presiona <strong>Crear Sala</strong> para generar el PIN de 6 dígitos en pantalla gigante.
+              <p id="stageWelcomeSubtext">
+                Presiona <strong>Crear Sala</strong> para generar el PIN de 6 dígitos y el código QR en pantalla gigante.
                 Los aprendices ingresan desde sus móviles y aparecerán en tiempo real en la lista inferior.
               </p>
+              <div class="stage-qr-showcase" id="stageQrBox" hidden>
+                <canvas class="stage-qr-canvas" id="stageQrCanvas" width="240" height="240" aria-label="Código QR gigante para escanear desde el proyector"></canvas>
+                <div class="stage-qr-details">
+                  <h3>📱 Escanea el QR para ingresar directo</h3>
+                  <p>Apunta la cámara de tu celular al código QR para entrar con el PIN autocompletado.</p>
+                  <p id="stageQrUrl"></p>
+                  <span class="stage-qr-pin-pill" id="stageQrPinPill">PIN: ------</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="stage-transition-view" id="stageTransitionView" hidden>
+              <div class="stage-transition-top">
+                <p class="stage-transition-eyebrow" id="stageTransitionBadge">English Day · Nueva ronda</p>
+                <div class="stage-transition-chip">
+                  <span>Iniciando en</span>
+                  <strong id="stageTransitionCountdown">00:03</strong>
+                </div>
+              </div>
+              <progress class="stage-progress" id="stageTransitionProgress" value="3" max="3" aria-label="Cuenta regresiva de introducción"></progress>
+              <div class="stage-transition-badge-circle" id="stageTransitionNumber">#1</div>
+              <h2 class="stage-transition-heading" id="stageTransitionHeading">¡Pregunta 1!</h2>
+              <p class="stage-transition-subtext" id="stageTransitionSubtext">Comenzando en 3 segundos...</p>
+              <div class="stage-transition-info-box">
+                <div class="stage-topic-pills">
+                  <span class="stage-topic-pill" id="stageTransitionThemePill">📚 Temática: Grammar & Vocabulary</span>
+                  <span class="stage-topic-pill" id="stageTransitionTimePill">⏱ 15s para responder</span>
+                  <span class="stage-topic-pill stage-topic-pill--points">⚡ Máx. 1,000 pts</span>
+                </div>
+                <h3 class="stage-transition-mechanic-title" id="stageTransitionMechanicTitle">🎯 Mecánica: Selección Múltiple</h3>
+                <p class="stage-transition-mechanic-desc" id="stageTransitionMechanicDesc">
+                  Lee el enunciado y selecciona la opción correcta en tu dispositivo móvil.
+                </p>
+              </div>
             </div>
 
             <div id="stageQuestionView" hidden>
+              <progress class="stage-progress" id="stageQuestionProgress" value="0" max="15" aria-label="Tiempo restante de la pregunta"></progress>
+              <div class="stage-question-topic-banner" id="stageQuestionTopicBanner">
+                <div class="stage-topic-pills">
+                  <span class="stage-topic-pill" id="stageQuestionThemeTag">📚 Temática: Grammar & Vocabulary</span>
+                  <span class="stage-topic-pill stage-topic-pill--points" id="stageQuestionPointsTag">⚡ Hasta 1,000 pts</span>
+                </div>
+                <p class="stage-question-guide" id="stageQuestionMechanicGuide"></p>
+              </div>
               <h2 class="stage-prompt" id="stageQuestionPrompt"></h2>
               <ul class="projector-options" id="stageQuestionOptions"></ul>
             </div>
@@ -557,8 +978,10 @@
       </main>
     </div>
 
+    <script src="./js/audio.js" defer></script>
     <script src="./js/confetti.js" defer></script>
     <script src="./js/roulette.js" defer></script>
+    <script src="./js/qrcode.js" defer></script>
     <script src="./js/moderator.js" defer></script>
   </body>
 </html>

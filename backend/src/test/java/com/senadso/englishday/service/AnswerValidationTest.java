@@ -82,4 +82,37 @@ class AnswerValidationTest {
         assertThat(answerService.validateAnswer(QuestionType.VOICE, "I don't know!", "i don't know")).isTrue();
         assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "well-known,", "well-known")).isTrue();
     }
+
+    @Test
+    @DisplayName("RF-06 & RF-07: Margen de error ortográfico y fonético sin confundir tiempos ni pronombres")
+    void testFuzzySpellingAndPronunciationTolerance() {
+        // Error común en Simple Present (-y -> -ies) y typo de 1 letra
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "studys", "studies")).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "studie", "studies")).isTrue();
+
+        // Error común en Present Continuous (-ing)
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "are studing", "are studying")).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.VOICE, "They are my best frends", "They are my best friends")).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.VOICE, "She studies English evry day", "She studies English every day")).isTrue();
+
+        // Protección gramatical: no debe confundir presente con pasado ni pronombres/auxiliares opuestos
+        assertThat(answerService.validateAnswer(QuestionType.VOICE, "she lived in london", "She lives in London")).isFalse();
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "do", "does")).isFalse();
+        assertThat(answerService.validateAnswer(QuestionType.TEXT_INPUT, "he", "she")).isFalse();
+    }
+
+    @Test
+    @DisplayName("RF-05: WORD_BLOCKS - Acepta cláusula parcial con sentido gramatical y rechaza desorden")
+    void testWordBlocksPartialClauseWithSense() {
+        String expected = "I am happy today";
+        assertThat(answerService.validateAnswer(QuestionType.WORD_BLOCKS, "I am happy today", expected)).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.WORD_BLOCKS, "I am happy", expected)).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.WORD_BLOCKS, "Today I am happy", expected)).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.WORD_BLOCKS, "happy I am", expected)).isFalse();
+
+        String expectedPresent = "She studies English every day";
+        assertThat(answerService.validateAnswer(QuestionType.WORD_BLOCKS, "She studies English", expectedPresent)).isTrue();
+        assertThat(answerService.validateAnswer(QuestionType.WORD_BLOCKS, "She English studies", expectedPresent)).isFalse();
+    }
 }
+

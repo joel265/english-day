@@ -138,19 +138,70 @@ async function runSuite() {
   // 0. Verificar vistas HTML servidas por el servidor
   const indexRes = await fetch(`${BASE_URL}/index.html`);
   const indexHtml = await indexRes.text();
-  assert(indexRes.status === 200 && indexHtml.includes("voiceUI") && indexHtml.includes("podiumCard"),
-    "Frontend Tarea 8-12: /index.html sirve las pantallas de PIN, Lobby, Pregunta (4 mecánicas), Resultados, Ruleta y Podio");
+  assert(
+    indexRes.status === 200 &&
+      indexHtml.includes("voiceUI") &&
+      indexHtml.includes("podiumCard") &&
+      indexHtml.includes("btnLeaveLobby") &&
+      indexHtml.includes("navModeratorLink"),
+    "Frontend Tarea 8-12: /index.html sirve las pantallas de PIN, Lobby (con botón Salir de la sala), Pregunta (4 mecánicas), Resultados, Ruleta, Podio y bloqueo de botón superior"
+  );
 
   const modRes = await fetch(`${BASE_URL}/moderator.html`);
   const modHtml = await modRes.text();
-  assert(modRes.status === 200 && modHtml.includes("btnCreateRoom") && modHtml.includes("btnActivateRoulette"),
-    "Frontend Tarea 14: /moderator.html sirve el Panel de Moderador con todos los botones operativos");
+  assert(
+    modRes.status === 200 &&
+      modHtml.includes("btnCreateRoom") &&
+      modHtml.includes("btnActivateRoulette") &&
+      modHtml.includes("modQrCanvas") &&
+      modHtml.includes("stageQrCanvas") &&
+      modHtml.includes("navPlayerViewLink") &&
+      modHtml.includes("stageTransitionView") &&
+      modHtml.includes("stageQuestionProgress") &&
+      modHtml.includes("stageQuestionTopicBanner"),
+    "Frontend Tarea 14: /moderator.html sirve el Panel de Moderador con animaciones de transición, barra de progreso, temática, generador QR y bloqueo superior"
+  );
+
+  const qrScriptRes = await fetch(`${BASE_URL}/js/qrcode.js`);
+  const qrScriptText = await qrScriptRes.text();
+  new Function(qrScriptText)();
+  const testQrMatrix = globalThis.EnglishDayQR?.generateMatrix("http://192.168.1.10:8080/index.html?pin=123456");
+  // Extraer los 15 bits de información de formato (copia 1: col 8 filas 0..5,7,8 y fila 8 cols 7,5..0) y verificar BCH(15,5)
+  let formatCopy1 = 0;
+  for (let i = 0; i <= 5; i++) if (testQrMatrix.modules[i][8]) formatCopy1 |= 1 << i;
+  if (testQrMatrix.modules[7][8]) formatCopy1 |= 1 << 6;
+  if (testQrMatrix.modules[8][8]) formatCopy1 |= 1 << 7;
+  if (testQrMatrix.modules[8][7]) formatCopy1 |= 1 << 8;
+  for (let i = 9; i < 15; i++) if (testQrMatrix.modules[8][14 - i]) formatCopy1 |= 1 << i;
+  let unmaskedFmt = formatCopy1 ^ 0x5412;
+  let bchCheck = unmaskedFmt;
+  for (let b = 14; b >= 10; b--) {
+    if ((bchCheck >>> b) & 1) bchCheck ^= 0x537 << (b - 10);
+  }
+  assert(
+    qrScriptRes.status === 200 &&
+      testQrMatrix &&
+      bchCheck === 0 &&
+      ((unmaskedFmt >>> 13) & 0b11) === 0b01,
+    "Generador QR ISO/IEC 18004: /js/qrcode.js genera matriz con bits de formato BCH(15,5) válidos para cámaras móviles"
+  );
 
   // 1. CP-01: Crear sala
   const createRes = await fetch(`${BASE_URL}/api/rooms`, { method: "POST" });
   const room = await createRes.json();
   assert(createRes.status === 201 && /^\d{6}$/.test(room.pin) && room.status === "WAITING_LOBBY",
     `CP-01: Sala creada exitosamente con PIN ${room.pin} y roomId ${room.roomId}`);
+
+  // 1b. Validar que el moderador NO puede iniciar la partida sin jugadores en la sala
+  const emptyStartRes = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  const emptyStartBody = await emptyStartRes.json();
+  assert(
+    emptyStartRes.status === 400 && emptyStartBody.code === "INVALID_ROOM_STATE",
+    "Validación Inicio de Partida: POST /api/rooms/{roomId}/start sin aprendices conectados es rechazado con 400 INVALID_ROOM_STATE"
+  );
 
   // 2. CP-03: PIN inválido / inexistente
   const badJoinRes = await fetch(`${BASE_URL}/api/rooms/000000/join`, {
@@ -193,6 +244,32 @@ async function runSuite() {
   assert(join2Res.status === 200 && lobbyUpdate2.length === 2,
     "CP-02: Jugador 2 (laura_eng) unido; lobby contiene 2 aprendices conectados");
 
+  // 4b. Verificar ingreso y salida voluntaria de un 3er jugador en el lobby (DELETE /api/rooms/{roomId}/players/{playerId})
+  const lobbyPromise3 = stomp.waitForMessage(`/topic/room/${room.roomId}/lobby`);
+  const join3Res = await fetch(`${BASE_URL}/api/rooms/${room.pin}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname: "temp_aprendiz" }),
+  });
+  const player3 = await join3Res.json();
+  const lobbyUpdate3 = await lobbyPromise3;
+  assert(join3Res.status === 200 && lobbyUpdate3.length === 3,
+    "Lobby: Jugador temporal (temp_aprendiz) se une a la sala de espera (3 aprendices)");
+
+  const lobbyLeavePromise = stomp.waitForMessage(`/topic/room/${room.roomId}/lobby`);
+  const leaveRes = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/players/${player3.playerId}`, {
+    method: "DELETE",
+  });
+  const leaveBody = await leaveRes.json();
+  const lobbyAfterLeave = await lobbyLeavePromise;
+  assert(
+    leaveRes.status === 200 &&
+      leaveBody.status === "LEFT" &&
+      Array.isArray(lobbyAfterLeave) &&
+      lobbyAfterLeave.length === 2,
+    "Botón Salir del Lobby: DELETE /api/rooms/{roomId}/players/{playerId} retira al jugador y actualiza el lobby en vivo a 2 aprendices"
+  );
+
   // 5. Anexo A.4: Reconexión GET /api/rooms/{pin}
   const getRoomRes = await fetch(`${BASE_URL}/api/rooms/${room.pin}`);
   const getRoomBody = await getRoomRes.json();
@@ -201,7 +278,11 @@ async function runSuite() {
 
   // 6. CU-03 & RF-08: Iniciar partida y recibir Pregunta #1 (MULTIPLE_CHOICE)
   const q1Promise = stomp.waitForMessage(`/topic/room/${room.roomId}/question`);
-  const startRes = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/start`, { method: "POST" });
+  const startRes = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ shuffleQuestions: false }),
+  });
   const q1 = await q1Promise;
   assert(
     startRes.status === 200 &&
@@ -228,17 +309,41 @@ async function runSuite() {
   });
   await new Promise((r) => setTimeout(r, 250));
 
-  // 8. Cerrar pregunta y verificar Top 5 en /topic/room/{roomId}/results (Tarea 10 Frontend / CP-10)
+  // 7b. Verificar persistencia de estado en vivo (GET /api/rooms/{pin}/state?playerId=...) y reconexión de jugador en juego
+  const syncStateRes = await fetch(`${BASE_URL}/api/rooms/${room.pin}/state?playerId=${player1.playerId}`);
+  const syncStateBody = await syncStateRes.json();
+  assert(
+    syncStateRes.status === 200 &&
+      syncStateBody.status === "QUESTION_IN_PROGRESS" &&
+      syncStateBody.currentQuestion?.questionId === q1.questionId &&
+      syncStateBody.player?.playerId === player1.playerId &&
+      syncStateBody.playerSubmittedAnswer === "She studies English.",
+    "Persistencia Moderador/Aprendiz: GET /api/rooms/{pin}/state sincroniza estado en vivo, pregunta actual y respuesta ya enviada tras recargar el navegador"
+  );
+
+  const rejoinActiveRes = await fetch(`${BASE_URL}/api/rooms/${room.pin}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname: "camilo_dev" }),
+  });
+  const rejoinActivePlayer = await rejoinActiveRes.json();
+  assert(
+    rejoinActiveRes.status === 200 && rejoinActivePlayer.playerId === player1.playerId,
+    "Persistencia Aprendiz: Reingreso con mismo PIN y nickname durante partida en curso recupera el mismo playerId sin duplicar ni rechazar"
+  );
+
+  // 8. Cerrar pregunta y verificar Top 5 + playerVerdicts en /topic/room/{roomId}/results (Tarea 10 Frontend / CP-10)
   const resultsPromise = stomp.waitForMessage(`/topic/room/${room.roomId}/results`);
   const closeQ1Res = await fetch(`${BASE_URL}/api/rooms/${room.roomId}/close-question`, { method: "POST" });
   const results1 = await resultsPromise;
   assert(
     closeQ1Res.status === 200 &&
       results1.correctAnswer === "She studies English." &&
+      results1.playerVerdicts?.[player1.playerId]?.isCorrect === true &&
       results1.top5.length === 2 &&
       results1.top5[0].nickname === "camilo_dev" &&
       results1.top5[0].score > results1.top5[1].score,
-    `CP-10 & RF-10: Leaderboard Top 5 recibido (${results1.top5[0].nickname}: ${results1.top5[0].score} pts > ${results1.top5[1].nickname}: ${results1.top5[1].score} pts)`
+    `CP-10 & RF-10: Leaderboard Top 5 y playerVerdicts recibidos (${results1.top5[0].nickname}: ${results1.top5[0].score} pts > ${results1.top5[1].nickname}: ${results1.top5[1].score} pts)`
   );
 
   // 9. CP-09: Activar Ruleta de Retroalimentación (Tarea 11 Frontend / RF-11)
@@ -266,7 +371,7 @@ async function runSuite() {
   stomp.send(`/app/room/${room.roomId}/answer`, {
     playerId: player1.playerId,
     questionId: q3.questionId,
-    value: "  ATE! ",
+    value: "  STUDYS! ",
     clientTimestamp: new Date(Date.now() - 2000).toISOString().replace(/\.\d{3}Z$/, "Z"),
   });
   await new Promise((r) => setTimeout(r, 200));
@@ -285,7 +390,7 @@ async function runSuite() {
   });
   await new Promise((r) => setTimeout(r, 200));
 
-  // 12. Avanzar a Pregunta #5 (VOICE - CP-07)
+  // 12. Avanzar a Pregunta #5 (VOICE - CP-07) y validar equivalencia de contracción/apóstrofo curvo ("I’m ready to learn.")
   const q5Promise = stomp.waitForMessage(`/topic/room/${room.roomId}/question`);
   await fetch(`${BASE_URL}/api/rooms/${room.roomId}/next`, { method: "POST" });
   const q5 = await q5Promise;
@@ -294,7 +399,7 @@ async function runSuite() {
   stomp.send(`/app/room/${room.roomId}/answer`, {
     playerId: player1.playerId,
     questionId: q5.questionId,
-    value: "i am ready to learn.",
+    value: "I’m ready to learn.",
     clientTimestamp: new Date(Date.now() - 3000).toISOString().replace(/\.\d{3}Z$/, "Z"),
   });
   await new Promise((r) => setTimeout(r, 250));
@@ -310,6 +415,52 @@ async function runSuite() {
       podiumEvent.top3[0].nickname === "camilo_dev" &&
       podiumEvent.top3[0].score > 3000,
     `CP-11 & CU-06: Podio Final Top 3 emitido en /topic/room/{roomId}/podium (1.° lugar: ${podiumEvent.top3[0].nickname} con ${podiumEvent.top3[0].score} pts)`
+  );
+
+  // 14. CP-12: Verificar ajuste de tiempos del moderador y rotación aleatoria de mecánicas entre salas
+  const roomARes = await fetch(`${BASE_URL}/api/rooms`, { method: "POST" });
+  const roomA = await roomARes.json();
+  await fetch(`${BASE_URL}/api/rooms/${roomA.pin}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname: "player_room_a" }),
+  });
+  await fetch(`${BASE_URL}/api/rooms/${roomA.roomId}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      multipleChoiceTimeSeconds: 32,
+      textInputTimeSeconds: 36,
+      wordBlocksTimeSeconds: 38,
+      voiceTimeSeconds: 42,
+      introDurationSeconds: 4,
+      shuffleQuestions: true,
+    }),
+  });
+  stomp.subscribe("sub-q-roomA", `/topic/room/${roomA.roomId}/question`);
+  await new Promise((r) => setTimeout(r, 100));
+  const roomAQ1Promise = stomp.waitForMessage(`/topic/room/${roomA.roomId}/question`);
+  await fetch(`${BASE_URL}/api/rooms/${roomA.roomId}/start`, { method: "POST" });
+  const roomAQ1 = await roomAQ1Promise;
+
+  const roomBRes = await fetch(`${BASE_URL}/api/rooms`, { method: "POST" });
+  const roomB = await roomBRes.json();
+  await fetch(`${BASE_URL}/api/rooms/${roomB.pin}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname: "player_room_b" }),
+  });
+  stomp.subscribe("sub-q-roomB", `/topic/room/${roomB.roomId}/question`);
+  await new Promise((r) => setTimeout(r, 100));
+  const roomBQ1Promise = stomp.waitForMessage(`/topic/room/${roomB.roomId}/question`);
+  await fetch(`${BASE_URL}/api/rooms/${roomB.roomId}/start`, { method: "POST" });
+  const roomBQ1 = await roomBQ1Promise;
+
+  assert(
+    roomAQ1.introDurationSeconds === 4 &&
+      [32, 36, 38, 42].includes(roomAQ1.timeLimitSeconds) &&
+      roomAQ1.type !== roomBQ1.type,
+    `CP-12: Parámetros de tiempo personalizados aplicados (${roomAQ1.timeLimitSeconds}s, intro ${roomAQ1.introDurationSeconds}s) y mecánicas iniciales aleatorias distintas entre salas (${roomAQ1.type} vs ${roomBQ1.type})`
   );
 
   stomp.close();

@@ -39,4 +39,9 @@ public interface AnswerRepository extends JpaRepository<Answer, String> {
      * Lista todas las respuestas emitidas por un jugador en la sesión.
      */
     List<Answer> findByPlayer_PlayerId(String playerId);
+
+    /**
+     * Lista todas las respuestas emitidas en una sala para una pregunta específica.
+     */
+    List<Answer> findByPlayer_Room_RoomIdAndQuestion_QuestionId(String roomId, String questionId);
 }
