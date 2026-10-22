@@ -462,7 +462,10 @@
             <p class="voice-mic-hint" id="voiceMicHint">Pronuncia en inglés (en-US). Puedes repetir antes de enviar.</p>
           </div>
           <div class="voice-transcript-box" id="voiceTranscriptBox">
-            <span class="voice-transcript-title">Transcripción detectada</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
+              <span class="voice-transcript-title" style="margin-bottom:0;">Transcripción detectada</span>
+              <button class="voice-switch-mode-btn" id="btnVoiceSwitchToText" type="button" title="Corregir o escribir respuesta manualmente">✏️ Corregir con teclado</button>
+            </div>
             <p class="voice-transcript-text" id="voiceTranscriptText" aria-live="polite">Aún no has grabado tu respuesta.</p>
           </div>
           <div class="question-actions" id="voiceConfirmActions" hidden>

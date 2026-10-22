@@ -24,8 +24,14 @@ fi
 if curl -s http://localhost:8080/ > /dev/null 2>&1; then
   echo "✔ Servidor Spring Boot ya detectado y respondiendo en http://localhost:8080"
 else
-  echo "📦 Compilando e iniciando Spring Boot (Perfil H2)..."
-  ./backend/mvnw -f backend/pom.xml spring-boot:run -Dspring-boot.run.profiles=h2 &
+  JAR_PATH="$DIR/backend/target/english-day-0.0.1-SNAPSHOT.jar"
+  if [ -f "$JAR_PATH" ]; then
+    echo "📦 Iniciando Spring Boot desde JAR empaquetado (Perfil H2)..."
+    java -jar "$JAR_PATH" --spring.profiles.active=h2 &
+  else
+    echo "📦 Compilando e iniciando Spring Boot (Perfil H2)..."
+    ./backend/mvnw -f backend/pom.xml spring-boot:run -Dspring-boot.run.profiles=h2 &
+  fi
   BOOT_PID=$!
 
   echo "⏳ Esperando a que el backend arranque en http://localhost:8080..."

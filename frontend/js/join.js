@@ -32,6 +32,7 @@ const voiceMicButton = document.querySelector("#voiceMicButton");
 const voiceMicLabel = document.querySelector("#voiceMicLabel");
 const voiceMicHint = document.querySelector("#voiceMicHint");
 const voiceTranscriptText = document.querySelector("#voiceTranscriptText");
+const btnVoiceSwitchToText = document.querySelector("#btnVoiceSwitchToText");
 const voiceConfirmActions = document.querySelector("#voiceConfirmActions");
 const voiceRepeatButton = document.querySelector("#voiceRepeatButton");
 const voiceSubmitButton = document.querySelector("#voiceSubmitButton");
@@ -107,6 +108,7 @@ let resultsReceivedForCurrentQuestion = false;
 let speechRecognition = null;
 let isRecordingVoice = false;
 let finalVoiceTranscript = "";
+let latestInterimText = "";
 let knownRoomPlayers = [];
 let playerRouletteWheel = null;
 let isLeavingIntentionally = false;
@@ -746,6 +748,7 @@ function lockQuestionInputs() {
   if (voiceMicButton) voiceMicButton.disabled = true;
   if (voiceRepeatButton) voiceRepeatButton.disabled = true;
   if (voiceSubmitButton) voiceSubmitButton.disabled = true;
+  if (btnVoiceSwitchToText) btnVoiceSwitchToText.disabled = true;
 }
 
 function requestQuestionCloseIfNeeded() {
@@ -918,6 +921,7 @@ function activateVoiceTextFallback(reasonMessage) {
 function initVoiceUI() {
   stopVoiceRecognition();
   finalVoiceTranscript = "";
+  latestInterimText = "";
   if (voiceFallbackNotice) {
     voiceFallbackNotice.hidden = true;
     voiceFallbackNotice.textContent = "";
@@ -937,10 +941,49 @@ function initVoiceUI() {
     voiceTranscriptText.textContent = "Aún no has grabado tu respuesta.";
     voiceTranscriptText.classList.remove("is-interim");
   }
+  if (btnVoiceSwitchToText) {
+    btnVoiceSwitchToText.disabled = false;
+  }
 
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognitionCtor) {
     activateVoiceTextFallback("No pudimos usar el micrófono. Escribe tu respuesta.");
+  }
+}
+
+function stopVoiceRecordingByUser() {
+  isRecordingVoice = false;
+  if (voiceMicButton) {
+    voiceMicButton.setAttribute("aria-pressed", "false");
+    voiceMicButton.classList.remove("is-recording");
+  }
+  if (voiceMicLabel) {
+    voiceMicLabel.textContent = "Toca el micrófono para hablar";
+  }
+
+  if (speechRecognition) {
+    try {
+      speechRecognition.stop();
+    } catch {
+      // Ignorar si ya estaba detenido
+    }
+  }
+
+  const candidate = (finalVoiceTranscript || latestInterimText || "").trim();
+  if (candidate) {
+    finalVoiceTranscript = candidate;
+    if (voiceTranscriptText) {
+      voiceTranscriptText.textContent = finalVoiceTranscript;
+      voiceTranscriptText.classList.remove("is-interim");
+    }
+    if (voiceConfirmActions) voiceConfirmActions.hidden = false;
+    if (voiceRepeatButton) voiceRepeatButton.disabled = false;
+    if (voiceSubmitButton) voiceSubmitButton.disabled = false;
+  } else {
+    if (voiceTranscriptText && (voiceTranscriptText.textContent === "Escuchando tu voz en inglés..." || !voiceTranscriptText.textContent)) {
+      voiceTranscriptText.textContent = "No te escuché. Toca el micrófono para hablar.";
+      voiceTranscriptText.classList.remove("is-interim");
+    }
   }
 }
 
@@ -954,15 +997,12 @@ function toggleVoiceRecording() {
   }
 
   if (isRecordingVoice) {
-    stopVoiceRecognition();
+    stopVoiceRecordingByUser();
     return;
   }
 
-  // Limpiar cualquier sesión anterior antes de crear nueva instancia
   stopVoiceRecognition();
-
-  finalVoiceTranscript = "";
-  if (voiceConfirmActions) voiceConfirmActions.hidden = true;
+  latestInterimText = "";
 
   try {
     speechRecognition = new SpeechRecognitionCtor();
@@ -975,8 +1015,6 @@ function toggleVoiceRecording() {
   speechRecognition.continuous = false;
   speechRecognition.interimResults = true;
   speechRecognition.maxAlternatives = 1;
-
-  let latestInterim = "";
 
   speechRecognition.onstart = () => {
     isRecordingVoice = true;
@@ -1015,9 +1053,9 @@ function toggleVoiceRecording() {
     if (finalText.trim()) {
       finalVoiceTranscript = finalText.trim();
     }
-    latestInterim = interimText.trim();
+    latestInterimText = interimText.trim();
 
-    const currentText = finalVoiceTranscript || latestInterim;
+    const currentText = finalVoiceTranscript || latestInterimText;
     if (voiceTranscriptText && currentText) {
       voiceTranscriptText.textContent = currentText;
       if (finalVoiceTranscript) {
@@ -1026,6 +1064,12 @@ function toggleVoiceRecording() {
         voiceTranscriptText.classList.add("is-interim");
       }
     }
+
+    if (currentText) {
+      if (voiceConfirmActions) voiceConfirmActions.hidden = false;
+      if (voiceRepeatButton) voiceRepeatButton.disabled = false;
+      if (voiceSubmitButton) voiceSubmitButton.disabled = false;
+    }
   };
 
   speechRecognition.onerror = (event) => {
@@ -1033,6 +1077,9 @@ function toggleVoiceRecording() {
     if (voiceMicButton) {
       voiceMicButton.setAttribute("aria-pressed", "false");
       voiceMicButton.classList.remove("is-recording");
+    }
+    if (voiceMicLabel) {
+      voiceMicLabel.textContent = "Toca el micrófono para hablar";
     }
 
     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
@@ -1046,10 +1093,19 @@ function toggleVoiceRecording() {
       return;
     }
     if (event.error === "no-speech") {
-      if (voiceMicLabel) voiceMicLabel.textContent = "Toca el micrófono para hablar";
-      if (voiceTranscriptText) {
-        voiceTranscriptText.textContent = "No te escuché. Toca el micrófono e inténtalo de nuevo.";
-        voiceTranscriptText.classList.remove("is-interim");
+      if (finalVoiceTranscript) {
+        if (voiceTranscriptText) {
+          voiceTranscriptText.textContent = finalVoiceTranscript;
+          voiceTranscriptText.classList.remove("is-interim");
+        }
+        if (voiceConfirmActions) voiceConfirmActions.hidden = false;
+        if (voiceRepeatButton) voiceRepeatButton.disabled = false;
+        if (voiceSubmitButton) voiceSubmitButton.disabled = false;
+      } else {
+        if (voiceTranscriptText) {
+          voiceTranscriptText.textContent = "No te escuché. Toca el micrófono e inténtalo de nuevo.";
+          voiceTranscriptText.classList.remove("is-interim");
+        }
       }
     }
   };
@@ -1068,11 +1124,9 @@ function toggleVoiceRecording() {
       return;
     }
 
-    if (!finalVoiceTranscript && latestInterim) {
-      finalVoiceTranscript = latestInterim;
-    }
-
-    if (finalVoiceTranscript) {
+    const candidate = (finalVoiceTranscript || latestInterimText || "").trim();
+    if (candidate) {
+      finalVoiceTranscript = candidate;
       if (voiceTranscriptText) {
         voiceTranscriptText.textContent = finalVoiceTranscript;
         voiceTranscriptText.classList.remove("is-interim");
@@ -1081,11 +1135,12 @@ function toggleVoiceRecording() {
       if (voiceRepeatButton) voiceRepeatButton.disabled = false;
       if (voiceSubmitButton) voiceSubmitButton.disabled = false;
     } else if (!voiceFallbackNotice || voiceFallbackNotice.hidden) {
-      if (voiceTranscriptText) {
-        voiceTranscriptText.textContent = "No te escuché. Toca el micrófono o 'Repetir' para intentar de nuevo.";
-        voiceTranscriptText.classList.remove("is-interim");
+      if (!voiceTranscriptText.textContent || voiceTranscriptText.textContent === "Escuchando tu voz en inglés...") {
+        if (voiceTranscriptText) {
+          voiceTranscriptText.textContent = "No te escuché. Toca el micrófono o 'Repetir' para intentar de nuevo.";
+          voiceTranscriptText.classList.remove("is-interim");
+        }
       }
-      if (voiceConfirmActions) voiceConfirmActions.hidden = true;
     }
 
     speechRecognition = null;
@@ -1106,11 +1161,10 @@ if (voiceRepeatButton) {
   voiceRepeatButton.addEventListener("click", () => {
     if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
     stopVoiceRecognition();
-    finalVoiceTranscript = "";
-    if (voiceConfirmActions) voiceConfirmActions.hidden = true;
+    latestInterimText = "";
     if (voiceTranscriptText) {
-      voiceTranscriptText.textContent = "Reiniciando micrófono...";
-      voiceTranscriptText.classList.remove("is-interim");
+      voiceTranscriptText.textContent = "Escuchando de nuevo... Pronuncia en inglés";
+      voiceTranscriptText.classList.add("is-interim");
     }
     toggleVoiceRecording();
   });
@@ -1119,12 +1173,46 @@ if (voiceRepeatButton) {
 if (voiceSubmitButton) {
   voiceSubmitButton.addEventListener("click", () => {
     if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
-    if (!finalVoiceTranscript.trim()) {
+    const textToSend = (
+      finalVoiceTranscript ||
+      latestInterimText ||
+      (voiceTranscriptText && !voiceTranscriptText.classList.contains("is-interim") ? voiceTranscriptText.textContent : "") ||
+      voiceTranscriptText?.textContent ||
+      ""
+    ).trim();
+
+    if (!textToSend ||
+        textToSend === "Aún no has grabado tu respuesta." ||
+        textToSend === "Escuchando tu voz en inglés..." ||
+        textToSend === "Escuchando de nuevo... Pronuncia en inglés" ||
+        textToSend === "Reiniciando micrófono..." ||
+        textToSend.startsWith("No te escuché")) {
       questionStatus.textContent = "No te escuché. Toca el micrófono e inténtalo de nuevo.";
       questionStatus.dataset.state = "error";
       return;
     }
-    sendAnswerToServer(finalVoiceTranscript.trim());
+
+    stopVoiceRecognition();
+    sendAnswerToServer(textToSend);
+  });
+}
+
+if (btnVoiceSwitchToText) {
+  btnVoiceSwitchToText.addEventListener("click", () => {
+    if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
+    const candidate = (
+      finalVoiceTranscript ||
+      latestInterimText ||
+      (voiceTranscriptText && !voiceTranscriptText.classList.contains("is-interim") ? voiceTranscriptText.textContent : "") ||
+      ""
+    ).trim();
+    stopVoiceRecognition();
+    activateVoiceTextFallback("Modo edición con teclado. Corrige o escribe tu respuesta en inglés:");
+    if (candidate && textAnswer) {
+      textAnswer.value = candidate;
+      if (textAnswerSubmit) textAnswerSubmit.disabled = false;
+      if (textAnswerClear) textAnswerClear.hidden = false;
+    }
   });
 }
 
