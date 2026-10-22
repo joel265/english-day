@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Script de Pruebas de Carga y Concurrencia - English Day (SENA ADSO).
+    Script de Pruebas de Carga y Concurrencia - English Up (SENA ADSO).
     Tarea 13 de Backend / Tarea 6 de QA (Hito H2 / RNF-02 / CP-01 a CP-11).
 
 .DESCRIPTION
@@ -30,7 +30,7 @@ param(
 $ErrorActionPreference = "Continue"
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "  ENGLISH DAY (SENA ADSO) - PRUEBA DE CARGA Y CONCURRENCIA" -ForegroundColor Cyan
+Write-Host "  ENGLISH UP (SENA ADSO) - PRUEBA DE CARGA Y CONCURRENCIA" -ForegroundColor Cyan
 Write-Host "  Tarea 13 (Backend) & Tarea 6 (QA) | Criterio RNF-02" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "Servidor objetivo   : $BaseUrl" -ForegroundColor Yellow

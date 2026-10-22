@@ -15,7 +15,7 @@
     <artifactId>english-day</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>english-day</name>
-    <description>Plataforma Web Interactiva de Gamificación - English Day (SENA ADSO)</description>
+    <description>Plataforma Web Interactiva de Gamificación - English Up (SENA ADSO)</description>
 
     <properties>
         <java.version>25</java.version>

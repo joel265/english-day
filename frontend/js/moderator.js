@@ -93,7 +93,7 @@ const modCorrectAnswerBanner = document.querySelector("#modCorrectAnswerBanner")
 const modCorrectAnswerText = document.querySelector("#modCorrectAnswerText");
 const modRankingList = document.querySelector("#modRankingList");
 
-const MODERATOR_STORAGE_KEY = "englishDayModeratorSession";
+const MODERATOR_STORAGE_KEY = "englishUpModeratorSession";
 
 let currentRoom = null;
 let modSocket = null;
@@ -128,6 +128,8 @@ function clearModeratorSession() {
   try {
     window.localStorage.removeItem(MODERATOR_STORAGE_KEY);
     window.sessionStorage.removeItem(MODERATOR_STORAGE_KEY);
+    window.localStorage.removeItem("englishDayModeratorSession");
+    window.sessionStorage.removeItem("englishDayModeratorSession");
   } catch {
     // Ignorar
   }
@@ -137,7 +139,9 @@ function readSavedModeratorSession() {
   try {
     const raw =
       window.localStorage.getItem(MODERATOR_STORAGE_KEY) ||
-      window.sessionStorage.getItem(MODERATOR_STORAGE_KEY);
+      window.sessionStorage.getItem(MODERATOR_STORAGE_KEY) ||
+      window.localStorage.getItem("englishDayModeratorSession") ||
+      window.sessionStorage.getItem("englishDayModeratorSession");
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -426,7 +430,7 @@ function renderProjectorQuestion(question, customRemainingSeconds = null) {
 
   if (stageTransitionView && introSeconds > 0) {
     if (stageTransitionBadge) {
-      stageTransitionBadge.textContent = `English Day · ${thematicMeta.badge}`;
+      stageTransitionBadge.textContent = `English Up · ${thematicMeta.badge}`;
     }
     if (stageTransitionNumber) {
       stageTransitionNumber.textContent = `#${question.order}`;
@@ -714,7 +718,7 @@ function connectModeratorWebSocket(roomId) {
   }
 
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const wsUrl = `${protocol}//${window.location.host}/ws-englishday`;
+  const wsUrl = `${protocol}//${window.location.host}/ws-englishup`;
   modSocket = new WebSocket(wsUrl);
 
   let buffer = "";
@@ -792,7 +796,7 @@ function handleProjectorReaction(reaction) {
 
 let activeTunnelUrl = "";
 try {
-  activeTunnelUrl = window.localStorage.getItem("ENGLISH_DAY_TUNNEL_URL") || "";
+  activeTunnelUrl = window.localStorage.getItem("ENGLISH_UP_TUNNEL_URL") || window.localStorage.getItem("ENGLISH_DAY_TUNNEL_URL") || "";
 } catch {}
 
 function buildPlayerJoinUrl(pin, lanIp) {
@@ -848,8 +852,13 @@ function buildPlayerJoinUrl(pin, lanIp) {
       const val = customTunnelUrlInput.value.trim();
       activeTunnelUrl = val;
       try {
-        if (val) window.localStorage.setItem("ENGLISH_DAY_TUNNEL_URL", val);
-        else window.localStorage.removeItem("ENGLISH_DAY_TUNNEL_URL");
+        if (val) {
+          window.localStorage.setItem("ENGLISH_UP_TUNNEL_URL", val);
+          window.localStorage.setItem("ENGLISH_DAY_TUNNEL_URL", val);
+        } else {
+          window.localStorage.removeItem("ENGLISH_UP_TUNNEL_URL");
+          window.localStorage.removeItem("ENGLISH_DAY_TUNNEL_URL");
+        }
       } catch {}
       updateTunnelUI(val, val ? "Fijado Manual" : "Local / LAN", Boolean(val));
       if (currentRoom?.pin) {
@@ -861,9 +870,10 @@ function buildPlayerJoinUrl(pin, lanIp) {
 })();
 
 function renderRoomQrCodes(joinUrl, pin) {
-  if (window.EnglishDayQR && typeof window.EnglishDayQR.renderToCanvas === "function") {
+  const qrApi = window.EnglishUpQR || window.EnglishDayQR;
+  if (qrApi && typeof qrApi.renderToCanvas === "function") {
     if (modQrCanvas) {
-      window.EnglishDayQR.renderToCanvas(modQrCanvas, joinUrl, {
+      qrApi.renderToCanvas(modQrCanvas, joinUrl, {
         size: 176,
         quietZone: 4,
         darkColor: "#000000",
@@ -871,7 +881,7 @@ function renderRoomQrCodes(joinUrl, pin) {
       });
     }
     if (stageQrCanvas) {
-      window.EnglishDayQR.renderToCanvas(stageQrCanvas, joinUrl, {
+      qrApi.renderToCanvas(stageQrCanvas, joinUrl, {
         size: 260,
         quietZone: 4,
         darkColor: "#000000",

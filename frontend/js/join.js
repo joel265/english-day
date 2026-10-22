@@ -87,8 +87,8 @@ const rouletteWinnerAvatarWrap = document.querySelector("#rouletteWinnerAvatarWr
 const rouletteWinnerAvatar = document.querySelector("#rouletteWinnerAvatar");
 const podiumPedestalsStage = document.querySelector("#podiumPedestalsStage");
 
-const PLAYER_STORAGE_KEY = "englishDayPlayerSession";
-const AVATAR_LOCAL_STORAGE_KEY = "englishDayPlayerAvatar";
+const PLAYER_STORAGE_KEY = "englishUpPlayerSession";
+const AVATAR_LOCAL_STORAGE_KEY = "englishUpPlayerAvatar";
 
 let avatarStudio = null;
 let lobbySocket;
@@ -158,6 +158,8 @@ function clearPlayerSession() {
   try {
     window.localStorage.removeItem(PLAYER_STORAGE_KEY);
     window.sessionStorage.removeItem(PLAYER_STORAGE_KEY);
+    window.localStorage.removeItem("englishDayPlayerSession");
+    window.sessionStorage.removeItem("englishDayPlayerSession");
   } catch {
     // Ignorar
   }
@@ -167,7 +169,9 @@ function readSavedPlayerSession() {
   try {
     const raw =
       window.localStorage.getItem(PLAYER_STORAGE_KEY) ||
-      window.sessionStorage.getItem(PLAYER_STORAGE_KEY);
+      window.sessionStorage.getItem(PLAYER_STORAGE_KEY) ||
+      window.localStorage.getItem("englishDayPlayerSession") ||
+      window.sessionStorage.getItem("englishDayPlayerSession");
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -214,19 +218,22 @@ if (urlPin && /^\d{6}$/.test(urlPin)) {
 
 function updateJoinAvatarPreview(avatarData) {
   const preview = document.querySelector("#joinAvatarPreview");
-  if (!preview || !window.EnglishDayAvatars) return;
-  window.EnglishDayAvatars.mountAvatar(preview, avatarData, "sm");
+  const avatars = window.EnglishUpAvatars || window.EnglishDayAvatars;
+  if (!preview || !avatars) return;
+  avatars.mountAvatar(preview, avatarData, "sm");
 }
 
-// Soporte universal para Confeti en English Day
-if (typeof window.EnglishDayConfetti === "undefined") {
-  window.EnglishDayConfetti = {
+// Soporte universal para Confeti en English Up
+if (typeof window.EnglishUpConfetti === "undefined") {
+  const confettiHelper = {
     fire: (x, y, count = 75) => {
       if (window.confetti && typeof window.confetti.burst === "function") {
         window.confetti.burst(x ?? window.innerWidth / 2, y ?? window.innerHeight * 0.45, count);
       }
     }
   };
+  window.EnglishUpConfetti = confettiHelper;
+  window.EnglishDayConfetti = confettiHelper;
 }
 
 // Helper para emitir reacción interactiva por WebSocket hacia toda la sala
@@ -606,9 +613,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnSharePodium = document.querySelector("#btnSharePodium");
   if (btnSharePodium) {
     btnSharePodium.addEventListener("click", () => {
-      const text = "¡Competí en el English Day SENA 2025 y alcancé el podio con honores bilingües! 🇨🇴🦉";
+      const text = "¡Competí en English Up SENA 2026 y alcancé el podio con honores bilingües! 🇨🇴🦉";
       if (navigator.share) {
-        navigator.share({ title: "English Day SENA 2025", text, url: window.location.href }).catch(() => {});
+        navigator.share({ title: "English Up SENA 2026", text, url: window.location.href }).catch(() => {});
       } else if (navigator.clipboard?.writeText) {
         navigator.clipboard.writeText(text).then(() => {
           btnSharePodium.textContent = "¡COPIADO!";
@@ -842,7 +849,7 @@ function sendAnswerToServer(answerValue) {
 
   if (waitingAnswerCard) {
     if (waitingQuestionOrder && currentQuestion) {
-      waitingQuestionOrder.textContent = `English Day · Pregunta ${currentQuestion.order}`;
+      waitingQuestionOrder.textContent = `English Up · Pregunta ${currentQuestion.order}`;
     }
     if (waitingSubmittedValue) {
       waitingSubmittedValue.textContent = `"${formatAnswerDisplay(answerValue)}"`;
@@ -1460,7 +1467,7 @@ function renderQuestion(question, options = {}) {
     }
   };
 
-  document.title = `Pregunta ${question.order} | English Day`;
+  document.title = `Pregunta ${question.order} | English Up`;
 
   if (options.alreadySubmittedAnswer != null) {
     hasSubmittedAnswer = true;
@@ -1482,7 +1489,7 @@ function renderQuestion(question, options = {}) {
     let introStep = introDurationSeconds;
 
     if (transitionMechanicBadge) {
-      transitionMechanicBadge.textContent = `English Day · ${thematicMeta.badge}`;
+      transitionMechanicBadge.textContent = `English Up · ${thematicMeta.badge}`;
     }
     if (transitionQuestionNumber) {
       transitionQuestionNumber.textContent = `#${question.order}`;
@@ -1707,7 +1714,7 @@ function renderResultsScreen(payload) {
   }
 
   showOnlyCard(resultsCard);
-  document.title = "Resultados Top 5 | English Day";
+  document.title = "Resultados Top 5 | English Up";
   resultsTitle?.focus();
 }
 
@@ -1743,7 +1750,7 @@ function renderRouletteScreen(payload) {
   rouletteAnswerVerdict.dataset.correct = String(Boolean(payload.isCorrect));
 
   showOnlyCard(rouletteCard);
-  document.title = "Ruleta de Retroalimentación | English Day";
+  document.title = "Ruleta de Retroalimentación | English Up";
 
   if (!playerRouletteWheel && window.ActiveFeedbackRoulette) {
     playerRouletteWheel = new window.ActiveFeedbackRoulette("playerRouletteCanvas");
@@ -1967,7 +1974,7 @@ function renderPodiumScreen(payload) {
   const podiumValidationCode = document.querySelector("#podiumValidationCode");
   if (podiumValidationCode) {
     const codeId = (payload.roomId || "08492").slice(0, 6).toUpperCase();
-    podiumValidationCode.textContent = `SENA-B1-ENG-2025-${codeId}`;
+    podiumValidationCode.textContent = `SENA-B1-ENGUP-2026-${codeId}`;
   }
   const podiumUserXP = document.querySelector("#podiumUserXP");
   if (podiumUserXP) {
@@ -2044,7 +2051,7 @@ function renderPodiumScreen(payload) {
 
   clearPlayerSession();
   showOnlyCard(podiumCard);
-  document.title = "¡Podio Final! | English Day";
+  document.title = "¡Podio Final! | English Up";
   podiumTitle?.focus();
 }
 
@@ -2142,7 +2149,7 @@ function subscribeToLobby(roomId, player) {
   }
 
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const url = `${protocol}//${window.location.host}/ws-englishday`;
+  const url = `${protocol}//${window.location.host}/ws-englishup`;
 
   currentRoomId = roomId;
   currentPlayer = player;
@@ -2334,7 +2341,7 @@ async function leaveCurrentLobby() {
 
   resetLocalPlayerUIState();
   showOnlyCard(joinCard);
-  document.title = "Unirse a la partida | English Day";
+  document.title = "Unirse a la partida | English Up";
   formMessage.dataset.state = "loading";
   formMessage.textContent = "Saliste de la sala de espera. Puedes ingresar a otra partida cuando quieras.";
   nicknameInput?.focus();
@@ -2348,7 +2355,7 @@ if (btnBackToStart) {
   btnBackToStart.addEventListener("click", () => {
     resetLocalPlayerUIState();
     showOnlyCard(joinCard);
-    document.title = "Unirse a la partida | English Day";
+    document.title = "Unirse a la partida | English Up";
     formMessage.textContent = "";
     nicknameInput?.focus();
   });

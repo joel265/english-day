@@ -1,5 +1,5 @@
 -- =============================================================================
--- English Day - Carga final de datos de prueba para despliegue (MySQL 8.0+).
+-- English Up - Carga final de datos de prueba para despliegue (MySQL 8.0+).
 -- Banco refactorizado en las 6 temáticas oficiales:
 --   1. Pronouns
 --   2. Verb To Be

@@ -411,8 +411,11 @@
     }
   }
 
-  global.EnglishDayQR = {
+  const qrApi = {
     generateMatrix,
     renderToCanvas,
   };
+
+  global.EnglishUpQR = qrApi;
+  global.EnglishDayQR = qrApi;
 })(typeof window !== "undefined" ? window : globalThis);

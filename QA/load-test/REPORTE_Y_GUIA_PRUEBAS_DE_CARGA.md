@@ -1,5 +1,5 @@
 # Informe y Guía de Pruebas de Carga y Concurrencia
-**Plataforma Web Interactiva de Gamificación — English Day (SENA ADSO)**  
+**Plataforma Web Interactiva de Gamificación — English Up (SENA ADSO)**  
 **Subequipos:** Backend (Java/Spring Boot) & QA / Control de Calidad  
 **Tareas Vinculadas:** Backend Tarea 13 & QA Tarea 6 (EDT 1.5, Hito H2, Actividad A6)  
 **Criterio de Aceptación Clave:** RNF-02 (Latencia p95 < 200 ms bajo 30–50 conexiones simultáneas)
@@ -8,7 +8,7 @@
 
 ## 1. Objetivo y Alcance
 
-El propósito de esta suite es validar la estabilidad, rendimiento y resiliencia del servidor Spring Boot y la base de datos cuando **30 a 50 aprendices interactúan de forma simultánea** durante el evento *English Day*:
+El propósito de esta suite es validar la estabilidad, rendimiento y resiliencia del servidor Spring Boot y la base de datos cuando **30 a 50 aprendices interactúan de forma simultánea** durante el evento *English Up*:
 
 1. **Ingreso masivo al Lobby (Join concurrente):** Ráfaga de 50 peticiones simultáneas con PIN de 6 dígitos.
 2. **Envío de respuestas en tiempo real:** Disparo concurrente de respuestas evaluando integridad transaccional, ausencia de condiciones de carrera (*race conditions*) y actualización de la tabla `Score`.

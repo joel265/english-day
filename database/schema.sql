@@ -1,4 +1,4 @@
--- English Day - Esquema final de despliegue (MySQL 8.0+).
+-- English Up - Esquema final de despliegue (MySQL 8.0+).
 -- Contrato de Integración §2; nombres de tabla y columna compartidos con JPA.
 
 CREATE TABLE Room (

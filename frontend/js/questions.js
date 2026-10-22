@@ -1,5 +1,5 @@
 /**
- * questions.js - Banco de Preguntas Pedagógico para el English Day (SENA ADSO)
+ * questions.js - Banco de Preguntas Pedagógico para English Up (SENA ADSO)
  * Estructurado con las 4 mecánicas:
  * 1. multiple_choice (Kahoot)
  * 2. word_bank (Duolingo)

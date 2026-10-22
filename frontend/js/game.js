@@ -3,7 +3,7 @@
  * Orquesta vistas, temporizador, puntajes, mecánicas y la ruleta activa.
  */
 
-class EnglishDayGame {
+class EnglishUpGame {
     constructor() {
         this.currentView = 'join';
         this.currentQuestionIdx = 0;
@@ -336,7 +336,7 @@ class EnglishDayGame {
         this.timeLeft = this.totalQuestionTime;
 
         // Metadatos en pantalla
-        document.getElementById('questionCategoryBadge').textContent = q.category || 'English Day';
+        document.getElementById('questionCategoryBadge').textContent = q.category || 'English Up';
         document.getElementById('questionCounterBadge').textContent = `Question ${idx + 1} / ${this.questions.length}`;
         document.getElementById('questionMainText').textContent = q.prompt;
 
@@ -808,6 +808,9 @@ class EnglishDayGame {
     }
 }
 
+window.EnglishDayGame = EnglishUpGame;
+window.EnglishUpGame = EnglishUpGame;
+
 document.addEventListener('DOMContentLoaded', () => {
-    window.gameApp = new EnglishDayGame();
+    window.gameApp = new EnglishUpGame();
 });

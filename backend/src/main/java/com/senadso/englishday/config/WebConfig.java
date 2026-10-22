@@ -12,7 +12,7 @@ import java.nio.file.Paths;
 
 /**
  * Configuración global de CORS y recursos estáticos para los endpoints REST y clientes web
- * de la plataforma English Day.
+ * de la plataforma English Up.
  * Permite que clientes web y móviles conectados a través de Cloudflare Tunnel
  * o en el mismo origen consuman la API síncrona (/api/**) y las vistas de Frontend.
  */
