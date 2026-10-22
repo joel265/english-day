@@ -1,4 +1,4 @@
-# Base de Datos — English Day (MySQL 8.0+)
+# Base de Datos — English Up (MySQL 8.0+)
 
 Estructura de los recursos de persistencia y analítica del sistema:
 

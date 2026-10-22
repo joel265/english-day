@@ -1,5 +1,5 @@
 # Informe de Pruebas de Resiliencia, Auditoría Pedagógica y Usabilidad Móvil
-**Plataforma Web Interactiva de Gamificación — English Day (SENA ADSO)**  
+**Plataforma Web Interactiva de Gamificación — English Up (SENA ADSO)**  
 **Subequipos:** QA & Contenido Pedagógico + Frontend (Desarrollo Web)  
 **Tareas Cubiertas:**
 * **QA Tarea 7:** Pruebas de resiliencia (caída de Wi-Fi, cierre de pestaña, ingreso de datos inválidos — Plan de Pruebas §3.4).

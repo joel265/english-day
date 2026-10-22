@@ -1,6 +1,6 @@
-# English Day — Plataforma Web Interactiva de Gamificación en Inglés (SENA ADSO)
+# English Up — Plataforma Web Interactiva de Gamificación en Inglés (SENA ADSO)
 
-Plataforma web multijugador en tiempo real desarrollada para el evento institucional **English Day** del **SENA (Análisis y Desarrollo de Software — ADSO)**. Permite a los aprendices conectarse desde sus dispositivos móviles mediante un código PIN de 6 dígitos para competir en rondas sincrónicas de inglés (niveles MCER A2–B1) proyectadas en auditorio, integrando cuatro mecánicas interactivas, retroalimentación pedagógica por ruleta y clasificación en vivo.
+Plataforma web multijugador en tiempo real desarrollada para el evento institucional **English Up** del **SENA (Análisis y Desarrollo de Software — ADSO)**. Permite a los aprendices conectarse desde sus dispositivos móviles mediante un código PIN de 6 dígitos para competir en rondas sincrónicas de inglés (niveles MCER A2–B1) proyectadas en auditorio, integrando cuatro mecánicas interactivas, retroalimentación pedagógica por ruleta y clasificación en vivo.
 
 ---
 
@@ -173,4 +173,4 @@ node QA/e2e_verification_suite.mjs
 
 ## Créditos
 
-Proyecto desarrollado por los aprendices de la tecnología en **Análisis y Desarrollo de Software (ADSO)** del **Servicio Nacional de Aprendizaje (SENA)** para la jornada institucional **English Day**.
+Proyecto desarrollado por los aprendices de la tecnología en **Análisis y Desarrollo de Software (ADSO)** del **Servicio Nacional de Aprendizaje (SENA)** para la jornada institucional **English Up**.

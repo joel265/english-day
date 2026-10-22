@@ -1,5 +1,5 @@
 # Matriz de Casos de Prueba y Ejecución de QA (Tareas 2, 3, 4 y 5)
-**Plataforma Web Interactiva de Gamificación — English Day (SENA ADSO)**  
+**Plataforma Web Interactiva de Gamificación — English Up (SENA ADSO)**  
 **Subequipo:** QA & Contenido Pedagógico (Inglés)  
 **Referencias:** `PLAN_DE_PRUEBAS_Y_CONTROL_DE_CALIDAD.docx`, `CONTRATO_DE_INTEGRACION_API_WEBSOCKETS.docx` (Anexos A y B), `BITACORA_DE_DECISIONES_TECNICAS.md`
 

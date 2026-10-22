@@ -1,5 +1,5 @@
 /**
- * English Day - Sistema de Renderizado y Personalización de Avatares (Búho SENA)
+ * English Up - Sistema de Renderizado y Personalización de Avatares (Búho SENA)
  * Base única estándar: Búho Clásico (mascot-base.png).
  * Los aprendices personalizan a su búho agregando capas de accesorios: Sombreros, Ropa SENA e Ítems.
  */
@@ -294,7 +294,7 @@
     };
   }
 
-  global.EnglishDayAvatars = {
+  const avatarApi = {
     CATALOG: AVATAR_CATALOG,
     parseAvatar,
     serializeAvatar,
@@ -303,4 +303,7 @@
     getRandomAvatar,
     createStudio,
   };
+
+  global.EnglishUpAvatars = avatarApi;
+  global.EnglishDayAvatars = avatarApi;
 })(window);

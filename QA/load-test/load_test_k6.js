@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 /**
- * Script de Carga y Concurrencia k6 - English Day (SENA ADSO)
+ * Script de Carga y Concurrencia k6 - English Up (SENA ADSO)
  * Tarea 13 (Backend) & Tarea 6 (QA)
  *
  * Simulación de 50 usuarios virtuales (VUs) concurrentes.

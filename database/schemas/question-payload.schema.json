@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "English Day question WebSocket payload",
+  "title": "English Up question WebSocket payload",
   "description": "Public question payload sent by the server. Never include correctAnswer.",
   "type": "object",
   "additionalProperties": false,

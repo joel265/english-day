@@ -1,4 +1,4 @@
--- Tarea 3 - Operaciones principales de English Day
+-- Tarea 3 - Operaciones principales de English Up
 -- Motor objetivo: MySQL 8.0+ (backend/src/main/resources/application.properties).
 -- Parametros ? para PreparedStatement/JPA native query. No concatenar valores.
 -- Estas consultas deben integrarse desde servicios Backend con transacciones.

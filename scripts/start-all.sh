@@ -8,7 +8,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$DIR"
 
 echo "===================================================================="
-echo "  🚀 INICIANDO ENTORNO COMPLETO: ENGLISH DAY SENA 2026"
+echo "  🚀 INICIANDO ENTORNO COMPLETO: ENGLISH UP SENA 2026"
 echo "===================================================================="
 
 # 1. Comprobar Java

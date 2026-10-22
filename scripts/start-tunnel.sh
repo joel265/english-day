@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# start-tunnel.sh - Lanzador de Cloudflare Tunnel para English Day SENA 2026
+# start-tunnel.sh - Lanzador de Cloudflare Tunnel para English Up SENA 2026
 # ==============================================================================
 set -e
 
@@ -57,7 +57,7 @@ if [ "$USE_QUICK" = false ] && [ -z "$TUNNEL_TOKEN" ]; then
 fi
 
 echo "===================================================================="
-echo "  🚀 CLOUDFLARE TUNNEL - ENGLISH DAY SENA 2026"
+echo "  🚀 CLOUDFLARE TUNNEL - ENGLISH UP SENA 2026"
 echo "===================================================================="
 echo "  Servidor local:  $TARGET_URL"
 echo "  Binario usado:   $CLOUDFLARED_BIN"

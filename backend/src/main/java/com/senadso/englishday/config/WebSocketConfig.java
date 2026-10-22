@@ -7,7 +7,7 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 /**
- * Configuración de WebSockets con protocolo STOMP para la plataforma English Day.
+ * Configuración de WebSockets con protocolo STOMP para la plataforma English Up.
  * Cumple con las especificaciones del Contrato de Integración (§4):
  * - Handshake en /ws-englishday (con soporte para WebSocket puro y fallback SockJS).
  * - Prefijo de difusión hacia clientes: /topic
@@ -19,12 +19,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Endpoint nativo WebSocket (STOMP directo)
-        registry.addEndpoint("/ws-englishday")
+        // Endpoint nativo WebSocket (STOMP directo) con soporte para English Up y retrocompatibilidad
+        registry.addEndpoint("/ws-englishup", "/ws-englishday")
                 .setAllowedOriginPatterns("*");
 
         // Endpoint con fallback de SockJS para navegadores móviles
-        registry.addEndpoint("/ws-englishday")
+        registry.addEndpoint("/ws-englishup", "/ws-englishday")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }

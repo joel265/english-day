@@ -1,5 +1,5 @@
 # Bitácora de Decisiones Técnicas
-Complemento vivo del Contrato de Integración — English Day (SENA ADSO)
+Complemento vivo del Contrato de Integración — English Up (SENA ADSO)
 
 ## 0. Propósito
 El Contrato de Integración fija lo que ya se decidió (rutas, campos, eventos). Pero durante el desarrollo van a aparecer preguntas que ese documento no responde. Esta Bitácora es donde se registra cada una de esas decisiones nuevas, en el momento en que se toman, para que ningún equipo tenga que adivinar ni repetir la pregunta.

@@ -170,4 +170,6 @@ class ConfettiLauncher {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.confetti = new ConfettiLauncher();
+    window.EnglishUpConfetti = window.confetti;
+    window.EnglishDayConfetti = window.confetti;
 });

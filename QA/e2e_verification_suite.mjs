@@ -1,6 +1,6 @@
 /**
  * e2e_verification_suite.mjs - Suite Automatizada End-to-End de QA y Frontend
- * Plataforma Web Interactiva de Gamificación — English Day (SENA ADSO)
+ * Plataforma Web Interactiva de Gamificación — English Up (SENA ADSO)
  *
  * Verifica de principio a fin (sin dependencias externas, usando fetch y WebSocket nativos de Node 22+):
  *  - Servido estático de vistas Frontend (/index.html, /moderator.html, /tarea-01-pantalla-pin-nickname/index.html)
@@ -17,7 +17,7 @@
  */
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:8080";
-const WS_URL = BASE_URL.replace(/^http/, "ws") + "/ws-englishday";
+const WS_URL = BASE_URL.replace(/^http/, "ws") + "/ws-englishup";
 
 let passed = 0;
 let failed = 0;
@@ -165,7 +165,8 @@ async function runSuite() {
   const qrScriptRes = await fetch(`${BASE_URL}/js/qrcode.js`);
   const qrScriptText = await qrScriptRes.text();
   new Function(qrScriptText)();
-  const testQrMatrix = globalThis.EnglishDayQR?.generateMatrix("http://192.168.1.10:8080/index.html?pin=123456");
+  const qrApi = globalThis.EnglishUpQR || globalThis.EnglishDayQR;
+  const testQrMatrix = qrApi?.generateMatrix("http://192.168.1.10:8080/index.html?pin=123456");
   // Extraer los 15 bits de información de formato (copia 1: col 8 filas 0..5,7,8 y fila 8 cols 7,5..0) y verificar BCH(15,5)
   let formatCopy1 = 0;
   for (let i = 0; i <= 5; i++) if (testQrMatrix.modules[i][8]) formatCopy1 |= 1 << i;
