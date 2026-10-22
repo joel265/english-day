@@ -35,7 +35,7 @@ Plataforma web multijugador en tiempo real desarrollada para el evento instituci
 ## Estructura del Proyecto
 
 ```text
-english-day/
+english-up/
 ├── backend/                                  # Servidor Spring Boot (API REST + STOMP WebSocket)
 │   ├── src/main/java/com/senadso/englishday/
 │   │   ├── config/                           # Configuración CORS, recursos estáticos, WebSocket y semilla automática
@@ -46,7 +46,7 @@ english-day/
 │   │   ├── repository/                       # Repositorios Spring Data JPA
 │   │   └── service/                          # Lógica de salas, validación de respuestas, puntajes y ruleta
 │   ├── src/main/resources/                   # Perfiles de configuración (default, h2, prod)
-│   └── src/test/java/                        # Suite de 44 pruebas unitarias, de integración y concurrencia
+│   └── src/test/java/                        # Suite de 52 pruebas unitarias, de integración y concurrencia
 ├── frontend/                                 # Aplicación Web Cliente (servida estáticamente por el Backend)
 │   ├── index.html                            # Vista del Aprendiz (Mobile-First)
 │   ├── moderator.html                        # Panel de Control del Moderador y Vista de Proyector
@@ -54,13 +54,13 @@ english-day/
 │   └── js/                                   # Clientes STOMP/REST (join.js, moderator.js), ruleta y efectos
 ├── database/                                 # Persistencia y Analítica SQL
 │   ├── schema.sql                            # Esquema DDL oficial para MySQL 8.0+
-│   ├── questions_seed.sql                    # Semilla oficial de 23 preguntas (niveles A2-B1)
+│   ├── questions_seed.sql                    # Semilla oficial de 24 preguntas (6 temáticas, niveles A2-B1)
 │   ├── queries/                              # Consultas operativas y reportería analítica post-evento
 │   └── schemas/                              # JSON Schema de validación del banco de preguntas
 ├── QA/                                       # Aseguramiento de Calidad y Pruebas Automatizadas
 │   ├── MATRIZ_CASOS_DE_PRUEBA_Y_EJECUCION.md # Matriz y resultados de ejecución (CP-01 a CP-11)
 │   ├── REPORTE_RESILIENCIA_AUDITORIA_Y_DISPOSITIVOS.md
-│   ├── e2e_verification_suite.mjs            # Suite automatizada End-to-End (15 verificaciones REST + STOMP)
+│   ├── e2e_verification_suite.mjs            # Suite automatizada End-to-End (25 verificaciones REST + STOMP)
 │   ├── load-test/                            # Scripts e informe de pruebas de carga y estrés (Grafana k6)
 │   └── banco-preguntas/                      # Insumos pedagógicos del área de bilingüismo
 ├── UIUX/                                     # Sistema de Diseño y Prototipos de Interfaz
@@ -89,17 +89,19 @@ english-day/
 | `POST` | `/api/rooms/{roomId}/next` | Avanza a la siguiente pregunta del banco o finaliza la partida. |
 | `POST` | `/api/rooms/{roomId}/finish` | Cierra la partida (`FINISHED`) y publica el podio final (Top 3). |
 
-### Canales STOMP WebSocket (`/ws-game`)
+### Canales STOMP WebSocket (`/ws-englishup` / `/ws-englishday`)
 
 | Dirección | Destino | Propósito |
 |---|---|---|
-| `SUBSCRIBE` | `/topic/room/{roomId}/lobby` | Lista actualizada de jugadores conectados en sala de espera. |
+| `SUBSCRIBE` | `/topic/room/{roomId}/lobby` | Lista actualizada de jugadores y avatares conectados en sala de espera. |
 | `SUBSCRIBE` | `/topic/room/{roomId}/status` | Cambios de estado de la sala (`WAITING`, `IN_PROGRESS`, `FINISHED`). |
 | `SUBSCRIBE` | `/topic/room/{roomId}/question` | Difusión de la pregunta activa y su temporizador (sin exponer `correctAnswer`). |
 | `SEND` | `/app/room/{roomId}/answer` | Envío de respuesta del aprendiz (`{ playerId, questionId, value }`). |
 | `SUBSCRIBE` | `/topic/room/{roomId}/results` | Respuesta correcta revelada y clasificación parcial Top 5. |
 | `SUBSCRIBE` | `/topic/room/{roomId}/roulette` | Aprendiz seleccionado por la ruleta y su respuesta registrada. |
 | `SUBSCRIBE` | `/topic/room/{roomId}/podium` | Podio final Top 3 al cierre de la sesión. |
+| `SUBSCRIBE` | `/topic/room/{roomId}/reactions` | Efectos interactivos globales en tiempo real (lluvia de emojis, confeti). |
+| `SEND` | `/app/room/{roomId}/reaction` | Emisión de reacción interactiva con control de cooldown. |
 
 ---
 
@@ -147,11 +149,17 @@ Una vez iniciado el servidor en el puerto `8080`:
 
 Para permitir que los aprendices se conecten desde sus teléfonos móviles y utilicen el reconocimiento de voz por micrófono (que exige contexto seguro HTTPS):
 
+**Opción A: Túnel administrado con Token (Recomendado para dominio propio, ej: englishup.jmj.agency)**
+```bash
+cloudflared tunnel run --token <TU_TOKEN_CLOUDFLARE>
+```
+
+**Opción B: Quick Tunnel temporal**
 ```bash
 cloudflared tunnel --url http://localhost:8080
 ```
 
-Comparte la URL `https://xxxx.trycloudflare.com` generada (o su código QR) con los participantes del auditorio.
+Comparte la URL HTTPS generada (o el código QR renderizado en pantalla) con los aprendices en el auditorio.
 
 ---
 
