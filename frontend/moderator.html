@@ -778,6 +778,7 @@
         }
       }
     </style>
+    <link rel="stylesheet" href="./css/avatars.css">
   </head>
   <body>
     <header class="mod-header">
@@ -802,6 +803,16 @@
             <div class="pin-qr-box" id="modQrBox" hidden>
               <canvas class="pin-qr-canvas" id="modQrCanvas" width="160" height="160" aria-label="Código QR para unirse a la sala"></canvas>
               <button class="copy-url-btn" id="btnCopyJoinUrl" type="button">📋 Copiar enlace de invitación</button>
+            </div>
+          </div>
+          <div class="tunnel-config-row" style="margin-top:0.75rem;padding-top:0.65rem;border-top:1px dashed var(--border);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
+              <label for="customTunnelUrlInput" style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">🌐 URL Cloudflare Tunnel</label>
+              <span id="tunnelStatusBadge" style="font-size:0.7rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:999px;background:#e9f6fd;color:#006590;">Local / LAN</span>
+            </div>
+            <div style="display:flex;gap:0.4rem;">
+              <input id="customTunnelUrlInput" type="url" placeholder="https://xxx.trycloudflare.com" style="flex:1;font-size:0.8rem;padding:0.35rem 0.5rem;border:1px solid var(--border);border-radius:0.35rem;background:var(--surface);">
+              <button id="btnApplyTunnelUrl" type="button" class="mod-btn mod-btn--outline" style="width:auto;padding:0.35rem 0.65rem;font-size:0.75rem;">Fijar</button>
             </div>
           </div>
           <div class="reconnect-row">
@@ -950,11 +961,19 @@
                 </div>
                 <div class="roulette-spotlight">
                   <span class="stage-badge">Aprendiz Seleccionado (RF-11)</span>
+                  <div class="roulette-winner-avatar-wrap" id="modRouletteAvatarWrap" style="margin: 0.6rem auto; width: fit-content;" hidden>
+                    <div id="modRouletteAvatar"></div>
+                  </div>
                   <h3 id="modRouletteWinner">—</h3>
                   <p><strong>Respuesta enviada:</strong> <span id="modRouletteAnswer">—</span></p>
                   <p id="modRouletteVerdict"></p>
                 </div>
               </div>
+            </div>
+
+            <div id="stagePodiumView" hidden>
+              <h2 class="stage-prompt" id="modPodiumHeading" style="text-align:center;margin-bottom:1rem;">🏆 ¡Gran Podio Final English Day!</h2>
+              <div class="podium-pedestals" id="modPodiumStage"></div>
             </div>
           </div>
         </section>
@@ -987,6 +1006,7 @@
 
     <script src="./js/audio.js" defer></script>
     <script src="./js/confetti.js" defer></script>
+    <script src="./js/avatar-renderer.js" defer></script>
     <script src="./js/roulette.js" defer></script>
     <script src="./js/qrcode.js" defer></script>
     <script src="./js/moderator.js" defer></script>

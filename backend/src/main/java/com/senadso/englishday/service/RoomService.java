@@ -297,11 +297,16 @@ public class RoomService {
 
         if (existingPlayer.isPresent() && room.getStatus() != RoomStatus.FINISHED) {
             Player existing = existingPlayer.get();
+            if (request.getAvatar() != null && !request.getAvatar().isBlank()) {
+                existing.setAvatar(request.getAvatar());
+                playerRepository.save(existing);
+            }
             broadcastLobbyUpdate(room.getRoomId());
             return JoinRoomResponse.builder()
                     .playerId(existing.getPlayerId())
                     .roomId(room.getRoomId())
                     .nickname(existing.getNickname())
+                    .avatar(existing.getAvatar())
                     .joinedAt(existing.getJoinedAt())
                     .build();
         }
@@ -313,6 +318,7 @@ public class RoomService {
         Player player = Player.builder()
                 .room(room)
                 .nickname(normalizedNickname)
+                .avatar(request.getAvatar())
                 .totalScore(0)
                 .build();
 
@@ -324,6 +330,7 @@ public class RoomService {
                 .playerId(savedPlayer.getPlayerId())
                 .roomId(room.getRoomId())
                 .nickname(savedPlayer.getNickname())
+                .avatar(savedPlayer.getAvatar())
                 .joinedAt(savedPlayer.getJoinedAt())
                 .build();
     }
@@ -363,6 +370,7 @@ public class RoomService {
                 .map(p -> LobbyPlayerResponse.builder()
                         .playerId(p.getPlayerId())
                         .nickname(p.getNickname())
+                        .avatar(p.getAvatar())
                         .joinedAt(p.getJoinedAt())
                         .build())
                 .toList();

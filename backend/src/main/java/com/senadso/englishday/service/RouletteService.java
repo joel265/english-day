@@ -111,6 +111,7 @@ public class RouletteService {
                 .roomId(roomId)
                 .playerId(selectedPlayer.getPlayerId())
                 .nickname(selectedPlayer.getNickname())
+                .avatar(selectedPlayer.getAvatar())
                 .questionId(question.getQuestionId())
                 .value(answerValue)
                 .isCorrect(isCorrect)

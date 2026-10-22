@@ -20,6 +20,7 @@ public class PlayerRoundVerdictDto {
 
     private String playerId;
     private String nickname;
+    private String avatar;
     private String submittedValue;
     private Boolean isCorrect;
     private Integer pointsAwarded;

@@ -1,0 +1,605 @@
+/* ==========================================================================
+   English Day - Estilos del Sistema de Avatares (Mascota Búho SENA)
+   ========================================================================== */
+
+:root {
+  --avatar-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --avatar-glow-primary: 0 0 0 3px #58cc02, 0 8px 16px rgba(88, 204, 2, 0.25);
+}
+
+/* ==========================================================================
+   1. Contenedor del Avatar y Escenario de Capas
+   ========================================================================== */
+.avatar-box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.avatar-box--xs {
+  width: 32px;
+  height: 42px;
+}
+
+.avatar-box--sm {
+  width: 44px;
+  height: 58px;
+}
+
+.avatar-box--md {
+  width: 68px;
+  height: 90px;
+}
+
+.avatar-box--lg {
+  width: 110px;
+  height: 146px;
+}
+
+.avatar-box--xl {
+  width: 150px;
+  height: 199px;
+}
+
+.avatar-box--preview {
+  width: 190px;
+  height: 252px;
+}
+
+.avatar-box--podium {
+  width: 115px;
+  height: 152px;
+}
+
+.avatar-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.avatar-layer {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  image-rendering: auto;
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
+}
+
+.avatar-layer--base {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 1;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.1));
+}
+
+.avatar-layer--clothing {
+  z-index: 2;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+}
+
+.avatar-layer--hat {
+  z-index: 3;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.15));
+}
+
+.avatar-layer--item {
+  z-index: 4;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.14));
+}
+
+/* ==========================================================================
+   2. Posicionamiento Relativo de Sombreros (Hats)
+   ========================================================================== */
+.layer-hat-sombrero-vueltiao {
+  width: 92%;
+  left: 4%;
+  top: -6%;
+}
+
+.layer-hat-sena-graduation {
+  width: 84%;
+  left: 8%;
+  top: -14%;
+}
+
+.layer-hat-safety-helmet {
+  width: 78%;
+  left: 11%;
+  top: -10%;
+}
+
+.layer-hat-royal-crown {
+  width: 72%;
+  left: 14%;
+  top: -15%;
+}
+
+.layer-hat-winter-beanie {
+  width: 76%;
+  left: 12%;
+  top: -12%;
+}
+
+.layer-accessory-gamer-headset {
+  width: 86%;
+  left: 7%;
+  top: -4%;
+}
+
+/* ==========================================================================
+   3. Posicionamiento Relativo de Ropa (Clothing)
+   ========================================================================== */
+.layer-clothing-sena-vest {
+  width: 64%;
+  left: 18%;
+  top: 52%;
+}
+
+.layer-clothing-blue-hoodie {
+  width: 70%;
+  left: 15%;
+  top: 51%;
+}
+
+.layer-clothing-lab-coat {
+  width: 70%;
+  left: 15%;
+  top: 50%;
+}
+
+.layer-clothing-superhero-cape {
+  width: 76%;
+  left: 12%;
+  top: 48%;
+}
+
+/* ==========================================================================
+   4. Posicionamiento Relativo de Accesorios de Mano (Items)
+   ========================================================================== */
+.layer-item-pencil {
+  width: 42%;
+  left: 65%;
+  top: 46%;
+}
+
+.layer-item-sena-notebook {
+  width: 46%;
+  left: 60%;
+  top: 50%;
+}
+
+/* ==========================================================================
+   5. Interfaz de Personalización: Avatar Studio
+   ========================================================================== */
+.avatar-studio {
+  margin: 1.25rem 0 1rem;
+  padding: 1.15rem;
+  border: 2px solid var(--border, #ddeaf1);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #f8fcff 0%, #f1f8fc 100%);
+}
+
+.avatar-studio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.avatar-studio-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text, #111d22);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.avatar-studio-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.avatar-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--text, #111d22);
+  background: #ffffff;
+  border: 1.5px solid var(--border, #ddeaf1);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--border, #ddeaf1);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.avatar-tool-btn:hover {
+  background: #eef7fc;
+  border-color: #bcd9e8;
+  transform: translateY(-1px);
+}
+
+.avatar-tool-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* Escenario Central de Previsualización */
+.avatar-preview-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem 1rem;
+  margin-bottom: 1rem;
+  background: radial-gradient(circle, #e6f7df 20%, #d8f3ce 60%, #c5eec2 100%);
+  border: 2px solid #b7e8a9;
+  border-radius: 1rem;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
+  position: relative;
+  min-height: 270px;
+}
+
+.avatar-preview-display .avatar-box {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.avatar-preview-display:hover .avatar-box {
+  transform: scale(1.03) translateY(-2px);
+}
+
+.avatar-preview-label {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2b6c00;
+  background: #ffffff;
+  padding: 0.25rem 0.85rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 4px rgba(43, 108, 0, 0.12);
+}
+
+/* Pestañas de categorías */
+.avatar-tabs {
+  display: flex;
+  overflow-x: auto;
+  gap: 0.35rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  scrollbar-width: thin;
+}
+
+.avatar-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.65rem;
+  font-family: inherit;
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--text-muted, #3f4a36);
+  background: #ffffff;
+  border: 1.5px solid var(--border, #ddeaf1);
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.avatar-tab-btn:hover {
+  background: #f1f8fc;
+  color: var(--text, #111d22);
+}
+
+.avatar-tab-btn.is-active {
+  background: #58cc02;
+  color: #ffffff;
+  border-color: #2b6c00;
+  box-shadow: 0 3px 0 #2b6c00;
+}
+
+/* Grilla de Opciones */
+.avatar-options-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 0.5rem;
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 0.35rem 0.2rem;
+  scrollbar-width: thin;
+}
+
+.avatar-option-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.6rem 0.35rem;
+  min-height: 80px;
+  background: #ffffff;
+  border: 2px solid var(--border, #ddeaf1);
+  border-radius: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--border, #ddeaf1);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.avatar-option-btn:hover {
+  border-color: #2fb8ff;
+  background: #f3faff;
+  transform: translateY(-2px);
+}
+
+.avatar-option-btn.is-selected {
+  border-color: #58cc02;
+  background: #f0fbf0;
+  box-shadow: 0 3px 0 #2b6c00, 0 0 0 2px rgba(88, 204, 2, 0.4);
+  font-weight: 800;
+}
+
+.avatar-option-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.avatar-option-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.avatar-option-label {
+  font-size: 0.725rem;
+  color: var(--text, #111d22);
+  text-align: center;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+/* ==========================================================================
+   6. Vista del Jugador en el Lobby
+   ========================================================================== */
+.lobby-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  border: 2px solid #bfe7ad;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f4fbf0 100%);
+  box-shadow: 0 4px 0 #bfe7ad;
+}
+
+.lobby-profile-avatar {
+  background: #ddf4c5;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.lobby-profile-info {
+  flex: 1;
+}
+
+.lobby-profile-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #2b6c00;
+  background: #ddf4c5;
+  border-radius: 999px;
+  margin-bottom: 0.25rem;
+}
+
+.lobby-profile-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text, #111d22);
+}
+
+.lobby-profile-status {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #3f4a36);
+  font-weight: 500;
+}
+
+/* Integración en la lista de aprendices del lobby */
+.lobby-player {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+}
+
+.lobby-player-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   7. Ruleta y Podio: Ganador y Top 3 con Avatares
+   ========================================================================== */
+.roulette-winner-spotlight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.roulette-winner-avatar-wrap {
+  position: relative;
+  padding: 0.6rem;
+  background: radial-gradient(circle, #fffae0 30%, #fff0a8 100%);
+  border: 3px solid #f4bf00;
+  border-radius: 1.25rem;
+  box-shadow: 0 6px 16px rgba(244, 191, 0, 0.35);
+  animation: winnerAvatarPop 400ms cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes winnerAvatarPop {
+  from {
+    transform: scale(0.6) rotate(-6deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Podio con pedestales visuales */
+.podium-pedestals {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  padding: 0 0.5rem;
+}
+
+.podium-pedestal {
+  flex: 1;
+  max-width: 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: pedestalRise 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.podium-pedestal--1 {
+  order: 2;
+  animation-delay: 300ms;
+}
+
+.podium-pedestal--2 {
+  order: 1;
+  animation-delay: 150ms;
+}
+
+.podium-pedestal--3 {
+  order: 3;
+  animation-delay: 50ms;
+}
+
+@keyframes pedestalRise {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.pedestal-avatar-box {
+  margin-bottom: 0.6rem;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.15));
+}
+
+.pedestal-block {
+  width: 100%;
+  border-radius: 0.85rem 0.85rem 0.35rem 0.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.15);
+}
+
+.podium-pedestal--1 .pedestal-block {
+  min-height: 110px;
+  background: linear-gradient(180deg, #ffe066 0%, #fab005 100%);
+  border: 2px solid #e67700;
+  color: #5c3b00;
+}
+
+.podium-pedestal--2 .pedestal-block {
+  min-height: 85px;
+  background: linear-gradient(180deg, #e9ecef 0%, #ced4da 100%);
+  border: 2px solid #868e96;
+  color: #343a40;
+}
+
+.podium-pedestal--3 .pedestal-block {
+  min-height: 65px;
+  background: linear-gradient(180deg, #ffd8a8 0%, #f76707 100%);
+  border: 2px solid #d9480f;
+  color: #491200;
+}
+
+.pedestal-rank {
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.pedestal-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  margin-top: 0.2rem;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pedestal-score {
+  font-size: 0.85rem;
+  font-weight: 800;
+  opacity: 0.9;
+}
+
+/* ==========================================================================
+   8. Chips de Jugador en el Panel de Moderador
+   ========================================================================== */
+.player-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.85rem 0.4rem 0.55rem;
+}
+
+.player-chip-name {
+  font-weight: 700;
+}
+
+.ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ranking-avatar {
+  flex-shrink: 0;
+}

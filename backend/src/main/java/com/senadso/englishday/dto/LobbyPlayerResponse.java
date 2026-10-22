@@ -28,6 +28,11 @@ public class LobbyPlayerResponse {
     private String nickname;
 
     /**
+     * Avatar configurado por el aprendiz.
+     */
+    private String avatar;
+
+    /**
      * Fecha y hora en que se unió al lobby en formato ISO-8601 UTC.
      */
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")

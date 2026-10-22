@@ -1,6 +1,8 @@
 package com.senadso.englishday.controller;
 
 import com.senadso.englishday.dto.CloseQuestionRequest;
+import com.senadso.englishday.dto.ReactionRequest;
+import com.senadso.englishday.dto.ReactionResponse;
 import com.senadso.englishday.dto.SubmitAnswerRequest;
 import com.senadso.englishday.service.AnswerService;
 import com.senadso.englishday.service.RoomService;
@@ -11,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 /**
@@ -26,6 +29,7 @@ public class GameWebSocketController {
     private final ScoreService scoreService;
     private final RouletteService rouletteService;
     private final RoomService roomService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * Procesa la respuesta enviada por un aprendiz desde su dispositivo móvil.
@@ -106,5 +110,36 @@ public class GameWebSocketController {
     @MessageMapping("/room/{roomId}/lobby/sync")
     public void syncLobby(@DestinationVariable String roomId) {
         roomService.broadcastLobbyUpdate(roomId);
+    }
+
+    /**
+     * Difunde una reacción interactiva en tiempo real (saludo 👋 o confeti 🎉)
+     * a todos los participantes y al moderador en /topic/room/{roomId}/reactions.
+     *
+     * @param roomId Identificador UUID de la sala.
+     * @param request Datos de la reacción ({ type: "GREETING"|"CONFETTI", playerId, nickname }).
+     */
+    @MessageMapping("/room/{roomId}/reaction")
+    public void sendReaction(
+            @DestinationVariable String roomId,
+            @Payload(required = false) ReactionRequest request) {
+
+        String type = (request != null && request.getType() != null && !request.getType().isBlank())
+                ? request.getType().toUpperCase()
+                : "GREETING";
+        String nickname = (request != null && request.getNickname() != null && !request.getNickname().isBlank())
+                ? request.getNickname()
+                : "Aprendiz";
+        String playerId = (request != null) ? request.getPlayerId() : null;
+
+        ReactionResponse response = ReactionResponse.builder()
+                .type(type)
+                .playerId(playerId)
+                .nickname(nickname)
+                .timestamp(System.currentTimeMillis())
+                .build();
+
+        log.info("Reacción interactiva [{}] enviada por '{}' en sala {}", type, nickname, roomId);
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/reactions", response);
     }
 }

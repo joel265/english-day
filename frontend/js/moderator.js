@@ -71,8 +71,22 @@ const stageRouletteView = document.querySelector("#stageRouletteView");
 const modRouletteWinner = document.querySelector("#modRouletteWinner");
 const modRouletteAnswer = document.querySelector("#modRouletteAnswer");
 const modRouletteVerdict = document.querySelector("#modRouletteVerdict");
+const modRouletteAvatarWrap = document.querySelector("#modRouletteAvatarWrap");
+const modRouletteAvatar = document.querySelector("#modRouletteAvatar");
+
+const stagePodiumView = document.querySelector("#stagePodiumView");
+const modPodiumStage = document.querySelector("#modPodiumStage");
+const modPodiumHeading = document.querySelector("#modPodiumHeading");
 
 const modLobbyCount = document.querySelector("#modLobbyCount");
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&#39;");
+}
 const modLobbyList = document.querySelector("#modLobbyList");
 const modRankingTitle = document.querySelector("#modRankingTitle");
 const modCorrectAnswerBanner = document.querySelector("#modCorrectAnswerBanner");
@@ -233,7 +247,7 @@ function updateRoomStatusBadge(status) {
 }
 
 function showStageSection(activeSection) {
-  [stageWelcomeView, stageTransitionView, stageQuestionView, stageRouletteView].forEach((sec) => {
+  [stageWelcomeView, stageTransitionView, stageQuestionView, stageRouletteView, stagePodiumView].forEach((sec) => {
     if (!sec) return;
     if (sec === activeSection) {
       sec.hidden = false;
@@ -325,12 +339,23 @@ function renderLobbyPlayers(players) {
     const chip = document.createElement("li");
     chip.className = "player-chip stagger-item";
     chip.style.animationDelay = `${idx * 45}ms`;
-    chip.textContent = p.nickname;
+
+    if (window.EnglishDayAvatars) {
+      const avatarBox = document.createElement("span");
+      avatarBox.innerHTML = window.EnglishDayAvatars.renderAvatarHtml(p.avatar, "xs");
+      chip.append(avatarBox);
+    }
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "player-chip-name";
+    nameSpan.textContent = p.nickname;
+    chip.append(nameSpan);
+
     modLobbyList.append(chip);
   });
 
   if (rouletteWheel) {
-    rouletteWheel.setPlayers(connectedPlayers.map((p) => ({ name: p.nickname })));
+    rouletteWheel.setPlayers(connectedPlayers.map((p) => ({ name: p.nickname, avatar: p.avatar })));
   }
 }
 
@@ -520,10 +545,24 @@ function renderProjectorResults(payload) {
     li.className = `ranking-row rank-${idx + 1} stagger-item`;
     li.style.animationDelay = `${idx * 65}ms`;
     const left = document.createElement("span");
-    left.textContent = `#${idx + 1} · ${entry.nickname}`;
+    left.textContent = `#${idx + 1}`;
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "player-chip-name";
+    nameSpan.textContent = entry.nickname;
+
     const right = document.createElement("strong");
     right.textContent = `${entry.score ?? 0} pts`;
-    li.append(left, right);
+
+    if (window.EnglishDayAvatars) {
+      const avatarBox = document.createElement("span");
+      avatarBox.className = "ranking-avatar";
+      avatarBox.innerHTML = window.EnglishDayAvatars.renderAvatarHtml(entry.avatar, "xs");
+      li.append(left, avatarBox, nameSpan, right);
+    } else {
+      left.textContent = `#${idx + 1} · ${entry.nickname}`;
+      li.append(left, right);
+    }
     modRankingList.append(li);
   });
 }
@@ -538,16 +577,21 @@ function renderProjectorRoulette(payload) {
     modRouletteWinner.textContent = "🎡 Girando la ruleta...";
     modRouletteAnswer.textContent = "Sorteando entre los participantes...";
     modRouletteVerdict.textContent = "";
+    if (modRouletteAvatarWrap) modRouletteAvatarWrap.hidden = true;
 
     const wheelPlayers = connectedPlayers.length > 0
-      ? connectedPlayers.map((p) => ({ name: p.nickname }))
+      ? connectedPlayers.map((p) => ({ name: p.nickname, avatar: p.avatar }))
       : [];
     if (!wheelPlayers.some((p) => p.name.toLowerCase() === payload.nickname.toLowerCase())) {
-      wheelPlayers.push({ name: payload.nickname });
+      wheelPlayers.push({ name: payload.nickname, avatar: payload.avatar });
     }
     rouletteWheel.resize(340);
     rouletteWheel.setPlayers(wheelPlayers);
     rouletteWheel.spin(() => {
+      if (modRouletteAvatarWrap && modRouletteAvatar && window.EnglishDayAvatars) {
+        modRouletteAvatarWrap.hidden = false;
+        window.EnglishDayAvatars.mountAvatar(modRouletteAvatar, payload.avatar, "lg");
+      }
       modRouletteWinner.textContent = `🎯 ${payload.nickname}`;
       modRouletteAnswer.textContent = payload.value ? `"${payload.value}"` : "Sin respuesta enviada";
       modRouletteVerdict.textContent = payload.isCorrect
@@ -555,6 +599,10 @@ function renderProjectorRoulette(payload) {
         : "✖ Oportunidad de retroalimentación pedagógica";
     }, payload.nickname);
   } else {
+    if (modRouletteAvatarWrap && modRouletteAvatar && window.EnglishDayAvatars) {
+      modRouletteAvatarWrap.hidden = false;
+      window.EnglishDayAvatars.mountAvatar(modRouletteAvatar, payload.avatar, "lg");
+    }
     modRouletteWinner.textContent = payload.nickname;
     modRouletteAnswer.textContent = payload.value ? `"${payload.value}"` : "Sin respuesta enviada";
     modRouletteVerdict.textContent = payload.isCorrect
@@ -584,22 +632,60 @@ function renderProjectorPodium(payload) {
       const li = document.createElement("li");
       li.className = `ranking-row rank-${idx + 1}`;
       const left = document.createElement("span");
-      left.textContent = `${medals[idx] || `#${idx + 1}`} ${entry.nickname}`;
+      left.textContent = medals[idx] || `#${idx + 1}`;
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "player-chip-name";
+      nameSpan.textContent = entry.nickname;
+
       const right = document.createElement("strong");
       right.textContent = `${entry.score ?? 0} pts`;
-      li.append(left, right);
+
+      if (window.EnglishDayAvatars) {
+        const avatarBox = document.createElement("span");
+        avatarBox.className = "ranking-avatar";
+        avatarBox.innerHTML = window.EnglishDayAvatars.renderAvatarHtml(entry.avatar, "xs");
+        li.append(left, avatarBox, nameSpan, right);
+      } else {
+        left.textContent = `${medals[idx] || `#${idx + 1}`} ${entry.nickname}`;
+        li.append(left, right);
+      }
       modRankingList.append(li);
     });
   }
 
-  showStageSection(stageWelcomeView);
-  if (stageQrBox) stageQrBox.hidden = true;
-  if (stageWelcomeSubtext) {
-    stageWelcomeSubtext.textContent = "La partida ha finalizado. Puedes crear una nueva sala cuando lo desees.";
+  if (stagePodiumView && modPodiumStage && top3.length > 0) {
+    showStageSection(stagePodiumView);
+    if (modPodiumHeading) {
+      modPodiumHeading.textContent = `🏆 ¡Gran Podio Final! Ganador: ${top3[0].nickname} (${top3[0].score} pts)`;
+    }
+    modPodiumStage.innerHTML = top3.map((entry, idx) => {
+      const place = idx + 1;
+      const medalEmoji = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
+      const avatarHtml = window.EnglishDayAvatars
+        ? window.EnglishDayAvatars.renderAvatarHtml(entry.avatar, "podium")
+        : "";
+      return `
+        <div class="podium-pedestal podium-pedestal--${place}">
+          <div class="pedestal-avatar-box">${avatarHtml}</div>
+          <div class="pedestal-block">
+            <span class="pedestal-rank">${medalEmoji}</span>
+            <span class="pedestal-name" title="${escapeHtml(entry.nickname)}">${escapeHtml(entry.nickname)}</span>
+            <span class="pedestal-score">${entry.score ?? 0} pts</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } else {
+    showStageSection(stageWelcomeView);
+    if (stageQrBox) stageQrBox.hidden = true;
+    if (stageWelcomeSubtext) {
+      stageWelcomeSubtext.textContent = "La partida ha finalizado. Puedes crear una nueva sala cuando lo desees.";
+    }
+    stageMainHeading.textContent = top3.length > 0
+      ? `🏆 ¡Ganador: ${top3[0].nickname} (${top3[0].score} pts)!`
+      : "🏆 ¡Partida Finalizada!";
   }
-  stageMainHeading.textContent = top3.length > 0
-    ? `🏆 ¡Ganador: ${top3[0].nickname} (${top3[0].score} pts)!`
-    : "🏆 ¡Partida Finalizada!";
 
   if (window.confetti) {
     window.confetti.continuousPodiumBurst(3500);
@@ -645,7 +731,7 @@ function connectModeratorWebSocket(roomId) {
       if (rawFrame) {
         const parsed = parseStompFrame(rawFrame);
         if (parsed?.command === "CONNECTED") {
-          ["lobby", "status", "question", "results", "roulette", "podium"].forEach((topic) => {
+          ["lobby", "status", "question", "results", "roulette", "podium", "reactions"].forEach((topic) => {
             modSocket.send(
               `SUBSCRIBE\nid:mod-${topic}-${roomId}\ndestination:/topic/room/${roomId}/${topic}\nack:auto\n\n\0`
             );
@@ -669,6 +755,8 @@ function connectModeratorWebSocket(roomId) {
               renderProjectorRoulette(payload);
             } else if (dest === `/topic/room/${roomId}/podium`) {
               renderProjectorPodium(payload);
+            } else if (dest === `/topic/room/${roomId}/reactions`) {
+              handleProjectorReaction(payload);
             }
           } catch (err) {
             setFeedback(`Error procesando evento en vivo: ${err.message}`, "error");
@@ -680,12 +768,97 @@ function connectModeratorWebSocket(roomId) {
   });
 }
 
+function handleProjectorReaction(reaction) {
+  if (!reaction || typeof reaction !== "object") return;
+  const type = reaction.type || "GREETING";
+  const senderNick = reaction.nickname || "Un aprendiz";
+
+  if (type === "GREETING") {
+    if (window.confetti && typeof window.confetti.emojiRain === "function") {
+      window.confetti.emojiRain("👋", 30);
+    }
+    setFeedback(`👋 ${escapeHtml(senderNick)} saludó al aula desde su móvil.`, "ok");
+  } else if (type === "CONFETTI") {
+    if (window.confetti) {
+      window.confetti.burst(
+        Math.random() * window.innerWidth * 0.7 + window.innerWidth * 0.15,
+        window.innerHeight * 0.35,
+        75
+      );
+    }
+    setFeedback(`🎉 ¡${escapeHtml(senderNick)} lanzó confeti virtual a la sala!`, "ok");
+  }
+}
+
+let activeTunnelUrl = "";
+try {
+  activeTunnelUrl = window.localStorage.getItem("ENGLISH_DAY_TUNNEL_URL") || "";
+} catch {}
+
 function buildPlayerJoinUrl(pin, lanIp) {
   const loc = window.location;
+  if (activeTunnelUrl) {
+    const clean = activeTunnelUrl.replace(/\/+$/, "");
+    return `${clean}/index.html?pin=${pin}`;
+  }
   const isLoopback = loc.hostname === "localhost" || loc.hostname === "127.0.0.1";
   const host = isLoopback && lanIp ? (loc.port ? `${lanIp}:${loc.port}` : lanIp) : loc.host;
   return `${loc.protocol}//${host}/index.html?pin=${pin}`;
 }
+
+// Auto-detección del túnel de Cloudflare desde public-tunnel-url.json o hostname actual
+(function initTunnelDetector() {
+  const customTunnelUrlInput = document.querySelector("#customTunnelUrlInput");
+  const tunnelStatusBadge = document.querySelector("#tunnelStatusBadge");
+  const btnApplyTunnelUrl = document.querySelector("#btnApplyTunnelUrl");
+
+  function updateTunnelUI(url, label, isSuccess) {
+    if (customTunnelUrlInput) customTunnelUrlInput.value = url;
+    if (tunnelStatusBadge) {
+      tunnelStatusBadge.textContent = label;
+      tunnelStatusBadge.style.background = isSuccess ? "#dcfce7" : "#e9f6fd";
+      tunnelStatusBadge.style.color = isSuccess ? "#15803d" : "#006590";
+    }
+  }
+
+  // Si el moderador ya está navegando desde un dominio Cloudflare público
+  if (!window.location.hostname.includes("localhost") && !window.location.hostname.includes("127.0.0.1")) {
+    activeTunnelUrl = window.location.origin;
+    updateTunnelUI(activeTunnelUrl, "Cloudflare Web", true);
+  } else if (activeTunnelUrl) {
+    updateTunnelUI(activeTunnelUrl, "Fijado Manual", true);
+  } else {
+    // Intentar leer el túnel autogenerado por start-tunnel.sh
+    fetch("./public-tunnel-url.json")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.url && typeof data.url === "string") {
+          activeTunnelUrl = data.url;
+          updateTunnelUI(data.url, "Cloudflare Activo", true);
+          if (currentRoom?.pin) {
+            attachRoomSession(currentRoom);
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
+  if (btnApplyTunnelUrl && customTunnelUrlInput) {
+    btnApplyTunnelUrl.addEventListener("click", () => {
+      const val = customTunnelUrlInput.value.trim();
+      activeTunnelUrl = val;
+      try {
+        if (val) window.localStorage.setItem("ENGLISH_DAY_TUNNEL_URL", val);
+        else window.localStorage.removeItem("ENGLISH_DAY_TUNNEL_URL");
+      } catch {}
+      updateTunnelUI(val, val ? "Fijado Manual" : "Local / LAN", Boolean(val));
+      if (currentRoom?.pin) {
+        attachRoomSession(currentRoom);
+        setFeedback(`URL de invitaciones y códigos QR actualizada a: ${buildPlayerJoinUrl(currentRoom.pin, currentRoom.lanIp)}`, "ok");
+      }
+    });
+  }
+})();
 
 function renderRoomQrCodes(joinUrl, pin) {
   if (window.EnglishDayQR && typeof window.EnglishDayQR.renderToCanvas === "function") {

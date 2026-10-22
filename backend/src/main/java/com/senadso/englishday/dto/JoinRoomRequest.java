@@ -21,4 +21,13 @@ public class JoinRoomRequest {
     @NotBlank(message = "El nickname es obligatorio")
     @Size(min = 2, max = 50, message = "El nickname debe tener entre 2 y 50 caracteres")
     private String nickname;
+
+    /**
+     * Identificador o configuración JSON del avatar seleccionado por el aprendiz.
+     */
+    private String avatar;
+
+    public JoinRoomRequest(String nickname) {
+        this.nickname = nickname;
+    }
 }
