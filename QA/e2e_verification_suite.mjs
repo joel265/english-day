@@ -216,33 +216,49 @@ async function runSuite() {
   // 3. Conectar cliente STOMP y suscribir todos los canales de la sala
   const stomp = new StompTestClient(WS_URL);
   await stomp.connect();
-  ["lobby", "status", "question", "results", "roulette", "podium"].forEach((t) => {
+  ["lobby", "status", "question", "results", "roulette", "podium", "reactions"].forEach((t) => {
     stomp.subscribe(`sub-${t}`, `/topic/room/${room.roomId}/${t}`);
   });
   await new Promise((r) => setTimeout(r, 150));
 
-  // 4. CP-02: Unir dos jugadores y verificar difusión en /topic/room/{roomId}/lobby
+  // 4. CP-02: Unir dos jugadores con avatares y verificar difusión en /topic/room/{roomId}/lobby
+  const camiloAvatar = JSON.stringify({ preset: "mascot-base", hat: "hat-sombrero-vueltiao", clothing: "clothing-sena-vest" });
   const lobbyPromise1 = stomp.waitForMessage(`/topic/room/${room.roomId}/lobby`);
   const join1Res = await fetch(`${BASE_URL}/api/rooms/${room.pin}/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nickname: "camilo_dev" }),
+    body: JSON.stringify({ nickname: "camilo_dev", avatar: camiloAvatar }),
   });
   const player1 = await join1Res.json();
   const lobbyUpdate1 = await lobbyPromise1;
-  assert(join1Res.status === 200 && Array.isArray(lobbyUpdate1) && lobbyUpdate1.length === 1,
-    "CP-02 & RF-03: Jugador 1 (camilo_dev) unido y transmitido en vivo por /topic/room/{roomId}/lobby");
+  assert(
+    join1Res.status === 200 &&
+      Array.isArray(lobbyUpdate1) &&
+      lobbyUpdate1.length === 1 &&
+      lobbyUpdate1[0].avatar === camiloAvatar,
+    "CP-02 & RF-03: Jugador 1 (camilo_dev) unido con avatar y transmitido en vivo por /topic/room/{roomId}/lobby"
+  );
 
+  const lauraAvatar = JSON.stringify({
+    preset: "mascot-base",
+    hat: "hat-sena-graduation",
+    clothing: "clothing-blue-hoodie",
+    item: "item-pencil",
+  });
   const lobbyPromise2 = stomp.waitForMessage(`/topic/room/${room.roomId}/lobby`);
   const join2Res = await fetch(`${BASE_URL}/api/rooms/${room.pin}/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nickname: "laura_eng" }),
+    body: JSON.stringify({ nickname: "laura_eng", avatar: lauraAvatar }),
   });
   const player2 = await join2Res.json();
   const lobbyUpdate2 = await lobbyPromise2;
-  assert(join2Res.status === 200 && lobbyUpdate2.length === 2,
-    "CP-02: Jugador 2 (laura_eng) unido; lobby contiene 2 aprendices conectados");
+  assert(
+    join2Res.status === 200 &&
+      lobbyUpdate2.length === 2 &&
+      lobbyUpdate2.find((p) => p.nickname === "laura_eng")?.avatar === lauraAvatar,
+    "CP-02: Jugador 2 (laura_eng) unido con avatar de accesorios; lobby contiene 2 aprendices conectados"
+  );
 
   // 4b. Verificar ingreso y salida voluntaria de un 3er jugador en el lobby (DELETE /api/rooms/{roomId}/players/{playerId})
   const lobbyPromise3 = stomp.waitForMessage(`/topic/room/${room.roomId}/lobby`);
@@ -268,6 +284,35 @@ async function runSuite() {
       Array.isArray(lobbyAfterLeave) &&
       lobbyAfterLeave.length === 2,
     "Botón Salir del Lobby: DELETE /api/rooms/{roomId}/players/{playerId} retira al jugador y actualiza el lobby en vivo a 2 aprendices"
+  );
+
+  // 4c. Difusión global de reacciones interactivas (GREETING y CONFETTI)
+  const greetingPromise = stomp.waitForMessage(`/topic/room/${room.roomId}/reactions`);
+  stomp.send(`/app/room/${room.roomId}/reaction`, {
+    type: "GREETING",
+    playerId: player1.playerId,
+    nickname: player1.nickname,
+  });
+  const greetingMsg = await greetingPromise;
+  assert(
+    greetingMsg.type === "GREETING" &&
+      greetingMsg.nickname === "camilo_dev" &&
+      typeof greetingMsg.timestamp === "number",
+    "Reacción Global: Saludo 👋 emitido en /app/room/{roomId}/reaction y difundido a /topic/room/{roomId}/reactions"
+  );
+
+  const confettiPromise = stomp.waitForMessage(`/topic/room/${room.roomId}/reactions`);
+  stomp.send(`/app/room/${room.roomId}/reaction`, {
+    type: "CONFETTI",
+    playerId: player2.playerId,
+    nickname: player2.nickname,
+  });
+  const confettiMsg = await confettiPromise;
+  assert(
+    confettiMsg.type === "CONFETTI" &&
+      confettiMsg.nickname === "laura_eng" &&
+      typeof confettiMsg.timestamp === "number",
+    "Reacción Global: Confeti 🎉 emitido en /app/room/{roomId}/reaction y difundido a /topic/room/{roomId}/reactions"
   );
 
   // 5. Anexo A.4: Reconexión GET /api/rooms/{pin}
@@ -342,8 +387,9 @@ async function runSuite() {
       results1.playerVerdicts?.[player1.playerId]?.isCorrect === true &&
       results1.top5.length === 2 &&
       results1.top5[0].nickname === "camilo_dev" &&
+      results1.top5[0].avatar === camiloAvatar &&
       results1.top5[0].score > results1.top5[1].score,
-    `CP-10 & RF-10: Leaderboard Top 5 y playerVerdicts recibidos (${results1.top5[0].nickname}: ${results1.top5[0].score} pts > ${results1.top5[1].nickname}: ${results1.top5[1].score} pts)`
+    `CP-10 & RF-10: Leaderboard Top 5 con avatares recibidos (${results1.top5[0].nickname}: ${results1.top5[0].score} pts > ${results1.top5[1].nickname}: ${results1.top5[1].score} pts)`
   );
 
   // 9. CP-09: Activar Ruleta de Retroalimentación (Tarea 11 Frontend / RF-11)
@@ -353,8 +399,9 @@ async function runSuite() {
   assert(
     rouletteRes.status === 200 &&
       ["camilo_dev", "laura_eng"].includes(rouletteEvent.nickname) &&
+      rouletteEvent.avatar != null &&
       rouletteEvent.isCorrect === true,
-    `CP-09 & RF-11: Ruleta seleccionó a ${rouletteEvent.nickname} con respuesta '${rouletteEvent.value}'`
+    `CP-09 & RF-11: Ruleta seleccionó a ${rouletteEvent.nickname} con avatar y respuesta '${rouletteEvent.value}'`
   );
 
   // 10. Avanzar a Pregunta #2 (MULTIPLE_CHOICE) y luego a Pregunta #3 (TEXT_INPUT - CP-06)
@@ -413,8 +460,9 @@ async function runSuite() {
       podiumEvent.status === "FINISHED" &&
       Array.isArray(podiumEvent.top3) &&
       podiumEvent.top3[0].nickname === "camilo_dev" &&
+      podiumEvent.top3[0].avatar === camiloAvatar &&
       podiumEvent.top3[0].score > 3000,
-    `CP-11 & CU-06: Podio Final Top 3 emitido en /topic/room/{roomId}/podium (1.° lugar: ${podiumEvent.top3[0].nickname} con ${podiumEvent.top3[0].score} pts)`
+    `CP-11 & CU-06: Podio Final Top 3 emitido con avatares en /topic/room/{roomId}/podium (1.° lugar: ${podiumEvent.top3[0].nickname} con ${podiumEvent.top3[0].score} pts)`
   );
 
   // 14. CP-12: Verificar ajuste de tiempos del moderador y rotación aleatoria de mecánicas entre salas

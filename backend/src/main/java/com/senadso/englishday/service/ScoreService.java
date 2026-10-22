@@ -131,6 +131,7 @@ public class ScoreService {
                 .stream()
                 .map(player -> LeaderboardEntryDto.builder()
                         .nickname(player.getNickname())
+                        .avatar(player.getAvatar())
                         .score(player.getTotalScore())
                         .build())
                 .toList();
@@ -191,6 +192,7 @@ public class ScoreService {
                             PlayerRoundVerdictDto.builder()
                                     .playerId(p.getPlayerId())
                                     .nickname(p.getNickname())
+                                    .avatar(p.getAvatar())
                                     .submittedValue(ans.getValue())
                                     .isCorrect(answerCorrect)
                                     .pointsAwarded(ans.getPointsAwarded() != null ? ans.getPointsAwarded() : 0)
@@ -235,6 +237,7 @@ public class ScoreService {
                 .stream()
                 .map(player -> LeaderboardEntryDto.builder()
                         .nickname(player.getNickname())
+                        .avatar(player.getAvatar())
                         .score(player.getTotalScore())
                         .build())
                 .toList();

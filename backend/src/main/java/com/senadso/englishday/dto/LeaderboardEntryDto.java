@@ -23,6 +23,11 @@ public class LeaderboardEntryDto {
     private String nickname;
 
     /**
+     * Avatar del aprendiz.
+     */
+    private String avatar;
+
+    /**
      * Puntaje acumulado en la sala.
      */
     private Integer score;

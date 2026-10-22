@@ -80,8 +80,17 @@ const podiumTotalPlayers = document.querySelector("#podiumTotalPlayers");
 const btnBackToStart = document.querySelector("#btnBackToStart");
 const navModeratorLink = document.querySelector("#navModeratorLink");
 
-const PLAYER_STORAGE_KEY = "englishDayPlayerSession";
+const lobbyProfileCard = document.querySelector("#lobbyProfileCard");
+const lobbyProfileAvatar = document.querySelector("#lobbyProfileAvatar");
+const lobbyProfileName = document.querySelector("#lobbyProfileName");
+const rouletteWinnerAvatarWrap = document.querySelector("#rouletteWinnerAvatarWrap");
+const rouletteWinnerAvatar = document.querySelector("#rouletteWinnerAvatar");
+const podiumPedestalsStage = document.querySelector("#podiumPedestalsStage");
 
+const PLAYER_STORAGE_KEY = "englishDayPlayerSession";
+const AVATAR_LOCAL_STORAGE_KEY = "englishDayPlayerAvatar";
+
+let avatarStudio = null;
 let lobbySocket;
 let timerInterval;
 let autoCloseTimeout;
@@ -101,6 +110,15 @@ let finalVoiceTranscript = "";
 let knownRoomPlayers = [];
 let playerRouletteWheel = null;
 let isLeavingIntentionally = false;
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 if (navModeratorLink) {
   navModeratorLink.addEventListener("click", (event) => {
@@ -194,7 +212,414 @@ if (urlPin && /^\d{6}$/.test(urlPin)) {
   nicknameInput?.focus();
 }
 
+function updateJoinAvatarPreview(avatarData) {
+  const preview = document.querySelector("#joinAvatarPreview");
+  if (!preview || !window.EnglishDayAvatars) return;
+  window.EnglishDayAvatars.mountAvatar(preview, avatarData, "sm");
+}
+
+// Soporte universal para Confeti en English Day
+if (typeof window.EnglishDayConfetti === "undefined") {
+  window.EnglishDayConfetti = {
+    fire: (x, y, count = 75) => {
+      if (window.confetti && typeof window.confetti.burst === "function") {
+        window.confetti.burst(x ?? window.innerWidth / 2, y ?? window.innerHeight * 0.45, count);
+      }
+    }
+  };
+}
+
+// Helper para emitir reacción interactiva por WebSocket hacia toda la sala
+function sendReactionOverSocket(type) {
+  if (lobbySocket && lobbySocket.readyState === WebSocket.OPEN && currentRoomId) {
+    const payload = JSON.stringify({
+      type: type,
+      playerId: currentPlayer?.playerId || null,
+      nickname: currentPlayer?.nickname || "Aprendiz"
+    });
+    lobbySocket.send(
+      `SEND\ndestination:/app/room/${currentRoomId}/reaction\ncontent-type:application/json\n\n${payload}\0`
+    );
+  }
+}
+
+// Notificación flotante estilo Toast para reacciones globales en pantalla
+function showFloatingReactionToast(message) {
+  let toastContainer = document.querySelector("#reactionToastContainer");
+  if (!toastContainer) {
+    toastContainer = document.createElement("div");
+    toastContainer.id = "reactionToastContainer";
+    toastContainer.className = "fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none";
+    document.body.appendChild(toastContainer);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = "bg-surface-container-lowest/95 backdrop-blur-md text-on-surface px-4 py-2 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.18)] border-2 border-primary font-label-md text-label-md font-extrabold flex items-center gap-2 animate-bounce transition-all duration-300";
+  toast.innerHTML = message;
+  toastContainer.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add("opacity-0", "-translate-y-3");
+    setTimeout(() => toast.remove(), 400);
+  }, 2400);
+}
+
+// Controlador de reacciones remotas recibidas por WebSocket
+function handleRemoteReaction(reaction) {
+  if (!reaction || typeof reaction !== "object") return;
+  const type = reaction.type || "GREETING";
+  const senderNick = reaction.nickname || "Un aprendiz";
+  const isMe = currentPlayer && reaction.playerId && reaction.playerId === currentPlayer.playerId;
+
+  if (type === "GREETING") {
+    // 1. Lluvia global de emojis 👋 en canvas
+    if (window.confetti && typeof window.confetti.emojiRain === "function") {
+      window.confetti.emojiRain("👋", 26);
+    }
+    // 2. Audio para los compañeros
+    if (window.soundFx && !isMe) {
+      if (typeof window.soundFx.playPop === "function") {
+        window.soundFx.playPop();
+      } else if (typeof window.soundFx.playClick === "function") {
+        window.soundFx.playClick();
+      }
+    }
+    // 3. Notificación flotante visible para todos
+    showFloatingReactionToast(`👋 <strong>${escapeHtml(senderNick)}</strong> saludó a toda la sala`);
+
+    // 4. Iluminar tarjeta del aprendiz en la lista de jugadores
+    if (lobbyPlayers) {
+      const userItems = lobbyPlayers.querySelectorAll("li");
+      userItems.forEach((li) => {
+        if (li.textContent.includes(senderNick)) {
+          li.classList.add("ring-4", "ring-primary", "scale-105");
+          setTimeout(() => li.classList.remove("ring-4", "ring-primary", "scale-105"), 1500);
+        }
+      });
+    }
+  } else if (type === "CONFETTI") {
+    // 1. Estallido global de confeti multicolor
+    if (window.confetti) {
+      window.confetti.burst(
+        Math.random() * window.innerWidth * 0.6 + window.innerWidth * 0.2,
+        window.innerHeight * 0.35,
+        75
+      );
+    }
+    // 2. Audio de celebración
+    if (window.soundFx && !isMe) {
+      if (typeof window.soundFx.playPowerUp === "function") {
+        window.soundFx.playPowerUp();
+      } else if (typeof window.soundFx.playCorrect === "function") {
+        window.soundFx.playCorrect();
+      }
+    }
+    // 3. Notificación flotante
+    showFloatingReactionToast(`🎉 ¡<strong>${escapeHtml(senderNick)}</strong> lanzó confeti a la sala!`);
+  }
+}
+window.handleRemoteReaction = handleRemoteReaction;
+
+// Cooldown de botones interactivos (evita spam múltiple)
+let reactionBtnCooldown = false;
+let quickReactionCooldown = false;
+
 document.addEventListener("DOMContentLoaded", () => {
+  const avatarStudioRoot = document.querySelector("#avatarStudioRoot");
+  let savedAvatar = window.localStorage.getItem(AVATAR_LOCAL_STORAGE_KEY) || null;
+
+  // Asignar avatar aleatorio por defecto si el aprendiz ingresa por primera vez
+  if (!savedAvatar && window.EnglishDayAvatars) {
+    const initialRand = window.EnglishDayAvatars.getRandomAvatar();
+    savedAvatar = window.EnglishDayAvatars.serializeAvatar(initialRand);
+    try {
+      window.localStorage.setItem(AVATAR_LOCAL_STORAGE_KEY, savedAvatar);
+    } catch {}
+  }
+
+  if (avatarStudioRoot && window.EnglishDayAvatars) {
+    avatarStudio = window.EnglishDayAvatars.createStudio(avatarStudioRoot, {
+      initialAvatar: savedAvatar,
+      onChange: (_obj, serialized) => {
+        try {
+          window.localStorage.setItem(AVATAR_LOCAL_STORAGE_KEY, serialized);
+        } catch {
+          // LocalStorage opcional
+        }
+        updateJoinAvatarPreview(serialized);
+      },
+    });
+  }
+  updateJoinAvatarPreview(savedAvatar || avatarStudio?.getSerialized());
+
+  // Modal de personalización de avatar
+  const avatarModal = document.querySelector("#avatarStudioModal");
+  const btnOpenModal = document.querySelector("#btnOpenAvatarModal");
+  const btnCloseModal = document.querySelector("#btnCloseAvatarModal");
+  const btnSaveModal = document.querySelector("#btnSaveAvatarModal");
+  const btnModalRandom = document.querySelector("#btnModalRandomAvatar");
+
+  if (btnOpenModal && avatarModal) {
+    btnOpenModal.addEventListener("click", () => {
+      avatarModal.hidden = false;
+    });
+  }
+  if (btnCloseModal && avatarModal) {
+    btnCloseModal.addEventListener("click", () => {
+      avatarModal.hidden = true;
+    });
+  }
+  if (btnSaveModal && avatarModal) {
+    btnSaveModal.addEventListener("click", () => {
+      avatarModal.hidden = true;
+      if (avatarStudio) {
+        updateJoinAvatarPreview(avatarStudio.getSerialized());
+      }
+    });
+  }
+  if (avatarModal) {
+    avatarModal.addEventListener("click", (e) => {
+      if (e.target === avatarModal) {
+        avatarModal.hidden = true;
+      }
+    });
+  }
+
+  // Botón de avatar aleatorio (dentro del modal de personalizar)
+  if (btnModalRandom && window.EnglishDayAvatars) {
+    btnModalRandom.addEventListener("click", () => {
+      const rand = window.EnglishDayAvatars.getRandomAvatar();
+      if (avatarStudio) {
+        avatarStudio.setAvatar(rand);
+      }
+      const serialized = window.EnglishDayAvatars.serializeAvatar(rand);
+      try {
+        window.localStorage.setItem(AVATAR_LOCAL_STORAGE_KEY, serialized);
+      } catch {}
+      updateJoinAvatarPreview(serialized);
+      if (window.soundFx) window.soundFx.playClick();
+    });
+  }
+
+  // Botón Pegar PIN
+  const pastePinBtn = document.querySelector("#paste-pin-btn");
+  if (pastePinBtn) {
+    pastePinBtn.addEventListener("click", async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        const digits = text.replace(/\D/g, "").slice(0, 6);
+        if (digits.length > 0) {
+          digits.split("").forEach((d, i) => {
+            if (pinInputs[i]) pinInputs[i].value = d;
+          });
+          const focusIdx = Math.min(digits.length, pinInputs.length - 1);
+          pinInputs[focusIdx]?.focus();
+        }
+      } catch {
+        // Fallback si no hay permisos de portapapeles
+      }
+    });
+  }
+
+  // Autofoco inicial en primer dígito del PIN
+  if (!urlPin && pinInputs.length > 0) {
+    setTimeout(() => {
+      pinInputs[0]?.focus();
+    }, 150);
+  }
+
+  // Validación visual en tiempo real de Nickname (icono de check sutil)
+  const nicknameCheckIcon = document.querySelector("#nicknameCheckIcon");
+  const nicknameBadge = document.querySelector("#nicknameBadge");
+  const nicknameBadgeText = document.querySelector("#nicknameBadgeText");
+  if (nicknameInput) {
+    nicknameInput.addEventListener("input", () => {
+      const val = nicknameInput.value.trim();
+      const isValid = val.length >= 2;
+      if (nicknameCheckIcon) {
+        nicknameCheckIcon.className = isValid
+          ? "material-symbols-outlined text-primary text-xl transition-colors font-bold"
+          : "material-symbols-outlined text-outline text-xl transition-colors";
+      }
+      if (nicknameBadge && nicknameBadgeText) {
+        if (isValid) {
+          nicknameBadge.className = "bg-primary-container/30 text-on-primary-container font-label-sm text-label-sm px-2.5 py-1 rounded-full flex items-center gap-1 font-bold";
+          nicknameBadgeText.textContent = "Válido";
+        } else {
+          nicknameBadge.className = "bg-surface-container-high text-outline font-label-sm text-label-sm px-2.5 py-1 rounded-full flex items-center gap-1 font-bold";
+          nicknameBadgeText.textContent = "Mín. 2 letras";
+        }
+      }
+    });
+  }
+
+  // Alternador de audio en header
+  const btnHeaderSound = document.querySelector("#btnHeaderSoundToggle");
+  const headerSoundIcon = document.querySelector("#headerSoundIcon");
+  if (btnHeaderSound && headerSoundIcon) {
+    btnHeaderSound.addEventListener("click", () => {
+      if (window.soundFx) {
+        const isMuted = window.soundFx.toggleMute();
+        headerSoundIcon.textContent = isMuted ? "volume_off" : "volume_up";
+        btnHeaderSound.title = isMuted ? "Activar sonido" : "Silenciar";
+      }
+    });
+  }
+
+  // Botón Copiar PIN en Lobby
+  const copyPinBtn = document.querySelector("#copyPinBtn");
+  if (copyPinBtn) {
+    copyPinBtn.addEventListener("click", () => {
+      const pinText = lobbyPin?.textContent?.replace(/\D/g, "") || "";
+      if (pinText && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(pinText).then(() => {
+          copyPinBtn.classList.add("bg-primary", "text-on-primary");
+          setTimeout(() => {
+            copyPinBtn.classList.remove("bg-primary", "text-on-primary");
+          }, 1200);
+        }).catch(() => {});
+      }
+    });
+  }
+
+  // Reacciones en Lobby: Saludar al aula con Cooldown
+  const reactionBtn = document.querySelector("#reactionBtn");
+  const lobbyGreetingStatus = document.querySelector("#lobbyGreetingStatus");
+  if (reactionBtn) {
+    const originalReactionHtml = reactionBtn.innerHTML;
+    reactionBtn.addEventListener("click", () => {
+      if (reactionBtnCooldown) return;
+
+      reactionBtnCooldown = true;
+      if (window.soundFx) window.soundFx.playClick();
+
+      // Enviar evento global por WebSocket a toda la sala
+      sendReactionOverSocket("GREETING");
+
+      // Si aún no está conectado al socket, disparar lluvia local
+      if (!lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
+        if (window.confetti && typeof window.confetti.emojiRain === "function") {
+          window.confetti.emojiRain("👋", 26);
+        }
+      }
+
+      // Estado activo inmediato del botón
+      reactionBtn.innerHTML = `<span>¡Saludaste!</span> <span class="text-base">👋</span>`;
+      reactionBtn.classList.add("bg-primary", "text-on-primary", "scale-105");
+
+      if (lobbyGreetingStatus) {
+        lobbyGreetingStatus.textContent = "👋 ¡Has enviado un saludo a la sala!";
+        lobbyGreetingStatus.classList.add("text-primary", "font-bold");
+      }
+
+      // Iniciar cuenta regresiva de Cooldown (3 segundos)
+      let secondsLeft = 3;
+      setTimeout(() => {
+        reactionBtn.classList.remove("bg-primary", "text-on-primary", "scale-105");
+        reactionBtn.classList.add("opacity-60", "cursor-not-allowed");
+        reactionBtn.disabled = true;
+
+        const timerInterval = setInterval(() => {
+          if (secondsLeft > 0) {
+            reactionBtn.innerHTML = `<span>⏳ Espera (${secondsLeft}s)</span>`;
+            secondsLeft--;
+          } else {
+            clearInterval(timerInterval);
+            reactionBtn.disabled = false;
+            reactionBtn.classList.remove("opacity-60", "cursor-not-allowed");
+            reactionBtn.innerHTML = originalReactionHtml;
+            reactionBtnCooldown = false;
+
+            if (lobbyGreetingStatus) {
+              lobbyGreetingStatus.textContent = "¡Saluda a tus compañeros en la sala!";
+              lobbyGreetingStatus.classList.remove("text-primary", "font-bold");
+            }
+          }
+        }, 750);
+      }, 700);
+    });
+  }
+
+  // Reacción rápida: Confeti Virtual con Cooldown
+  const quickReaction = document.querySelector("#quickReaction");
+  if (quickReaction) {
+    quickReaction.addEventListener("click", () => {
+      if (quickReactionCooldown) return;
+
+      quickReactionCooldown = true;
+      quickReaction.classList.add("scale-125", "rotate-12");
+      setTimeout(() => {
+        quickReaction.classList.remove("scale-125", "rotate-12");
+      }, 300);
+
+      // Enviar evento global por WebSocket a toda la sala
+      sendReactionOverSocket("CONFETTI");
+
+      // Si aún no está conectado al socket, disparar estallido local
+      if (!lobbySocket || lobbySocket.readyState !== WebSocket.OPEN) {
+        if (window.confetti) {
+          const rect = quickReaction.getBoundingClientRect();
+          window.confetti.burst(rect.left + rect.width / 2, Math.max(30, rect.top - 30), 65);
+        }
+      }
+
+      if (window.soundFx) window.soundFx.playPowerUp();
+
+      // Bloquear botón durante cooldown (3s)
+      quickReaction.disabled = true;
+      quickReaction.classList.add("opacity-50", "cursor-not-allowed", "grayscale");
+      quickReaction.title = "Espera unos segundos...";
+
+      setTimeout(() => {
+        quickReaction.disabled = false;
+        quickReaction.classList.remove("opacity-50", "cursor-not-allowed", "grayscale");
+        quickReaction.title = "Lanzar confeti virtual";
+        quickReactionCooldown = false;
+      }, 3000);
+    });
+  }
+
+  // Acciones en Podio
+  const btnClaimPrizes = document.querySelector("#btnClaimPrizes");
+  if (btnClaimPrizes) {
+    btnClaimPrizes.addEventListener("click", () => {
+      try {
+        if (window.EnglishDayConfetti && typeof window.EnglishDayConfetti.fire === "function") {
+          window.EnglishDayConfetti.fire();
+        } else if (window.confetti && typeof window.confetti.burst === "function") {
+          window.confetti.burst(window.innerWidth / 2, window.innerHeight * 0.35, 60);
+        }
+        if (window.soundFx) {
+          if (typeof window.soundFx.playVictory === "function") {
+            window.soundFx.playVictory();
+          } else if (typeof window.soundFx.playFanfare === "function") {
+            window.soundFx.playFanfare();
+          }
+        }
+      } catch (err) {
+        console.warn("Audio/confetti podio claim no bloqueante:", err);
+      }
+      btnClaimPrizes.textContent = "¡PREMIOS DESBLOQUEADOS!";
+      btnClaimPrizes.classList.add("bg-primary", "text-on-primary");
+    });
+  }
+  const btnSharePodium = document.querySelector("#btnSharePodium");
+  if (btnSharePodium) {
+    btnSharePodium.addEventListener("click", () => {
+      const text = "¡Competí en el English Day SENA 2025 y alcancé el podio con honores bilingües! 🇨🇴🦉";
+      if (navigator.share) {
+        navigator.share({ title: "English Day SENA 2025", text, url: window.location.href }).catch(() => {});
+      } else if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          btnSharePodium.textContent = "¡COPIADO!";
+          setTimeout(() => {
+            btnSharePodium.textContent = "COMPARTIR";
+          }, 1500);
+        }).catch(() => {});
+      }
+    });
+  }
+
   if (window.ActiveFeedbackRoulette) {
     playerRouletteWheel = new window.ActiveFeedbackRoulette("playerRouletteCanvas");
   }
@@ -278,17 +703,25 @@ function normalizeAnswerForComparison(value) {
 }
 
 function stopVoiceRecognition() {
-  if (speechRecognition && isRecordingVoice) {
+  if (speechRecognition) {
     try {
+      speechRecognition.onstart = null;
+      speechRecognition.onresult = null;
+      speechRecognition.onerror = null;
+      speechRecognition.onend = null;
       speechRecognition.abort();
     } catch {
       // Ignorar si ya estaba detenido
     }
+    speechRecognition = null;
   }
   isRecordingVoice = false;
   if (voiceMicButton) {
     voiceMicButton.setAttribute("aria-pressed", "false");
     voiceMicButton.classList.remove("is-recording");
+  }
+  if (voiceMicLabel) {
+    voiceMicLabel.textContent = "Toca el micrófono para hablar";
   }
 }
 
@@ -513,15 +946,24 @@ function toggleVoiceRecording() {
     return;
   }
 
-  if (isRecordingVoice && speechRecognition) {
-    speechRecognition.stop();
+  if (isRecordingVoice) {
+    stopVoiceRecognition();
     return;
   }
+
+  // Limpiar cualquier sesión anterior antes de crear nueva instancia
+  stopVoiceRecognition();
 
   finalVoiceTranscript = "";
   if (voiceConfirmActions) voiceConfirmActions.hidden = true;
 
-  speechRecognition = new SpeechRecognitionCtor();
+  try {
+    speechRecognition = new SpeechRecognitionCtor();
+  } catch {
+    activateVoiceTextFallback("No pudimos usar el micrófono. Escribe tu respuesta.");
+    return;
+  }
+
   speechRecognition.lang = "en-US";
   speechRecognition.continuous = false;
   speechRecognition.interimResults = true;
@@ -531,13 +973,21 @@ function toggleVoiceRecording() {
 
   speechRecognition.onstart = () => {
     isRecordingVoice = true;
-    voiceMicButton.setAttribute("aria-pressed", "true");
-    voiceMicButton.classList.add("is-recording");
-    voiceMicLabel.textContent = "Escuchando... Toca de nuevo para detener";
-    voiceTranscriptText.textContent = "Escuchando tu voz en inglés...";
-    voiceTranscriptText.classList.add("is-interim");
-    questionStatus.textContent = "";
-    questionStatus.dataset.state = "";
+    if (voiceMicButton) {
+      voiceMicButton.setAttribute("aria-pressed", "true");
+      voiceMicButton.classList.add("is-recording");
+    }
+    if (voiceMicLabel) {
+      voiceMicLabel.textContent = "Escuchando... Toca de nuevo para detener";
+    }
+    if (voiceTranscriptText) {
+      voiceTranscriptText.textContent = "Escuchando tu voz en inglés...";
+      voiceTranscriptText.classList.add("is-interim");
+    }
+    if (questionStatus) {
+      questionStatus.textContent = "";
+      questionStatus.dataset.state = "";
+    }
   };
 
   speechRecognition.onresult = (event) => {
@@ -548,7 +998,7 @@ function toggleVoiceRecording() {
     let interimText = "";
     let finalText = "";
     for (let i = event.resultIndex; i < event.results.length; i += 1) {
-      const transcript = event.results[i][0].transcript;
+      const transcript = event.results[i][0]?.transcript || "";
       if (event.results[i].isFinal) {
         finalText += transcript;
       } else {
@@ -560,19 +1010,23 @@ function toggleVoiceRecording() {
     }
     latestInterim = interimText.trim();
 
-    if (finalVoiceTranscript) {
-      voiceTranscriptText.textContent = finalVoiceTranscript;
-      voiceTranscriptText.classList.remove("is-interim");
-    } else if (latestInterim) {
-      voiceTranscriptText.textContent = latestInterim;
-      voiceTranscriptText.classList.add("is-interim");
+    const currentText = finalVoiceTranscript || latestInterim;
+    if (voiceTranscriptText && currentText) {
+      voiceTranscriptText.textContent = currentText;
+      if (finalVoiceTranscript) {
+        voiceTranscriptText.classList.remove("is-interim");
+      } else {
+        voiceTranscriptText.classList.add("is-interim");
+      }
     }
   };
 
   speechRecognition.onerror = (event) => {
     isRecordingVoice = false;
-    voiceMicButton.setAttribute("aria-pressed", "false");
-    voiceMicButton.classList.remove("is-recording");
+    if (voiceMicButton) {
+      voiceMicButton.setAttribute("aria-pressed", "false");
+      voiceMicButton.classList.remove("is-recording");
+    }
 
     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
       activateVoiceTextFallback(
@@ -585,17 +1039,23 @@ function toggleVoiceRecording() {
       return;
     }
     if (event.error === "no-speech") {
-      voiceMicLabel.textContent = "Toca el micrófono para hablar";
-      voiceTranscriptText.textContent = "No te escuché. Toca el micrófono e inténtalo de nuevo.";
-      voiceTranscriptText.classList.remove("is-interim");
+      if (voiceMicLabel) voiceMicLabel.textContent = "Toca el micrófono para hablar";
+      if (voiceTranscriptText) {
+        voiceTranscriptText.textContent = "No te escuché. Toca el micrófono e inténtalo de nuevo.";
+        voiceTranscriptText.classList.remove("is-interim");
+      }
     }
   };
 
   speechRecognition.onend = () => {
     isRecordingVoice = false;
-    voiceMicButton.setAttribute("aria-pressed", "false");
-    voiceMicButton.classList.remove("is-recording");
-    voiceMicLabel.textContent = "Toca el micrófono para hablar";
+    if (voiceMicButton) {
+      voiceMicButton.setAttribute("aria-pressed", "false");
+      voiceMicButton.classList.remove("is-recording");
+    }
+    if (voiceMicLabel) {
+      voiceMicLabel.textContent = "Toca el micrófono para hablar";
+    }
 
     if (Date.now() >= questionDeadline) {
       return;
@@ -606,15 +1066,22 @@ function toggleVoiceRecording() {
     }
 
     if (finalVoiceTranscript) {
-      voiceTranscriptText.textContent = finalVoiceTranscript;
-      voiceTranscriptText.classList.remove("is-interim");
+      if (voiceTranscriptText) {
+        voiceTranscriptText.textContent = finalVoiceTranscript;
+        voiceTranscriptText.classList.remove("is-interim");
+      }
       if (voiceConfirmActions) voiceConfirmActions.hidden = false;
       if (voiceRepeatButton) voiceRepeatButton.disabled = false;
       if (voiceSubmitButton) voiceSubmitButton.disabled = false;
     } else if (!voiceFallbackNotice || voiceFallbackNotice.hidden) {
-      voiceTranscriptText.textContent = "No te escuché. Toca el micrófono e inténtalo de nuevo.";
-      voiceTranscriptText.classList.remove("is-interim");
+      if (voiceTranscriptText) {
+        voiceTranscriptText.textContent = "No te escuché. Toca el micrófono o 'Repetir' para intentar de nuevo.";
+        voiceTranscriptText.classList.remove("is-interim");
+      }
+      if (voiceConfirmActions) voiceConfirmActions.hidden = true;
     }
+
+    speechRecognition = null;
   };
 
   try {
@@ -631,10 +1098,14 @@ if (voiceMicButton) {
 if (voiceRepeatButton) {
   voiceRepeatButton.addEventListener("click", () => {
     if (hasSubmittedAnswer || Date.now() >= questionDeadline) return;
+    stopVoiceRecognition();
     finalVoiceTranscript = "";
     if (voiceConfirmActions) voiceConfirmActions.hidden = true;
-    voiceTranscriptText.textContent = "Grabación descartada. Toca el micrófono para repetir.";
-    voiceTranscriptText.classList.remove("is-interim");
+    if (voiceTranscriptText) {
+      voiceTranscriptText.textContent = "Reiniciando micrófono...";
+      voiceTranscriptText.classList.remove("is-interim");
+    }
+    toggleVoiceRecording();
   });
 }
 
@@ -657,20 +1128,43 @@ function setLobbyStatus(message, state) {
 
 function renderLobbyPlayers(players, currentPlayerId) {
   lobbyPlayers.replaceChildren();
-  knownRoomPlayers = players.map((p) => ({ name: p.nickname }));
+  knownRoomPlayers = players.map((p) => ({ name: p.nickname, avatar: p.avatar }));
+
+  if (lobbyProfileCard && currentPlayer) {
+    lobbyProfileCard.hidden = false;
+    if (lobbyProfileName) lobbyProfileName.textContent = currentPlayer.nickname;
+    if (lobbyProfileAvatar && window.EnglishDayAvatars) {
+      window.EnglishDayAvatars.mountAvatar(lobbyProfileAvatar, currentPlayer.avatar, "md");
+    }
+  }
+
+  const capacityBar = document.querySelector("#lobbyCapacityBar");
+  if (capacityBar) {
+    const pct = Math.min(100, Math.max(10, Math.round((players.length / 30) * 100)));
+    capacityBar.style.width = `${pct}%`;
+  }
 
   players.forEach((player, index) => {
     const item = document.createElement("li");
-    item.className = "lobby-player stagger-item";
-    item.style.animationDelay = `${index * 55}ms`;
-    item.textContent = player.nickname;
+    item.className = "bg-surface-container-low rounded-DEFAULT p-space-sm flex flex-col items-center text-center shadow-[0_4px_0_#ddeaf1] hover:-translate-y-1 hover:shadow-[0_6px_0_#ddeaf1] transition-all relative stagger-item border border-surface-container-high";
+    item.style.animationDelay = `${index * 45}ms`;
 
-    if (player.playerId === currentPlayerId) {
-      const youLabel = document.createElement("span");
-      youLabel.className = "you-label";
-      youLabel.textContent = "Tú";
-      item.append(youLabel);
-    }
+    const isCurrent = player.playerId === currentPlayerId || (currentPlayer && player.nickname === currentPlayer.nickname);
+    const avatarHtml = window.EnglishDayAvatars
+      ? window.EnglishDayAvatars.renderAvatarHtml(player.avatar, "sm")
+      : "";
+
+    item.innerHTML = `
+      <div class="relative w-16 h-16 rounded-full bg-surface-container-lowest p-1 shadow-[0_3px_0_#d7e5eb] mb-1 flex items-center justify-center overflow-hidden border border-surface-container-high">
+        ${avatarHtml}
+        <span class="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-primary-container border-2 border-surface-container-lowest"></span>
+      </div>
+      <span class="font-label-md text-label-md text-on-surface truncate w-full font-bold">${escapeHtml(player.nickname)}</span>
+      <span class="font-label-sm text-label-sm text-primary font-extrabold flex items-center gap-0.5 mt-0.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span> Online
+      </span>
+      ${isCurrent ? '<span class="absolute -top-1.5 -right-1.5 bg-primary-container text-on-primary-container text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">¡TÚ!</span>' : ''}
+    `;
 
     lobbyPlayers.append(item);
   });
@@ -994,7 +1488,7 @@ function renderQuestion(question, options = {}) {
       transitionQuestionNumber.textContent = `#${question.order}`;
     }
     if (transitionHeading) {
-      transitionHeading.textContent = `¡Pregunta ${question.order}${totalLabel}!`;
+      transitionHeading.textContent = `Pregunta ${question.order}`;
     }
     if (transitionThemePill) {
       transitionThemePill.textContent = `📚 ${thematicMeta.themeLabel}`;
@@ -1199,7 +1693,15 @@ function renderResultsScreen(payload) {
       scoreSpan.className = "leaderboard-score";
       scoreSpan.textContent = `${entry.score ?? 0} pts`;
 
-      item.append(rankBadge, nameSpan, scoreSpan);
+      if (window.EnglishDayAvatars) {
+        const avatarSpan = document.createElement("span");
+        avatarSpan.className = "ranking-avatar";
+        avatarSpan.innerHTML = window.EnglishDayAvatars.renderAvatarHtml(entry.avatar, "xs");
+        item.append(rankBadge, avatarSpan, nameSpan, scoreSpan);
+      } else {
+        item.append(rankBadge, nameSpan, scoreSpan);
+      }
+
       resultsTop5List.append(item);
     });
   }
@@ -1251,13 +1753,14 @@ function renderRouletteScreen(payload) {
     if (rouletteTitle) rouletteTitle.textContent = "🎡 Girando la ruleta...";
     if (rouletteBanner) rouletteBanner.hidden = true;
     if (rouletteAnswerBox) rouletteAnswerBox.hidden = true;
+    if (rouletteWinnerAvatarWrap) rouletteWinnerAvatarWrap.hidden = true;
 
     const wheelList = knownRoomPlayers.length > 0 ? [...knownRoomPlayers] : [];
     if (!wheelList.some((p) => p.name.toLowerCase() === payload.nickname.toLowerCase())) {
-      wheelList.push({ name: payload.nickname });
+      wheelList.push({ name: payload.nickname, avatar: payload.avatar });
     }
     if (wheelList.length === 1 && currentPlayer?.nickname && currentPlayer.nickname !== payload.nickname) {
-      wheelList.push({ name: currentPlayer.nickname });
+      wheelList.push({ name: currentPlayer.nickname, avatar: currentPlayer.avatar });
     }
 
     playerRouletteWheel.resize(260);
@@ -1267,6 +1770,10 @@ function renderRouletteScreen(payload) {
         rouletteTitle.textContent = isChosen
           ? "🎯 ¡Fuiste seleccionado por la ruleta!"
           : "🎯 ¡Aprendiz seleccionado al azar!";
+      }
+      if (rouletteWinnerAvatarWrap && rouletteWinnerAvatar && window.EnglishDayAvatars) {
+        rouletteWinnerAvatarWrap.hidden = false;
+        window.EnglishDayAvatars.mountAvatar(rouletteWinnerAvatar, payload.avatar, "lg");
       }
       if (rouletteBanner) {
         rouletteBanner.hidden = false;
@@ -1283,6 +1790,10 @@ function renderRouletteScreen(payload) {
     }, payload.nickname);
   } else {
     if (rouletteTitle) rouletteTitle.textContent = "¡Aprendiz seleccionado al azar!";
+    if (rouletteWinnerAvatarWrap && rouletteWinnerAvatar && window.EnglishDayAvatars) {
+      rouletteWinnerAvatarWrap.hidden = false;
+      window.EnglishDayAvatars.mountAvatar(rouletteWinnerAvatar, payload.avatar, "lg");
+    }
     if (rouletteBanner) rouletteBanner.hidden = false;
     if (rouletteAnswerBox) rouletteAnswerBox.hidden = false;
   }
@@ -1292,7 +1803,7 @@ function renderRouletteScreen(payload) {
 
 /**
  * Tarea 12: Pantalla de Podio Final Top 3 (/topic/room/{roomId}/podium).
- * Payload: { roomId, status: "FINISHED", top3: [{ nickname, score }], totalPlayers, timestamp }
+ * Payload: { roomId, status: "FINISHED", top3: [{ nickname, score, avatar }], totalPlayers, timestamp }
  */
 function renderPodiumScreen(payload) {
   const top3 = payload?.top3 || payload?.podium;
@@ -1306,6 +1817,183 @@ function renderPodiumScreen(payload) {
   window.clearInterval(transitionInterval);
   stopVoiceRecognition();
 
+  // 1. Escenario de 3 pedestales olímpicos (2: Plata izquierda, 1: Oro centro, 3: Bronce derecha)
+  if (podiumPedestalsStage) {
+    if (top3.length === 0) {
+      podiumPedestalsStage.innerHTML = `
+        <div class="col-span-3 text-center py-8 font-body-lg text-on-surface-variant font-bold bg-surface-container-low rounded-lg p-6 border-2 border-surface-container-high">
+          Partida finalizada sin participantes registrados.
+        </div>
+      `;
+    } else {
+      const p1 = top3[0];
+      const p2 = top3[1];
+      const p3 = top3[2];
+
+      const renderPedestal2 = p2 ? `
+        <div class="order-2 md:order-1 flex flex-col items-center group transition-all duration-300 w-full max-w-sm md:max-w-none mx-auto">
+          <div class="relative -mb-6 z-20 flex flex-col items-center">
+            <div class="relative">
+              <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-surface-container-lowest p-1 shadow-[0_4px_0_#becbb1] flex items-center justify-center overflow-hidden border-2 border-surface-container-high">
+                ${window.EnglishDayAvatars ? window.EnglishDayAvatars.renderAvatarHtml(p2.avatar, "sm") : '<span class="text-xl font-bold text-secondary">2</span>'}
+              </div>
+              ${currentPlayer && p2.nickname === currentPlayer.nickname ? `
+                <div class="absolute -top-2.5 -right-2 bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full text-xs font-black shadow-[0_2px_0_#46a302] animate-bounce z-30">
+                  ¡TÚ!
+                </div>
+              ` : ''}
+            </div>
+            <span class="text-base sm:text-lg text-on-surface mt-2 font-black">${escapeHtml(p2.nickname)}</span>
+            <span class="text-xs text-on-surface-variant font-medium">Subcampeón</span>
+          </div>
+          <div class="w-full bg-surface-container-high rounded-t-2xl rounded-b-xl pt-10 sm:pt-12 pb-5 sm:pb-6 px-4 flex flex-col items-center shadow-[0_6px_0_#becbb1] relative border-2 border-surface-container-highest">
+            <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-surface-container-lowest shadow-[0_3px_0_#becbb1] flex items-center justify-center mb-1.5 sm:mb-2 text-2xl sm:text-3xl text-outline leading-none font-black">
+              2
+            </div>
+            <span class="text-xs sm:text-sm uppercase tracking-wider text-outline mb-1 font-extrabold">Plata • Silver Medal</span>
+            <div class="flex items-center gap-1.5 px-3 sm:px-4 py-1 rounded-full bg-primary-container text-on-primary-container text-sm sm:text-base shadow-[0_3px_0_#46a302] font-black">
+              <span class="material-symbols-outlined text-[18px] sm:text-[20px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+              ${p2.score ?? 0} XP
+            </div>
+            <div class="mt-3 sm:mt-4 pt-2.5 sm:pt-3 w-full flex justify-center items-center text-on-surface-variant text-xs border-t border-surface-container-highest font-bold">
+              <span>Puntaje Oficial SENA</span>
+            </div>
+          </div>
+        </div>
+      ` : `<div class="order-2 md:order-1"></div>`;
+
+      const renderPedestal1 = p1 ? `
+        <div class="order-1 md:order-2 flex flex-col items-center group mt-0 md:-mt-8 z-10 transition-all duration-300 w-full max-w-sm md:max-w-none mx-auto">
+          <div class="relative -mb-6 z-20 flex flex-col items-center">
+            <div class="relative">
+              <span class="material-symbols-outlined text-tertiary-container text-[36px] sm:text-[42px] absolute -top-7 sm:-top-8 left-1/2 -translate-x-1/2 filter drop-shadow-md z-30" style="font-variation-settings: 'FILL' 1;">crown</span>
+              <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-surface-container-lowest p-1.5 shadow-[0_5px_0_#ddad00] flex items-center justify-center overflow-hidden border-2 border-tertiary-container">
+                ${window.EnglishDayAvatars ? window.EnglishDayAvatars.renderAvatarHtml(p1.avatar, "md") : '<span class="text-2xl font-bold text-tertiary">1</span>'}
+              </div>
+              <div class="absolute -bottom-1 -left-1 bg-tertiary-container text-on-tertiary-container p-1 rounded-full shadow-[0_2px_0_#b89000] z-20">
+                <span class="material-symbols-outlined text-[16px] sm:text-[18px]" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+              </div>
+              ${currentPlayer && p1.nickname === currentPlayer.nickname ? `
+                <div class="absolute -top-2.5 -right-2 bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full text-xs font-black shadow-[0_2px_0_#46a302] animate-bounce z-30">
+                  ¡TÚ!
+                </div>
+              ` : ''}
+            </div>
+            <span class="text-lg sm:text-xl text-on-surface mt-2 flex items-center gap-1 font-black">
+              ${escapeHtml(p1.nickname)}
+              <span class="material-symbols-outlined text-tertiary-container text-[18px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+            </span>
+            <span class="text-xs text-on-surface-variant font-medium">Gran Campeón Bilingüe</span>
+          </div>
+          <div class="w-full bg-gradient-to-b from-tertiary-fixed/40 via-surface-container-low to-surface-container-lowest rounded-t-2xl rounded-b-xl pt-10 sm:pt-12 pb-5 sm:pb-8 px-4 flex flex-col items-center shadow-[0_8px_0_#ddad00] md:shadow-[0_12px_0_#ddad00] relative border-2 border-tertiary-container/50">
+            <div class="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-tertiary-container shadow-[0_3px_0_#b89000] sm:shadow-[0_4px_0_#b89000] flex items-center justify-center mb-1.5 sm:mb-2 text-2xl sm:text-3xl text-on-tertiary-container leading-none font-black">
+              1
+            </div>
+            <span class="text-xs sm:text-sm uppercase tracking-wider text-tertiary mb-1 font-extrabold">Campeón • Gold Champion</span>
+            <div class="flex items-center gap-1.5 px-4 sm:px-6 py-1 sm:py-1.5 rounded-full bg-tertiary-container text-on-tertiary-container text-base sm:text-lg shadow-[0_3px_0_#b89000] font-black">
+              <span class="material-symbols-outlined text-[20px] sm:text-[24px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+              ${p1.score ?? 0} XP
+            </div>
+            <div class="mt-3 sm:mt-5 pt-2.5 sm:pt-3 w-full flex justify-center items-center text-on-surface text-xs border-t border-tertiary-container/30 font-bold">
+              <span>Puntaje Oficial SENA</span>
+            </div>
+          </div>
+        </div>
+      ` : `<div class="order-1 md:order-2"></div>`;
+
+      const renderPedestal3 = p3 ? `
+        <div class="order-3 flex flex-col items-center group transition-all duration-300 w-full max-w-sm md:max-w-none mx-auto">
+          <div class="relative -mb-6 z-20 flex flex-col items-center">
+            <div class="relative">
+              <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-surface-container-lowest p-1 shadow-[0_4px_0_#becbb1] flex items-center justify-center overflow-hidden border-2 border-surface-container-high">
+                ${window.EnglishDayAvatars ? window.EnglishDayAvatars.renderAvatarHtml(p3.avatar, "sm") : '<span class="text-xl font-bold text-outline">3</span>'}
+              </div>
+              ${currentPlayer && p3.nickname === currentPlayer.nickname ? `
+                <div class="absolute -top-2.5 -right-2 bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full text-xs font-black shadow-[0_2px_0_#46a302] animate-bounce z-30">
+                  ¡TÚ!
+                </div>
+              ` : ''}
+            </div>
+            <span class="text-base sm:text-lg text-on-surface mt-2 font-black">${escapeHtml(p3.nickname)}</span>
+            <span class="text-xs text-on-surface-variant font-medium">Tercer Lugar</span>
+          </div>
+          <div class="w-full bg-surface-container rounded-t-2xl rounded-b-xl pt-10 sm:pt-12 pb-5 sm:pb-6 px-4 flex flex-col items-center shadow-[0_6px_0_rgba(190,203,177,0.9)] relative border-2 border-surface-container-high">
+            <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-surface-container-lowest shadow-[0_3px_0_#becbb1] flex items-center justify-center mb-1.5 sm:mb-2 text-2xl sm:text-3xl text-tertiary leading-none font-black">
+              3
+            </div>
+            <span class="text-xs sm:text-sm uppercase tracking-wider text-on-surface-variant mb-1 font-extrabold">Bronce • Bronze Medal</span>
+            <div class="flex items-center gap-1.5 px-3 sm:px-4 py-1 rounded-full bg-surface-container-highest text-on-surface text-sm sm:text-base shadow-[0_3px_0_#becbb1] font-black">
+              <span class="material-symbols-outlined text-tertiary text-[18px] sm:text-[20px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+              ${p3.score ?? 0} XP
+            </div>
+            <div class="mt-3 sm:mt-4 pt-2.5 sm:pt-3 w-full flex justify-center items-center text-on-surface-variant text-xs border-t border-surface-container-high font-bold">
+              <span>Puntaje Oficial SENA</span>
+            </div>
+          </div>
+        </div>
+      ` : `<div class="order-3"></div>`;
+
+      podiumPedestalsStage.innerHTML = `${renderPedestal2}${renderPedestal1}${renderPedestal3}`;
+    }
+  }
+
+  // 2. Tarjeta de felicitaciones personal
+  const userNick = currentPlayer?.nickname || "APRENDIZ";
+  const userRankIndex = top3.findIndex((p) => p.nickname === userNick);
+  const userRank = userRankIndex !== -1 ? userRankIndex + 1 : null;
+
+  if (podiumTitle) {
+    podiumTitle.textContent = `¡INCREÍBLE, ${userNick.toUpperCase()}!`;
+  }
+  const podiumRankBadge = document.querySelector("#podiumRankBadge");
+  const podiumMedalText = document.querySelector("#podiumMedalText");
+  if (podiumRankBadge) {
+    podiumRankBadge.textContent = userRank ? `PUESTO #${userRank}` : "TOP FINISHER";
+  }
+  if (podiumMedalText) {
+    podiumMedalText.textContent = userRank === 1
+      ? "Medalla de Oro SENA"
+      : userRank === 2
+      ? "Medalla de Plata SENA"
+      : userRank === 3
+      ? "Medalla de Bronce SENA"
+      : "Certificado Bilingüe SENA";
+  }
+  const heroAvatar = document.querySelector("#podiumHeroAvatar");
+  if (heroAvatar && window.EnglishDayAvatars) {
+    const avatarToRender = currentPlayer?.avatar || top3[0]?.avatar;
+    window.EnglishDayAvatars.mountAvatar(heroAvatar, avatarToRender, "md");
+  }
+  const podiumValidationCode = document.querySelector("#podiumValidationCode");
+  if (podiumValidationCode) {
+    const codeId = (payload.roomId || "08492").slice(0, 6).toUpperCase();
+    podiumValidationCode.textContent = `SENA-B1-ENG-2025-${codeId}`;
+  }
+  const podiumUserXP = document.querySelector("#podiumUserXP");
+  if (podiumUserXP) {
+    const xpVal = userRankIndex !== -1 ? top3[userRankIndex].score : (top3[0]?.score || 2850);
+    podiumUserXP.textContent = Number(xpVal).toLocaleString("en-US");
+  }
+
+  // 3. Celebración audio + confeti (bloque seguro no bloqueante)
+  try {
+    if (window.EnglishDayConfetti && typeof window.EnglishDayConfetti.fire === "function") {
+      window.EnglishDayConfetti.fire();
+    } else if (window.confetti && typeof window.confetti.burst === "function") {
+      window.confetti.burst(window.innerWidth / 2, window.innerHeight * 0.35, 75);
+    }
+    if (window.soundFx) {
+      if (typeof window.soundFx.playVictory === "function") {
+        window.soundFx.playVictory();
+      } else if (typeof window.soundFx.playFanfare === "function") {
+        window.soundFx.playFanfare();
+      }
+    }
+  } catch (err) {
+    console.warn("Celebración podio no bloqueante:", err);
+  }
+
+  // 4. Lista accesible para lectores de pantalla
   podiumTop3List.replaceChildren();
   const medals = ["🥇 1.° Lugar", "🥈 2.° Lugar", "🥉 3.° Lugar"];
 
@@ -1335,7 +2023,15 @@ function renderPodiumScreen(payload) {
       score.className = "podium-score";
       score.textContent = `${entry.score ?? 0} pts`;
 
-      item.append(medal, name, score);
+      if (window.EnglishDayAvatars) {
+        const avatarSpan = document.createElement("span");
+        avatarSpan.className = "ranking-avatar";
+        avatarSpan.innerHTML = window.EnglishDayAvatars.renderAvatarHtml(entry.avatar, "xs");
+        item.append(medal, avatarSpan, name, score);
+      } else {
+        item.append(medal, name, score);
+      }
+
       podiumTop3List.append(item);
     });
   }
@@ -1376,7 +2072,7 @@ function handleStompFrame(frame, roomId, currentPlayerId) {
   const { command, headers, body } = parseStompMessage(frame);
 
   if (command === "CONNECTED") {
-    const topics = ["lobby", "status", "question", "results", "roulette", "podium"];
+    const topics = ["lobby", "status", "question", "results", "roulette", "podium", "reactions"];
     topics.forEach((topic) => {
       lobbySocket.send(`SUBSCRIBE\nid:${topic}-${roomId}\ndestination:/topic/room/${roomId}/${topic}\nack:auto\n\n\0`);
     });
@@ -1413,6 +2109,8 @@ function handleStompFrame(frame, roomId, currentPlayerId) {
       renderPodiumScreen(payload);
     } else if (destination === `/topic/room/${roomId}/status`) {
       // Estado sincronizado por topic /status
+    } else if (destination === `/topic/room/${roomId}/reactions`) {
+      handleRemoteReaction(payload);
     } else {
       throw new Error("El servidor envió un mensaje desde un canal no esperado.");
     }
@@ -1527,7 +2225,10 @@ async function restorePlayerSessionFromServer(session, isAutoRestore = false) {
     nickname: state.player.nickname,
   });
 
-  lobbyPin.textContent = `PIN de la partida: ${state.pin}`;
+  const formattedPin = (state.pin && state.pin.length === 6)
+    ? `${state.pin.slice(0, 3)} ${state.pin.slice(3)}`
+    : (state.pin || "");
+  lobbyPin.textContent = formattedPin;
   subscribeToLobby(state.roomId, {
     playerId: state.player.playerId,
     nickname: state.player.nickname,
@@ -1668,6 +2369,9 @@ joinForm.addEventListener("submit", async (event) => {
 
   const pin = pinInputs.map((input) => input.value).join("");
   const nickname = nicknameInput.value.trim();
+  const avatar = avatarStudio
+    ? avatarStudio.getSerialized()
+    : (window.localStorage.getItem(AVATAR_LOCAL_STORAGE_KEY) || "");
 
   if (!/^\d{6}$/.test(pin)) {
     formMessage.dataset.state = "error";
@@ -1684,7 +2388,7 @@ joinForm.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
-  submitButton.textContent = "Ingresando...";
+  submitButton.innerHTML = `<span class="material-symbols-outlined text-2xl animate-spin">progress_activity</span><span>CONECTANDO...</span>`;
   formMessage.dataset.state = "loading";
   formMessage.textContent = "Conectando con la partida...";
 
@@ -1694,7 +2398,7 @@ joinForm.addEventListener("submit", async (event) => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ nickname }),
+      body: JSON.stringify({ nickname, avatar }),
     });
     let result;
     try {
@@ -1721,16 +2425,21 @@ joinForm.addEventListener("submit", async (event) => {
       roomId: result.roomId,
       playerId: result.playerId,
       nickname: result.nickname,
+      avatar: result.avatar || avatar,
     };
     savePlayerSession(sessionPayload);
 
     const restored = await restorePlayerSessionFromServer(sessionPayload, false).catch(() => false);
     if (!restored) {
       showOnlyCard(lobbyCard);
-      lobbyPin.textContent = `PIN de la partida: ${pin}`;
+      const formattedPin = (pin && pin.length === 6)
+        ? `${pin.slice(0, 3)} ${pin.slice(3)}`
+        : (pin || "");
+      lobbyPin.textContent = formattedPin;
       subscribeToLobby(result.roomId, {
         playerId: result.playerId,
         nickname: result.nickname,
+        avatar: result.avatar || avatar,
       });
     }
   } catch (error) {
@@ -1740,6 +2449,6 @@ joinForm.addEventListener("submit", async (event) => {
       : error.message;
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = "Ingresar a la partida";
+    submitButton.innerHTML = `<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">play_arrow</span><span>INGRESAR A LA PARTIDA</span>`;
   }
 });

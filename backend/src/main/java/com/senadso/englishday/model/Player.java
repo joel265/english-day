@@ -40,6 +40,12 @@ public class Player {
     private String nickname;
 
     /**
+     * Configuración o identificador del avatar/mascota del aprendiz.
+     */
+    @Column(name = "avatar", length = 500)
+    private String avatar;
+
+    /**
      * Fecha y hora en que el aprendiz ingresó a la sala.
      */
     @Column(name = "joinedAt", nullable = false, updatable = false)

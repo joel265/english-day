@@ -71,6 +71,54 @@ class ConfettiLauncher {
         }, 300);
     }
 
+    emojiRain(emoji = '👋', count = 26) {
+        for (let i = 0; i < count; i++) {
+            const x = Math.random() * (window.innerWidth - 60) + 30;
+            const y = -Math.random() * 120 - 20;
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 2.2,
+                vy: Math.random() * 2.4 + 2.0,
+                size: Math.random() * 14 + 24,
+                emoji: emoji,
+                rotation: (Math.random() - 0.5) * 40,
+                rotationSpeed: (Math.random() - 0.5) * 3,
+                opacity: 1,
+                decay: Math.random() * 0.005 + 0.003,
+                shape: 'emoji'
+            });
+        }
+
+        if (!this.animationId) {
+            this.animate();
+        }
+    }
+
+    emojiBurst(x = window.innerWidth / 2, y = window.innerHeight * 0.4, emoji = '👋', count = 18) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 6 + 3;
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 3.5,
+                size: Math.random() * 10 + 24,
+                emoji: emoji,
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 8,
+                opacity: 1,
+                decay: Math.random() * 0.012 + 0.006,
+                shape: 'emoji'
+            });
+        }
+
+        if (!this.animationId) {
+            this.animate();
+        }
+    }
+
     animate() {
         if (!this.ctx) return;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -79,12 +127,12 @@ class ConfettiLauncher {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.22; // Gravedad
+            p.vy += (p.shape === 'emoji' ? 0.08 : 0.22); // Caída más suave para lluvia de emojis
             p.vx *= 0.98; // Resistencia de aire
             p.rotation += p.rotationSpeed;
             p.opacity -= p.decay;
 
-            if (p.opacity <= 0 || p.y > this.canvas.height + 20) {
+            if (p.opacity <= 0 || p.y > this.canvas.height + 40) {
                 this.particles.splice(i, 1);
                 continue;
             }
@@ -95,7 +143,12 @@ class ConfettiLauncher {
             this.ctx.globalAlpha = Math.max(0, p.opacity);
             this.ctx.fillStyle = p.color;
 
-            if (p.shape === 'rect') {
+            if (p.shape === 'emoji') {
+                this.ctx.font = `${Math.round(p.size)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(p.emoji || '👋', 0, 0);
+            } else if (p.shape === 'rect') {
                 this.ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
             } else {
                 this.ctx.beginPath();

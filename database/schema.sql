@@ -15,6 +15,7 @@ CREATE TABLE Player (
     playerId VARCHAR(36) NOT NULL,
     roomId VARCHAR(36) NOT NULL,
     nickname VARCHAR(255) NOT NULL,
+    avatar VARCHAR(500) NULL,
     joinedAt TIMESTAMP NOT NULL,
     totalScore INT NOT NULL DEFAULT 0,
     PRIMARY KEY (playerId),

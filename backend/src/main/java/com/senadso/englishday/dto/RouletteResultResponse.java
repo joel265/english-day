@@ -36,6 +36,11 @@ public class RouletteResultResponse {
     private String nickname;
 
     /**
+     * Avatar del aprendiz seleccionado.
+     */
+    private String avatar;
+
+    /**
      * Pregunta sobre la cual se hace la retroalimentación.
      */
     private String questionId;
