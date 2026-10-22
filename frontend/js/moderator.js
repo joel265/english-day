@@ -37,6 +37,30 @@ const modQrCanvas = document.querySelector("#modQrCanvas");
 const btnCopyJoinUrl = document.querySelector("#btnCopyJoinUrl");
 const modFeedback = document.querySelector("#modFeedback");
 
+const modSidebar = document.querySelector("#modSidebar");
+const pinCard = document.querySelector("#pinCard");
+const pinCardMinControls = document.querySelector("#pinCardMinControls");
+const modPinValueCompact = document.querySelector("#modPinValueCompact");
+const btnCopyJoinUrlCompact = document.querySelector("#btnCopyJoinUrlCompact");
+const btnTogglePinCard = document.querySelector("#btnTogglePinCard");
+const pinToggleIcon = document.querySelector("#pinToggleIcon");
+const pinToggleText = document.querySelector("#pinToggleText");
+
+function setSidebarGameActive(isActive) {
+  if (modSidebar) {
+    modSidebar.classList.toggle("is-game-active", Boolean(isActive));
+  }
+  if (pinCard) {
+    pinCard.classList.toggle("pin-card--minimized", Boolean(isActive));
+    if (!isActive) {
+      pinCard.classList.remove("is-expanded");
+      if (btnTogglePinCard) btnTogglePinCard.setAttribute("aria-expanded", "false");
+      if (pinToggleText) pinToggleText.textContent = "Ver QR";
+      if (pinToggleIcon) pinToggleIcon.textContent = "🔍";
+    }
+  }
+}
+
 const stagePhaseBadge = document.querySelector("#stagePhaseBadge");
 const stageTimerBox = document.querySelector("#stageTimerBox");
 const stageTimerValue = document.querySelector("#stageTimerValue");
@@ -234,6 +258,11 @@ function updateRoomStatusBadge(status) {
   btnActivateRoulette.disabled = !hasRoom || effectiveStatus === "WAITING_LOBBY" || effectiveStatus === "FINISHED";
   btnNextQuestion.disabled = !hasRoom || effectiveStatus === "WAITING_LOBBY" || effectiveStatus === "FINISHED" || lastQuestionReached;
   btnFinishGame.disabled = !hasRoom || effectiveStatus === "FINISHED";
+
+  const isGameActive = hasRoom && (effectiveStatus === "QUESTION_IN_PROGRESS" ||
+                       effectiveStatus === "ROULETTE_TIME" ||
+                       effectiveStatus === "FINISHED");
+  setSidebarGameActive(isGameActive);
 
   if (navPlayerViewLink) {
     if (isRoomActive) {
@@ -895,21 +924,42 @@ function renderRoomQrCodes(joinUrl, pin) {
   if (stageQrPinPill) stageQrPinPill.textContent = `PIN: ${pin}`;
 }
 
-if (btnCopyJoinUrl) {
-  btnCopyJoinUrl.addEventListener("click", async () => {
-    if (!currentRoom?.pin) return;
-    const joinUrl = buildPlayerJoinUrl(currentRoom.pin, currentRoom.lanIp);
-    try {
-      await navigator.clipboard.writeText(joinUrl);
-      const prev = btnCopyJoinUrl.textContent;
-      btnCopyJoinUrl.textContent = "✔ ¡Enlace copiado!";
-      setFeedback(`Enlace copiado al portapapeles: ${joinUrl}`, "ok");
+async function copyRoomJoinUrl(buttonEl) {
+  if (!currentRoom?.pin) return;
+  const joinUrl = buildPlayerJoinUrl(currentRoom.pin, currentRoom.lanIp);
+  try {
+    await navigator.clipboard.writeText(joinUrl);
+    if (buttonEl) {
+      const prev = buttonEl.textContent;
+      buttonEl.textContent = "✔ ¡Copiado!";
       window.setTimeout(() => {
-        btnCopyJoinUrl.textContent = prev;
+        buttonEl.textContent = prev;
       }, 2200);
-    } catch {
-      setFeedback(`Enlace directo: ${joinUrl}`, "ok");
     }
+    setFeedback(`Enlace copiado al portapapeles: ${joinUrl}`, "ok");
+  } catch {
+    setFeedback(`Enlace directo: ${joinUrl}`, "ok");
+  }
+}
+
+if (btnCopyJoinUrl) {
+  btnCopyJoinUrl.addEventListener("click", () => {
+    copyRoomJoinUrl(btnCopyJoinUrl);
+  });
+}
+
+if (btnCopyJoinUrlCompact) {
+  btnCopyJoinUrlCompact.addEventListener("click", () => {
+    copyRoomJoinUrl(btnCopyJoinUrlCompact);
+  });
+}
+
+if (btnTogglePinCard && pinCard) {
+  btnTogglePinCard.addEventListener("click", () => {
+    const isExpanded = pinCard.classList.toggle("is-expanded");
+    btnTogglePinCard.setAttribute("aria-expanded", String(isExpanded));
+    if (pinToggleText) pinToggleText.textContent = isExpanded ? "Ocultar QR" : "Ver QR";
+    if (pinToggleIcon) pinToggleIcon.textContent = isExpanded ? "▲" : "🔍";
   });
 }
 
@@ -921,6 +971,7 @@ function attachRoomSession(roomData) {
     clearModeratorSession();
   }
   modPinValue.textContent = roomData.pin;
+  if (modPinValueCompact) modPinValueCompact.textContent = roomData.pin;
   const playerJoinLink = buildPlayerJoinUrl(roomData.pin, roomData.lanIp);
   modJoinUrl.textContent = `Enlace aprendices: ${playerJoinLink}`;
   renderRoomQrCodes(playerJoinLink, roomData.pin);

@@ -133,6 +133,132 @@
         gap: 1.25rem;
       }
 
+      #pinCard {
+        order: 1;
+        transition: padding 200ms ease, box-shadow 200ms ease;
+      }
+
+      #settingsCard {
+        order: 2;
+        transition: all 200ms ease;
+      }
+
+      #actionsCard {
+        order: 3;
+        transition: border-color 200ms ease, box-shadow 200ms ease;
+      }
+
+      /* Cuando el juego comienza o está activo, subir Acciones de la Partida arriba */
+      .mod-panel.is-game-active #actionsCard {
+        order: 1;
+        border-color: #9fd8f8;
+        box-shadow: 0 6px 0 #006590;
+      }
+
+      .mod-panel.is-game-active #pinCard {
+        order: 2;
+      }
+
+      .mod-panel.is-game-active #settingsCard {
+        order: 3;
+      }
+
+      /* Card de PIN minimizado */
+      .card.pin-card--minimized {
+        padding: 0.85rem 1.15rem;
+        box-shadow: 0 4px 0 var(--border);
+      }
+
+      .card.pin-card--minimized .pin-card-header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+
+      .card.pin-card--minimized #pinCardTitle {
+        display: none;
+      }
+
+      .card.pin-card--minimized #pinCardMinControls {
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        width: 100%;
+      }
+
+      .pin-min-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.25rem 0.65rem;
+        border: 1.5px solid var(--primary);
+        border-radius: 999px;
+        background: #ddf4c5;
+      }
+
+      .pin-min-label {
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #1f5100;
+        text-transform: uppercase;
+      }
+
+      .pin-min-code {
+        font-size: 1.15rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        color: var(--primary-dark);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .pin-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.75rem;
+        border: 1.5px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-low);
+        color: var(--secondary);
+        font: inherit;
+        font-size: 0.78rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: background 120ms ease, transform 100ms ease;
+      }
+
+      .pin-toggle-btn:hover {
+        background: #c8e6ff;
+        border-color: var(--secondary);
+      }
+
+      .pin-toggle-btn:active {
+        transform: translateY(1px);
+      }
+
+      .copy-url-btn--compact {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.78rem;
+      }
+
+      .card.pin-card--minimized:not(.is-expanded) #pinCardFullBody {
+        display: none !important;
+      }
+
+      .card.pin-card--minimized.is-expanded {
+        padding: 1.25rem 1.5rem;
+      }
+
+      .card.pin-card--minimized.is-expanded #pinCardFullBody {
+        display: block !important;
+        margin-top: 0.85rem;
+        padding-top: 0.85rem;
+        border-top: 1px dashed var(--border);
+        animation: cardSlideEnter 220ms ease both;
+      }
+
       .card {
         padding: 1.5rem;
         border: 2px solid var(--border);
@@ -793,35 +919,49 @@
     </header>
 
     <div class="mod-layout">
-      <aside class="mod-panel" aria-label="Controles del moderador">
-        <section class="card">
-          <h2 class="card-title">PIN de Acceso y Código QR</h2>
-          <div class="pin-banner">
-            <span class="pin-banner-label">PIN de 6 dígitos</span>
-            <strong class="pin-banner-value" id="modPinValue">------</strong>
-            <span class="pin-join-url" id="modJoinUrl">Crea una sala para generar el PIN</span>
-            <div class="pin-qr-box" id="modQrBox" hidden>
-              <canvas class="pin-qr-canvas" id="modQrCanvas" width="160" height="160" aria-label="Código QR para unirse a la sala"></canvas>
-              <button class="copy-url-btn" id="btnCopyJoinUrl" type="button">📋 Copiar enlace de invitación</button>
+      <aside class="mod-panel" id="modSidebar" aria-label="Controles del moderador">
+        <section class="card" id="pinCard">
+          <div class="pin-card-header-bar">
+            <h2 class="card-title" id="pinCardTitle" style="margin:0;">PIN de Acceso y Código QR</h2>
+            <div class="pin-card-min-controls" id="pinCardMinControls" style="display: none;">
+              <span class="pin-min-pill">
+                <span class="pin-min-label">PIN:</span>
+                <strong class="pin-min-code" id="modPinValueCompact">------</strong>
+              </span>
+              <button class="copy-url-btn copy-url-btn--compact" id="btnCopyJoinUrlCompact" type="button" title="Copiar enlace de invitación">📋 Copiar</button>
+              <button class="pin-toggle-btn" id="btnTogglePinCard" type="button" aria-expanded="false" title="Mostrar u ocultar código QR">
+                <span id="pinToggleIcon">🔍</span> <span id="pinToggleText">Ver QR</span>
+              </button>
             </div>
           </div>
-          <div class="tunnel-config-row" style="margin-top:0.75rem;padding-top:0.65rem;border-top:1px dashed var(--border);">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
-              <label for="customTunnelUrlInput" style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">🌐 URL Cloudflare Tunnel</label>
-              <span id="tunnelStatusBadge" style="font-size:0.7rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:999px;background:#e9f6fd;color:#006590;">Local / LAN</span>
+          <div class="pin-card-full-body" id="pinCardFullBody">
+            <div class="pin-banner" style="margin-top:0.75rem;">
+              <span class="pin-banner-label">PIN de 6 dígitos</span>
+              <strong class="pin-banner-value" id="modPinValue">------</strong>
+              <span class="pin-join-url" id="modJoinUrl">Crea una sala para generar el PIN</span>
+              <div class="pin-qr-box" id="modQrBox" hidden>
+                <canvas class="pin-qr-canvas" id="modQrCanvas" width="160" height="160" aria-label="Código QR para unirse a la sala"></canvas>
+                <button class="copy-url-btn" id="btnCopyJoinUrl" type="button">📋 Copiar enlace de invitación</button>
+              </div>
             </div>
-            <div style="display:flex;gap:0.4rem;">
-              <input id="customTunnelUrlInput" type="url" placeholder="https://xxx.trycloudflare.com" style="flex:1;font-size:0.8rem;padding:0.35rem 0.5rem;border:1px solid var(--border);border-radius:0.35rem;background:var(--surface);">
-              <button id="btnApplyTunnelUrl" type="button" class="mod-btn mod-btn--outline" style="width:auto;padding:0.35rem 0.65rem;font-size:0.75rem;">Fijar</button>
+            <div class="tunnel-config-row" style="margin-top:0.75rem;padding-top:0.65rem;border-top:1px dashed var(--border);">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
+                <label for="customTunnelUrlInput" style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">🌐 URL Cloudflare Tunnel</label>
+                <span id="tunnelStatusBadge" style="font-size:0.7rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:999px;background:#e9f6fd;color:#006590;">Local / LAN</span>
+              </div>
+              <div style="display:flex;gap:0.4rem;">
+                <input id="customTunnelUrlInput" type="url" placeholder="https://xxx.trycloudflare.com" style="flex:1;font-size:0.8rem;padding:0.35rem 0.5rem;border:1px solid var(--border);border-radius:0.35rem;background:var(--surface);">
+                <button id="btnApplyTunnelUrl" type="button" class="mod-btn mod-btn--outline" style="width:auto;padding:0.35rem 0.65rem;font-size:0.75rem;">Fijar</button>
+              </div>
             </div>
-          </div>
-          <div class="reconnect-row">
-            <input id="reconnectPinInput" type="text" inputmode="numeric" maxlength="6" placeholder="Reconectar PIN (6 díg.)">
-            <button class="mod-btn mod-btn--outline" id="btnReconnectPin" type="button" style="width:auto;">Cargar</button>
+            <div class="reconnect-row">
+              <input id="reconnectPinInput" type="text" inputmode="numeric" maxlength="6" placeholder="Reconectar PIN (6 díg.)">
+              <button class="mod-btn mod-btn--outline" id="btnReconnectPin" type="button" style="width:auto;">Cargar</button>
+            </div>
           </div>
         </section>
 
-        <section class="card">
+        <section class="card" id="settingsCard">
           <h2 class="card-title">Parámetros de Tiempos y Aleatoriedad</h2>
           <div class="settings-grid">
             <div class="setting-field">
@@ -861,7 +1001,7 @@
           </button>
         </section>
 
-        <section class="card">
+        <section class="card" id="actionsCard">
           <h2 class="card-title">Acciones de la Partida (Bitácora #6)</h2>
           <div class="controls-stack">
             <button class="mod-btn mod-btn--primary" id="btnCreateRoom" type="button">
