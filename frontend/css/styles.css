@@ -1110,6 +1110,31 @@ h1 {
   text-transform: uppercase;
 }
 
+.voice-switch-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.55rem;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--secondary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 120ms ease, transform 100ms ease;
+}
+
+.voice-switch-mode-btn:hover {
+  background: #e9f6fd;
+  border-color: var(--secondary);
+}
+
+.voice-switch-mode-btn:active {
+  transform: translateY(1px);
+}
+
 .voice-transcript-text {
   margin: 0;
   font-size: 1.05rem;
