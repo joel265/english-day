@@ -4,6 +4,25 @@ Plataforma web multijugador en tiempo real desarrollada para el evento instituci
 
 ---
 
+<p align="center">
+  <img src="docs/assets/sena-adso-team-pixelart.jpg" alt="Equipo SENA ADSO - English Up" width="100%">
+</p>
+
+## 🤖 Creación del Proyecto & Uso Responsable de la Inteligencia Artificial
+
+> *"La inteligencia artificial no reemplaza la creatividad ni el criterio humano: los potencia. English Up fue desarrollado utilizando la IA responsablemente como tutor pedagógico, mentor técnico y guía paso a paso en la construcción de la aplicación web."*
+
+En el marco de la formación profesional integral del **SENA**, los aprendices de **Análisis y Desarrollo de Software (ADSO)** adoptaron un enfoque vanguardista y ético: la **co-creación responsable asistida por Inteligencia Artificial**. La IA fungió como un catalizador del aprendizaje activo, guiando la construcción paso a paso de la aplicación web:
+
+- **Tutoría Socrática y Guía Metodológica:** La IA actuó como un mentor permanente que explicó fundamentos de ingeniería de software, patrones arquitectónicos cliente-servidor, concurrencia en WebSockets y normalización de datos, fomentando en los aprendices la comprensión profunda del *porqué* detrás de cada decisión técnica.
+- **Construcción Paso a Paso:**
+  - **Arquitectura Backend:** Modelado asistido de entidades relacionales, configuración de Spring Boot 3 con STOMP WebSockets, y algoritmos deterministas de puntuación por velocidad de respuesta.
+  - **Mecánicas Pedagógicas y Gamificación:** Diseño e implementación de las cuatro modalidades interactivas (selección múltiple, ordenamiento sintáctico por bloques, entrada de texto y reconocimiento de voz mediante la Web Speech API).
+  - **Frontend Táctil y Accesible:** Creación del sistema de diseño *Tactile Gamified Arcade*, renderizado de avatares interactivos, animación de ruleta de retroalimentación en Canvas 2D y adaptabilidad para dispositivos móviles y proyector.
+- **Supervisión, Criterio y Verificación Humana:** Cada recomendación de la IA fue rigurosamente revisada, adaptada y validada por los aprendices a través de matrices de calidad, pruebas unitarias, suites End-to-End y simulaciones de carga concurrente. El liderazgo conceptual, las decisiones de arquitectura y la autoría intelectual residen enteramente en el equipo humano de aprendices.
+
+---
+
 ## Características Principales
 
 - **Salas en Vivo mediante PIN de 6 dígitos:** Creación instantánea de sesiones de juego y lobby en tiempo real con actualización automática de participantes conectados.
@@ -179,6 +198,8 @@ node QA/e2e_verification_suite.mjs
 
 ---
 
-## Créditos
+## Créditos y Reconocimientos
 
-Proyecto desarrollado por los aprendices de la tecnología en **Análisis y Desarrollo de Software (ADSO)** del **Servicio Nacional de Aprendizaje (SENA)** para la jornada institucional **English Up**.
+- **Equipo de Desarrollo:** Aprendices de la tecnología en **Análisis y Desarrollo de Software (ADSO)** del **Servicio Nacional de Aprendizaje (SENA)**.
+- **Tutoría Metodológica & Asistencia Técnica:** Inteligencia Artificial (utilizada responsable y éticamente como tutor pedagógico, mentor técnico y guía paso a paso en la arquitectura, implementación y calidad del proyecto).
+- **Iniciativa Institucional:** Jornada y evento de bilingüismo **English Up 2026** — Regional Distrito Capital.
