@@ -361,6 +361,7 @@
       }
 
       .pin-qr-canvas {
+        display: block;
         width: 152px;
         height: 152px;
         padding: 0.35rem;
@@ -368,6 +369,7 @@
         border-radius: 0.75rem;
         background: #ffffff;
         box-shadow: 0 3px 0 rgba(43, 108, 0, 0.2);
+        transition: transform 180ms ease, box-shadow 180ms ease;
       }
 
       .copy-url-btn {
@@ -404,12 +406,410 @@
       }
 
       .stage-qr-canvas {
+        display: block;
         width: 210px;
         height: 210px;
         padding: 0.5rem;
         border-radius: 0.9rem;
         background: #ffffff;
         box-shadow: 0 8px 20px rgba(0, 30, 46, 0.28);
+        transition: transform 180ms ease, box-shadow 180ms ease;
+      }
+
+      .qr-interactive-trigger {
+        position: relative;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        outline: none;
+        border: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        border-radius: 0.9rem;
+        transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+        user-select: none;
+      }
+
+      .qr-interactive-trigger:hover .pin-qr-canvas,
+      .qr-interactive-trigger:hover .stage-qr-canvas {
+        box-shadow: 0 10px 24px rgba(43, 108, 0, 0.35);
+        transform: scale(1.025);
+      }
+
+      .qr-interactive-trigger:hover {
+        transform: scale(1.02);
+      }
+
+      .qr-interactive-trigger:focus-visible {
+        outline: 3px solid #58cc02;
+        outline-offset: 4px;
+      }
+
+      .qr-interactive-trigger:active {
+        transform: scale(0.98);
+      }
+
+      .qr-zoom-badge {
+        position: static;
+        margin-top: 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.32rem 0.85rem;
+        border-radius: 999px;
+        background: #111d22;
+        color: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        pointer-events: none;
+        transition: background 150ms ease, transform 150ms ease;
+      }
+
+      .qr-interactive-trigger:hover .qr-zoom-badge {
+        background: #2b6c00;
+        transform: translateY(-2px);
+      }
+
+      .stage-qr-zoom-badge {
+        margin-top: 0.65rem;
+        padding: 0.4rem 1.05rem;
+        font-size: 0.85rem;
+      }
+
+      .stage-qr-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.65rem;
+      }
+
+      .stage-qr-actions .stage-qr-pin-pill {
+        margin-top: 0;
+      }
+
+      .stage-qr-expand-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.45rem 1rem;
+        border: 2px solid rgba(255, 255, 255, 0.85);
+        border-radius: 999px;
+        background: #ffffff;
+        color: var(--primary-dark);
+        font: inherit;
+        font-size: 0.95rem;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 30, 46, 0.16);
+        transition: transform 120ms ease, background 150ms ease, box-shadow 150ms ease;
+      }
+
+      .stage-qr-expand-action-btn:hover {
+        background: #f0fdf4;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 30, 46, 0.24);
+      }
+
+      .stage-qr-expand-action-btn:active {
+        transform: translateY(0);
+      }
+
+      /* ==========================================================================
+         MODAL CÓDIGO QR AMPLIADO (FULLSCREEN / PROYECTOR / AUDITORIO)
+         ========================================================================== */
+      .qr-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        background: rgba(10, 24, 14, 0.82);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 220ms ease;
+      }
+
+      .qr-modal-overlay.is-open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .qr-modal-card {
+        position: relative;
+        width: 100%;
+        max-width: 580px;
+        max-height: 94vh;
+        overflow-y: auto;
+        padding: 2rem 2.25rem;
+        background: #ffffff;
+        border-radius: 1.75rem;
+        border: 3px solid var(--primary);
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.45);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        transform: scale(0.92) translateY(12px);
+        transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .qr-modal-overlay.is-open .qr-modal-card {
+        transform: scale(1) translateY(0);
+      }
+
+      .qr-modal-close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 2.6rem;
+        height: 2.6rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--text);
+        font-size: 1.25rem;
+        font-weight: 800;
+        cursor: pointer;
+        line-height: 1;
+        transition: background 150ms ease, transform 150ms ease, border-color 150ms ease, color 150ms ease;
+      }
+
+      .qr-modal-close:hover {
+        background: #fee2e2;
+        color: #991b1b;
+        border-color: #fca5a5;
+        transform: scale(1.08);
+      }
+
+      .qr-modal-header {
+        width: 100%;
+        margin-bottom: 1.25rem;
+        padding-right: 2rem;
+      }
+
+      .qr-modal-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.3rem 0.85rem;
+        border-radius: 999px;
+        background: #ddf4c5;
+        color: #1f5100;
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+      }
+
+      .qr-modal-badge-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #2b6c00;
+        animation: qr-pulse 2s infinite ease-in-out;
+      }
+
+      @keyframes qr-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(0.75); }
+      }
+
+      .qr-modal-title {
+        margin: 0.2rem 0 0.35rem;
+        font-size: 1.7rem;
+        font-weight: 900;
+        color: #111d22;
+        line-height: 1.2;
+      }
+
+      .qr-modal-subtitle {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        line-height: 1.4;
+      }
+
+      .qr-modal-body {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.25rem;
+      }
+
+      .qr-modal-canvas-frame {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.85rem;
+        border-radius: 1.5rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #eef6ee 100%);
+        border: 3px solid #2b6c00;
+        box-shadow: 0 12px 32px rgba(43, 108, 0, 0.2);
+      }
+
+      .qr-modal-canvas {
+        display: block;
+        width: 320px;
+        height: 320px;
+        max-width: 80vw;
+        max-height: 48vh;
+        border-radius: 1rem;
+        background: #ffffff;
+      }
+
+      .qr-modal-scan-hint {
+        margin-top: 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #2b6c00;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .qr-modal-info {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+      }
+
+      .qr-modal-pin-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.75rem 1.25rem;
+        border-radius: 1rem;
+        background: #eef9e4;
+        border: 2px solid #a3e635;
+      }
+
+      .qr-modal-pin-label {
+        font-size: 0.8rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #2b6c00;
+      }
+
+      .qr-modal-pin-value {
+        font-size: 2.85rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        color: #1f5100;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+        margin-top: 0.15rem;
+      }
+
+      .qr-modal-url-box {
+        padding: 0.75rem 1rem;
+        border-radius: 0.85rem;
+        background: var(--surface-low);
+        border: 1px solid var(--border);
+        text-align: left;
+      }
+
+      .qr-modal-url-label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        margin-bottom: 0.35rem;
+      }
+
+      .qr-modal-url-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .qr-modal-url-text {
+        flex: 1;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--secondary);
+        word-break: break-all;
+        user-select: all;
+      }
+
+      .qr-modal-copy-btn {
+        flex-shrink: 0;
+        padding: 0.4rem 0.85rem;
+        font-size: 0.82rem;
+      }
+
+      .qr-modal-instruction {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        line-height: 1.45;
+      }
+
+      .qr-modal-footer {
+        width: 100%;
+        margin-top: 1.25rem;
+        display: flex;
+        justify-content: center;
+      }
+
+      .qr-modal-dismiss-btn {
+        max-width: 220px;
+        min-height: 2.8rem;
+        font-size: 1rem;
+        font-weight: 800;
+      }
+
+      @media (min-width: 900px) {
+        .qr-modal-card {
+          max-width: 660px;
+          padding: 2.25rem 2.75rem;
+        }
+
+        .qr-modal-canvas {
+          width: 380px;
+          height: 380px;
+          max-height: 52vh;
+        }
+
+        .qr-modal-pin-value {
+          font-size: 3.25rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .qr-modal-card {
+          padding: 1.4rem 1.1rem;
+          border-radius: 1.25rem;
+        }
+
+        .qr-modal-canvas {
+          width: 240px;
+          height: 240px;
+        }
+
+        .qr-modal-pin-value {
+          font-size: 2.2rem;
+        }
+
+        .qr-modal-title {
+          font-size: 1.35rem;
+        }
       }
 
       .stage-qr-details {
@@ -1101,12 +1501,17 @@
                 </div>
               </div>
               <div class="stage-qr-showcase" id="stageQrBox" hidden>
-                <canvas class="stage-qr-canvas" id="stageQrCanvas" width="240" height="240" aria-label="Código QR gigante para escanear desde el proyector"></canvas>
+                <div class="qr-interactive-trigger stage-qr-trigger" id="btnExpandStageQr" role="button" tabindex="0" title="Clic para ampliar código QR en pantalla gigante" aria-label="Ampliar código QR en pantalla gigante">
+                  <canvas class="stage-qr-canvas" id="stageQrCanvas" width="240" height="240" aria-label="Código QR gigante para escanear desde el proyector"></canvas>
+                  <span class="qr-zoom-badge stage-qr-zoom-badge" aria-hidden="true">🔍 Clic para ampliar</span>
+                </div>
                 <div class="stage-qr-details">
                   <h3>📱 Escanea el QR para ingresar directo</h3>
                   <p>Apunta la cámara de tu celular al código QR para entrar con el PIN autocompletado.</p>
                   <p id="stageQrUrl"></p>
-                  <span class="stage-qr-pin-pill" id="stageQrPinPill">PIN: ------</span>
+                  <div class="stage-qr-actions">
+                    <span class="stage-qr-pin-pill" id="stageQrPinPill">PIN: ------</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1197,6 +1602,60 @@
           </section>
         </div>
       </main>
+    </div>
+
+    <!-- Modal para expandir el código QR en pantalla gigante / auditorio -->
+    <div class="qr-modal-overlay" id="qrModalOverlay" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle" hidden>
+      <div class="qr-modal-card" id="qrModalCard">
+        <button type="button" class="qr-modal-close" id="btnCloseQrModal" aria-label="Cerrar ampliación del código QR" title="Cerrar (Esc)">
+          ✕
+        </button>
+
+        <header class="qr-modal-header">
+          <div class="qr-modal-badge">
+            <span class="qr-modal-badge-dot"></span>
+            English Up · Acceso Rápido
+          </div>
+          <h2 class="qr-modal-title" id="qrModalTitle">📱 Escanea para Unirte a la Sala</h2>
+          <p class="qr-modal-subtitle">
+            Apunta la cámara de tu celular al código QR para ingresar de inmediato con el PIN precargado.
+          </p>
+        </header>
+
+        <div class="qr-modal-body">
+          <div class="qr-modal-canvas-frame">
+            <canvas class="qr-modal-canvas" id="qrModalCanvas" width="440" height="440" aria-label="Código QR ampliado para escanear"></canvas>
+            <span class="qr-modal-scan-hint">✨ Alta visibilidad para proyector</span>
+          </div>
+
+          <div class="qr-modal-info">
+            <div class="qr-modal-pin-box">
+              <span class="qr-modal-pin-label">PIN DE ACCESO</span>
+              <strong class="qr-modal-pin-value" id="qrModalPinValue">------</strong>
+            </div>
+
+            <div class="qr-modal-url-box">
+              <span class="qr-modal-url-label">O ingresa manualmente desde el navegador:</span>
+              <div class="qr-modal-url-row">
+                <span class="qr-modal-url-text" id="qrModalUrlText">...</span>
+                <button type="button" class="copy-url-btn qr-modal-copy-btn" id="btnCopyQrModalUrl" title="Copiar enlace de invitación">
+                  📋 Copiar
+                </button>
+              </div>
+            </div>
+
+            <p class="qr-modal-instruction">
+              💡 <strong>Tip para aprendices:</strong> Abre la cámara de tu celular o la app de lector QR. Al escanear, entrarás directo a la sala sin digitar el PIN.
+            </p>
+          </div>
+        </div>
+
+        <footer class="qr-modal-footer">
+          <button type="button" class="mod-btn mod-btn--primary qr-modal-dismiss-btn" id="btnDismissQrModal">
+            Cerrar [Esc]
+          </button>
+        </footer>
+      </div>
     </div>
 
     <script src="./js/audio.js" defer></script>
