@@ -24,10 +24,10 @@ body.bg-surface {
   background-color: #5d8e42;
   background-image:
     linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
-    url('../assets/backgrounds/city-park-bg.jpg');
+    url('../assets/backgrounds/city-park-clean-bg.jpg?v=20261022-2k');
   background-image:
     linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
-    url('../assets/backgrounds/city-park-bg.webp');
+    url('../assets/backgrounds/city-park-clean-bg.webp?v=20261022-2k');
   background-size: cover;
   background-position: center bottom;
   background-attachment: fixed;
