@@ -1,6 +1,7 @@
 package com.senadso.englishday.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
@@ -38,7 +39,8 @@ public class WebConfig implements WebMvcConfigurer {
                 location = location + "/";
             }
             registry.addResourceHandler("/**")
-                    .addResourceLocations(location, "classpath:/static/");
+                    .addResourceLocations(location, "classpath:/static/")
+                    .setCacheControl(CacheControl.noCache().mustRevalidate());
         }
     }
 

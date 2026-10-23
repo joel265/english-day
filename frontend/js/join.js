@@ -630,7 +630,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const btnDownloadCertPng = document.querySelector("#btnDownloadCertPng");
   if (btnDownloadCertPng) {
-    btnDownloadCertPng.addEventListener("click", downloadCertificatePng);
+    btnDownloadCertPng.addEventListener("click", () => downloadCertificatePng(btnDownloadCertPng));
   }
 
   const btnOpenCertNewTab = document.querySelector("#btnOpenCertNewTab");
@@ -2492,10 +2492,10 @@ function generateCertificateCanvas(details) {
   return canvas;
 }
 
-function dataUrlToBlob(dataUrl) {
+function dataUrlToBlob(dataUrl, customMime) {
   try {
     const parts = dataUrl.split(",");
-    const mime = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+    const mime = customMime || parts[0].match(/:(.*?);/)?.[1] || "image/png";
     const byteString = atob(parts[1]);
     const u8arr = new Uint8Array(byteString.length);
     for (let i = 0; i < byteString.length; i++) {
@@ -2525,7 +2525,7 @@ function dataUrlToFile(dataUrl, fileName) {
   }
 }
 
-function downloadCertificatePng() {
+function downloadCertificatePng(triggerBtn) {
   try {
     const details = getPodiumCertificateDetails();
     const canvas = generateCertificateCanvas(details);
@@ -2537,6 +2537,25 @@ function downloadCertificatePng() {
     const safeNick = (details.nickname || "Aprendiz").replace(/[^a-zA-Z0-9_\-]/g, "_");
     const fileName = `Diploma_EnglishUp_${safeNick}_PuntoPositivo.png`;
 
+    const btn = triggerBtn || document.querySelector("#btnDownloadCertPng");
+    const prevHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-spin">sync</span> GENERANDO DESCARGA...';
+    }
+
+    const setBtnSuccess = () => {
+      if (btn && prevHtml) {
+        btn.innerHTML = '<span class="material-symbols-outlined text-[20px]">check_circle</span> ¡DESCARGA INICIADA!';
+        btn.classList.remove("bg-primary-container", "text-on-primary-container");
+        btn.classList.add("bg-primary", "text-on-primary");
+        setTimeout(() => {
+          btn.innerHTML = prevHtml;
+          btn.classList.add("bg-primary-container", "text-on-primary-container");
+          btn.classList.remove("bg-primary", "text-on-primary");
+        }, 2200);
+      }
+    };
+
     // 1. Obtener Data URL de alta resolución
     let dataUrl = "";
     try {
@@ -2545,27 +2564,34 @@ function downloadCertificatePng() {
       console.warn("toDataURL error:", err);
     }
 
-    // 2. Método principal: Convertir a Blob síncrono y forzar descarga nativa
-    if (dataUrl) {
-      const blob = dataUrlToBlob(dataUrl);
-      if (blob && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.style.display = "none";
-        a.href = blobUrl;
-        a.download = fileName;
-        a.rel = "noopener";
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          try {
-            if (a.parentNode) document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
-          } catch {}
-        }, 3000);
-        showFloatingReactionToast("📥 ¡Descarga iniciada! Revisa tus descargas.");
-        return;
-      }
+    if (!dataUrl) {
+      showFloatingReactionToast("⚠️ Error al generar imagen del diploma.");
+      return;
+    }
+
+    // 2. Método principal: Convertir a Blob síncrono (application/octet-stream fuerza descarga en WebKit/iOS/Android)
+    const blob = dataUrlToBlob(dataUrl, "application/octet-stream");
+    if (blob && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.position = "fixed";
+      a.style.left = "-9999px";
+      a.style.top = "-9999px";
+      a.style.opacity = "0";
+      a.href = blobUrl;
+      a.download = fileName;
+      a.setAttribute("download", fileName);
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try {
+          if (a.parentNode) document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        } catch {}
+      }, 3500);
+      setBtnSuccess();
+      showFloatingReactionToast("📥 ¡Descarga iniciada! Revisa tus descargas.");
+      return;
     }
 
     // 3. Fallback: canvas.toBlob nativo
@@ -2578,10 +2604,13 @@ function downloadCertificatePng() {
         try {
           const blobUrl = URL.createObjectURL(blob);
           const a = document.createElement("a");
-          a.style.display = "none";
+          a.style.position = "fixed";
+          a.style.left = "-9999px";
+          a.style.top = "-9999px";
+          a.style.opacity = "0";
           a.href = blobUrl;
           a.download = fileName;
-          a.rel = "noopener";
+          a.setAttribute("download", fileName);
           document.body.appendChild(a);
           a.click();
           setTimeout(() => {
@@ -2589,13 +2618,14 @@ function downloadCertificatePng() {
               if (a.parentNode) document.body.removeChild(a);
               URL.revokeObjectURL(blobUrl);
             } catch {}
-          }, 3000);
+          }, 3500);
+          setBtnSuccess();
           showFloatingReactionToast("📥 ¡Descarga iniciada! Revisa tus descargas.");
         } catch (e) {
           console.warn("toBlob URL download error:", e);
           openCertificateInNewTab();
         }
-      }, "image/png");
+      }, "application/octet-stream");
       return;
     }
 
