@@ -13,13 +13,32 @@
   box-sizing: border-box;
 }
 
-body {
+body,
+body.app-park-bg,
+body.bg-surface {
   margin: 0;
   min-height: 100vh;
   min-height: 100svh;
-  background: var(--surface);
   color: var(--text);
   font-family: "Rubik", sans-serif;
+  background-color: #5d8e42;
+  background-image:
+    linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
+    url('../assets/backgrounds/city-park-bg.jpg');
+  background-image:
+    linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
+    url('../assets/backgrounds/city-park-bg.webp');
+  background-size: cover;
+  background-position: center bottom;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+@supports (-webkit-touch-callout: none) {
+  body,
+  body.app-park-bg {
+    background-attachment: scroll;
+  }
 }
 
 .site-header {
@@ -45,8 +64,9 @@ body {
 main {
   width: 100%;
   max-width: 1400px;
-  margin: 1.5rem auto 3rem;
+  margin: 0 auto;
   padding: 0 1rem;
+  flex: 1 0 auto;
 }
 
 .join-card,

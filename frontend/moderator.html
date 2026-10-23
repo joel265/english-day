@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Panel de Moderador | English Up SENA ADSO</title>
+    <link rel="icon" type="image/png" href="./assets/branding/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -31,9 +32,19 @@
       body {
         margin: 0;
         min-height: 100vh;
-        background: var(--surface);
         color: var(--text);
         font-family: "Rubik", sans-serif;
+        background-color: #5d8e42;
+        background-image:
+          linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
+          url('./assets/backgrounds/city-park-bg.jpg');
+        background-image:
+          linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
+          url('./assets/backgrounds/city-park-bg.webp');
+        background-size: cover;
+        background-position: center bottom;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
       }
 
       .mod-header {
@@ -48,20 +59,48 @@
       .mod-brand {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: 1rem;
         margin: 0;
-        font-size: 1.35rem;
-        font-weight: 900;
+        text-decoration: none;
       }
 
-      .mod-brand span {
-        padding: 0.25rem 0.65rem;
+      .mod-brand-logo {
+        height: 44px;
+        width: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
+        transition: transform 0.2s ease;
+      }
+
+      .mod-brand-logo:hover {
+        transform: scale(1.04);
+      }
+
+      .mod-brand-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+
+      .mod-brand-title {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 900;
+        color: var(--text);
+        line-height: 1.1;
+      }
+
+      .mod-brand span,
+      .mod-brand-badge {
+        padding: 0.2rem 0.6rem;
         border-radius: 999px;
         background: #ddf4c5;
         color: var(--primary-dark);
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         font-weight: 800;
         text-transform: uppercase;
+        letter-spacing: 0.02em;
+        width: fit-content;
       }
 
       .mod-header-right {
@@ -908,10 +947,15 @@
   </head>
   <body>
     <header class="mod-header">
-      <h1 class="mod-brand">
-        English Up · Panel de Moderador
-        <span>Pantalla Proyector · SENA ADSO</span>
-      </h1>
+      <div class="mod-brand">
+        <a href="/index.html" title="Inicio English Up" style="display:flex;align-items:center;">
+          <img src="./assets/branding/logo-english-up.png" alt="English Up" class="mod-brand-logo">
+        </a>
+        <div class="mod-brand-text">
+          <h1 class="mod-brand-title">Panel de Moderador</h1>
+          <span class="mod-brand-badge">Pantalla Proyector · SENA ADSO</span>
+        </div>
+      </div>
       <div class="mod-header-right">
         <span class="status-pill" id="modRoomStatus" data-status="NONE">Sin sala activa</span>
         <a class="player-view-link" id="navPlayerViewLink" href="/index.html" target="_blank" rel="noopener">Abrir vista de Aprendiz ↗</a>
@@ -1038,13 +1082,18 @@
             </div>
 
             <div id="stageWelcomeView">
-              <h2 class="stage-prompt" id="stageMainHeading">
-                Bienvenido al Panel de Moderador de English Up
-              </h2>
-              <p id="stageWelcomeSubtext">
-                Presiona <strong>Crear Sala</strong> para generar el PIN de 6 dígitos y el código QR en pantalla gigante.
-                Los aprendices ingresan desde sus móviles y aparecerán en tiempo real en la lista inferior.
-              </p>
+              <div class="stage-welcome-hero" style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+                <img src="./assets/branding/logo-english-up.png" alt="English Up" style="height:76px;width:auto;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.12));">
+                <div>
+                  <h2 class="stage-prompt" id="stageMainHeading" style="margin:0 0 0.35rem 0;">
+                    Bienvenido al Panel de Moderador
+                  </h2>
+                  <p id="stageWelcomeSubtext" style="margin:0;color:var(--text-muted);font-size:0.95rem;">
+                    Presiona <strong>Crear Sala</strong> para generar el PIN de 6 dígitos y el código QR en pantalla gigante.
+                    Los aprendices ingresan desde sus móviles y aparecerán en tiempo real en la lista inferior.
+                  </p>
+                </div>
+              </div>
               <div class="stage-qr-showcase" id="stageQrBox" hidden>
                 <canvas class="stage-qr-canvas" id="stageQrCanvas" width="240" height="240" aria-label="Código QR gigante para escanear desde el proyector"></canvas>
                 <div class="stage-qr-details">

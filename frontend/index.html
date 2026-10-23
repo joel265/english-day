@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Unirse a la partida | English Up</title>
+    <link rel="icon" type="image/png" href="./assets/branding/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
@@ -97,25 +98,108 @@
         }
       };
     </script>
-    <link rel="stylesheet" href="./css/styles.css">
-    <link rel="stylesheet" href="./css/avatars.css">
+    <link rel="stylesheet" href="./css/styles.css?v=2.2">
+    <link rel="stylesheet" href="./css/avatars.css?v=2.2">
+    <style>
+      body.app-park-bg {
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100svh;
+        display: flex;
+        flex-direction: column;
+        color: var(--text, #111d22);
+        font-family: "Rubik", sans-serif;
+        background-color: #5d8e42;
+        background-image:
+          linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
+          url('./assets/backgrounds/city-park-bg.jpg');
+        background-image:
+          linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
+          url('./assets/backgrounds/city-park-bg.webp');
+        background-size: cover !important;
+        background-position: center bottom !important;
+        background-attachment: fixed !important;
+        background-repeat: no-repeat !important;
+      }
+
+      main.app-main-content {
+        flex: 1 0 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        margin: 0 auto !important;
+        width: 100%;
+        max-width: 1400px;
+        padding-top: 6rem;
+        padding-bottom: 2rem;
+      }
+
+      footer.app-footer {
+        margin-top: auto !important;
+        width: 100%;
+      }
+
+      .arcade-brand-logo {
+        height: 72px;
+        width: auto;
+        max-width: 260px;
+        object-fit: contain;
+        filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.22));
+        transform: translateY(10px);
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      @media (min-width: 640px) {
+        .arcade-brand-logo {
+          height: 80px;
+          max-width: 290px;
+          transform: translateY(14px);
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .arcade-brand-logo {
+          height: 86px;
+          max-width: 320px;
+          transform: translateY(18px);
+        }
+      }
+
+      .arcade-brand-link:hover .arcade-brand-logo {
+        transform: translateY(10px) scale(1.04);
+      }
+
+      @media (min-width: 640px) {
+        .arcade-brand-link:hover .arcade-brand-logo {
+          transform: translateY(14px) scale(1.04);
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .arcade-brand-link:hover .arcade-brand-logo {
+          transform: translateY(18px) scale(1.04);
+        }
+      }
+
+      @supports (-webkit-touch-callout: none) {
+        body.app-park-bg {
+          background-attachment: scroll !important;
+        }
+      }
+    </style>
   </head>
-  <body class="bg-surface font-body-md text-on-surface">
+  <body class="app-park-bg font-body-md text-on-surface min-h-screen flex flex-col">
     <!-- Top Persistent Arcade HUD Header -->
     <header class="fixed top-0 w-full z-40 bg-surface/90 backdrop-blur-xl shadow-[0_4px_0_rgba(215,229,235,0.7)] border-b border-surface-container-high">
       <div class="h-16 w-full max-w-[1400px] mx-auto px-margin flex items-center justify-between gap-gutter">
-        <div class="flex items-center gap-gutter">
-          <div class="flex items-center gap-space-sm">
-            <img alt="SENA Mascot Owl" class="h-9 w-auto object-contain" src="./assets/avatars/mascot-base.png">
-            <div class="flex flex-col">
-              <span class="font-headline-sm text-headline-sm text-primary leading-none font-black">ENGLISH UP</span>
-              <span class="font-label-sm text-label-sm text-on-surface-variant tracking-wider uppercase font-black">SENA 2026</span>
-            </div>
-          </div>
-          <div class="hidden xl:flex items-center gap-space-xs bg-surface-container px-space-md py-1 rounded-full shadow-[0_2px_0_rgba(190,203,177,0.8)]">
-            <span class="inline-block w-2.5 h-2.5 rounded-full bg-error animate-pulse"></span>
-            <span class="font-label-sm text-label-sm text-on-surface font-extrabold tracking-wide uppercase">LIVE EVENT - REGIONAL DISTRITO CAPITAL</span>
-          </div>
+        <div class="flex items-center">
+          <a href="./" class="arcade-brand-link relative z-50 flex items-center group active:scale-95 transition-transform" aria-label="Inicio English Up">
+            <img
+              alt="English Up"
+              src="./assets/branding/logo-english-up.png"
+              class="arcade-brand-logo"
+            >
+          </a>
         </div>
         <div class="flex items-center gap-3">
           <a class="moderator-link px-3.5 py-1.5 rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md hover:bg-surface-container hover:text-primary transition-all flex items-center gap-1.5 font-bold shadow-sm" id="navModeratorLink" href="/moderator.html">
@@ -129,7 +213,7 @@
       </div>
     </header>
 
-    <main class="w-full pt-20 pb-12">
+    <main class="app-main-content w-full flex-1 flex flex-col justify-center">
       <!-- ================================================================= -->
       <!-- 1. INTERFAZ: UNIRSE A LA PARTIDA (Join Card - Minimalista & Móvil) -->
       <!-- ================================================================= -->
@@ -804,7 +888,7 @@
     </main>
 
     <!-- Institutional Footer -->
-    <footer class="w-full bg-surface-container-low py-space-lg shadow-[0_-2px_0_rgba(215,229,235,0.7)] border-t border-surface-container-high">
+    <footer class="app-footer w-full bg-surface-container-low/95 backdrop-blur-md py-space-sm sm:py-space-md shadow-[0_-2px_0_rgba(215,229,235,0.7)] border-t border-surface-container-high mt-auto">
       <div class="w-full max-w-[1400px] mx-auto px-margin flex flex-col md:flex-row items-center justify-between gap-space-sm text-on-surface-variant font-body-sm text-body-sm">
         <div class="flex items-center gap-space-sm flex-wrap justify-center md:justify-start">
           <span class="font-label-md text-label-md text-primary font-bold">SERVICIO NACIONAL DE APRENDIZAJE SENA</span>
