@@ -612,6 +612,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btnClaimPrizes.innerHTML = '<span class="material-symbols-outlined text-[20px]">verified</span> ¡PREMIOS DESBLOQUEADOS!';
       btnClaimPrizes.classList.add("bg-primary", "text-on-primary");
       openCertificateModal();
+      downloadCertificatePng();
     });
   }
 
@@ -2216,9 +2217,9 @@ function getPodiumCertificateDetails() {
     } catch {}
   }
 
-  const userNick = currentPlayer?.nickname || "APRENDIZ";
+  const userNick = (currentPlayer?.nickname || "APRENDIZ").trim();
   const top3 = lastPodiumPayload?.top3 || lastPodiumPayload?.podium || [];
-  const userRankIndex = top3.findIndex((p) => p.nickname === userNick);
+  const userRankIndex = top3.findIndex((p) => p && p.nickname === userNick);
   const userRank = userRankIndex !== -1 ? userRankIndex + 1 : null;
   const rankText = userRank === 1
     ? "1.° Lugar (Medalla de Oro)"
@@ -2228,17 +2229,37 @@ function getPodiumCertificateDetails() {
     ? "3.° Lugar (Medalla de Bronce)"
     : "Top Finisher Bilingüe";
 
-  const xpVal = userRankIndex !== -1 ? top3[userRankIndex].score : (top3[0]?.score || 2850);
+  const rawScore = userRankIndex !== -1 ? top3[userRankIndex]?.score : (top3[0]?.score || 2850);
+  const xpVal = Number(rawScore) || 2850;
   const codeEl = document.querySelector("#podiumValidationCode");
-  const fallbackCode = `SENA-B1-ENGUP-2026-${(lastPodiumPayload?.roomId || "08492").slice(0, 6).toUpperCase()}`;
+  const fallbackCode = `SENA-B1-ENGUP-2026-${String(lastPodiumPayload?.roomId || "08492").slice(0, 6).toUpperCase()}`;
   const validationCode = codeEl?.textContent?.trim() || fallbackCode;
-  const formattedDate = new Intl.DateTimeFormat("es-CO", { dateStyle: "long" }).format(new Date());
+
+  let formattedDate = "";
+  try {
+    formattedDate = new Intl.DateTimeFormat("es-CO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    }).format(new Date());
+  } catch {
+    try {
+      formattedDate = new Date().toLocaleDateString("es-CO", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+    } catch {
+      const today = new Date();
+      formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+    }
+  }
 
   return {
-    nickname: userNick,
+    nickname: userNick || "APRENDIZ ADSO",
     rank: userRank,
     rankText,
-    xp: Number(xpVal).toLocaleString("en-US"),
+    xp: xpVal.toLocaleString("en-US"),
     validationCode,
     date: formattedDate
   };
@@ -2349,8 +2370,15 @@ function generateCertificateCanvas(details) {
 
   // Nombre del Aprendiz
   ctx.fillStyle = "#1e5000";
-  ctx.font = "900 48px Rubik, sans-serif";
-  ctx.fillText((details.nickname || "APRENDIZ ADSO").toUpperCase(), 800, 405);
+  const nameToRender = (details.nickname || "APRENDIZ ADSO").toUpperCase();
+  if (nameToRender.length > 24) {
+    ctx.font = "900 36px Rubik, sans-serif";
+  } else if (nameToRender.length > 18) {
+    ctx.font = "900 42px Rubik, sans-serif";
+  } else {
+    ctx.font = "900 48px Rubik, sans-serif";
+  }
+  ctx.fillText(nameToRender, 800, 405);
 
   // Línea decorativa bajo el nombre
   ctx.strokeStyle = "#2b6c00";
@@ -2464,6 +2492,22 @@ function generateCertificateCanvas(details) {
   return canvas;
 }
 
+function dataUrlToBlob(dataUrl) {
+  try {
+    const parts = dataUrl.split(",");
+    const mime = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+    const byteString = atob(parts[1]);
+    const u8arr = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) {
+      u8arr[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (err) {
+    console.warn("dataUrlToBlob error:", err);
+    return null;
+  }
+}
+
 function dataUrlToFile(dataUrl, fileName) {
   try {
     const arr = dataUrl.split(",");
@@ -2481,101 +2525,204 @@ function dataUrlToFile(dataUrl, fileName) {
   }
 }
 
-function triggerDirectDownload(dataUrl, fileName) {
+function downloadCertificatePng() {
   try {
-    const a = document.createElement("a");
-    a.download = fileName;
-    a.href = dataUrl;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    showFloatingReactionToast("📥 ¡Descarga iniciada! Guarda tu diploma.");
+    const details = getPodiumCertificateDetails();
+    const canvas = generateCertificateCanvas(details);
+    if (!canvas) {
+      showFloatingReactionToast("⚠️ No se pudo generar el diploma.");
+      return;
+    }
+
+    const safeNick = (details.nickname || "Aprendiz").replace(/[^a-zA-Z0-9_\-]/g, "_");
+    const fileName = `Diploma_EnglishUp_${safeNick}_PuntoPositivo.png`;
+
+    // 1. Obtener Data URL de alta resolución
+    let dataUrl = "";
+    try {
+      dataUrl = canvas.toDataURL("image/png");
+    } catch (err) {
+      console.warn("toDataURL error:", err);
+    }
+
+    // 2. Método principal: Convertir a Blob síncrono y forzar descarga nativa
+    if (dataUrl) {
+      const blob = dataUrlToBlob(dataUrl);
+      if (blob && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = blobUrl;
+        a.download = fileName;
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          try {
+            if (a.parentNode) document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          } catch {}
+        }, 3000);
+        showFloatingReactionToast("📥 ¡Descarga iniciada! Revisa tus descargas.");
+        return;
+      }
+    }
+
+    // 3. Fallback: canvas.toBlob nativo
+    if (typeof canvas.toBlob === "function") {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          openCertificateInNewTab();
+          return;
+        }
+        try {
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = blobUrl;
+          a.download = fileName;
+          a.rel = "noopener";
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            try {
+              if (a.parentNode) document.body.removeChild(a);
+              URL.revokeObjectURL(blobUrl);
+            } catch {}
+          }, 3000);
+          showFloatingReactionToast("📥 ¡Descarga iniciada! Revisa tus descargas.");
+        } catch (e) {
+          console.warn("toBlob URL download error:", e);
+          openCertificateInNewTab();
+        }
+      }, "image/png");
+      return;
+    }
+
+    // 4. Último recurso: abrir en visor directo
+    openCertificateInNewTab();
   } catch (err) {
-    console.error("Direct download failed:", err);
+    console.error("downloadCertificatePng error:", err);
+    showFloatingReactionToast("⚠️ Error en descarga. Pulsa 'VER IMAGEN'.");
   }
 }
 
 function openCertificateInNewTab() {
-  const details = getPodiumCertificateDetails();
-  const canvas = generateCertificateCanvas(details);
-  if (!canvas) return;
-
-  const safeNick = (details.nickname || "Aprendiz").replace(/[^a-zA-Z0-9_\-]/g, "_");
-  const fileName = `Diploma_EnglishUp_${safeNick}_PuntoPositivo.png`;
-
-  let dataUrl = "";
   try {
-    dataUrl = canvas.toDataURL("image/png");
-  } catch (err) {
-    console.warn("toDataURL error:", err);
-  }
-
-  if (!dataUrl) {
-    showFloatingReactionToast("Error al generar la imagen del diploma.");
-    return;
-  }
-
-  const win = window.open();
-  if (win) {
-    win.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${fileName}</title><style>body{margin:0;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:1rem;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;text-align:center;}img{max-width:100%;height:auto;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.6);}p{margin-top:1.25rem;font-size:15px;font-weight:700;color:#4ade80;}span{display:block;margin-top:0.35rem;font-size:13px;color:#94a3b8;}</style></head><body><img src="${dataUrl}" alt="Diploma English Up"><p>👆 Mantén presionada la imagen para "Guardar en Fotos" o "Descargar"</p><span>Diploma oficial válido para reclamar tu punto positivo</span></body></html>`);
-    win.document.close();
-  } else {
-    // Si el bloqueador de popups bloqueó la ventana, intentar redirigir
-    window.location.href = dataUrl;
-  }
-}
-
-function downloadCertificatePng() {
-  const details = getPodiumCertificateDetails();
-  const canvas = generateCertificateCanvas(details);
-  if (!canvas) return;
-
-  const safeNick = (details.nickname || "Aprendiz").replace(/[^a-zA-Z0-9_\-]/g, "_");
-  const fileName = `Diploma_EnglishUp_${safeNick}_PuntoPositivo.png`;
-
-  let dataUrl = "";
-  try {
-    dataUrl = canvas.toDataURL("image/png");
-  } catch (err) {
-    console.warn("toDataURL error:", err);
-  }
-
-  // 1. En dispositivos con Web Share de archivos (ej. iPhone / Safari iOS / Android):
-  // Dispara directamente el menú nativo con 'Guardar imagen en Fotos' o 'Guardar en Archivos'
-  if (dataUrl && typeof navigator !== "undefined" && typeof navigator.share === "function" && typeof File !== "undefined") {
-    const file = dataUrlToFile(dataUrl, fileName);
-    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({
-        files: [file],
-        title: "Diploma English Up SENA 2026",
-        text: `Diploma y Acreditación de Punto Positivo en Inglés para ${details.nickname}.`
-      }).then(() => {
-        showFloatingReactionToast("✔ ¡Diploma guardado / compartido con éxito!");
-      }).catch((shareErr) => {
-        if (shareErr.name === "AbortError") return;
-        console.warn("Web Share files error, intentando descarga directa:", shareErr);
-        triggerDirectDownload(dataUrl, fileName);
-      });
+    const details = getPodiumCertificateDetails();
+    const canvas = generateCertificateCanvas(details);
+    if (!canvas) {
+      showFloatingReactionToast("⚠️ No se pudo generar el diploma.");
       return;
     }
-  }
 
-  // 2. Descarga directa síncrona mediante enlace dataUrl
-  if (dataUrl) {
-    triggerDirectDownload(dataUrl, fileName);
-  } else {
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.download = fileName;
-      a.href = url;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      showFloatingReactionToast("📥 ¡Descarga iniciada!");
-    }, "image/png");
+    const safeNick = (details.nickname || "Aprendiz").replace(/[^a-zA-Z0-9_\-]/g, "_");
+    const fileName = `Diploma_EnglishUp_${safeNick}_PuntoPositivo.png`;
+
+    let dataUrl = "";
+    try {
+      dataUrl = canvas.toDataURL("image/png");
+    } catch (err) {
+      console.warn("toDataURL error:", err);
+    }
+
+    if (!dataUrl) {
+      showFloatingReactionToast("⚠️ No se pudo generar la imagen del diploma.");
+      return;
+    }
+
+    const blob = dataUrlToBlob(dataUrl);
+    const blobUrl = (blob && typeof URL !== "undefined" && typeof URL.createObjectURL === "function")
+      ? URL.createObjectURL(blob)
+      : dataUrl;
+
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(`<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${fileName}</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1.25rem;
+      box-sizing: border-box;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+      text-align: center;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+      border: 2px solid #334155;
+    }
+    .box {
+      margin-top: 1.25rem;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid #475569;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      max-width: 600px;
+    }
+    .box p {
+      margin: 0 0 0.35rem;
+      font-size: 15px;
+      font-weight: 700;
+      color: #4ade80;
+    }
+    .box span {
+      display: block;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .btn-save {
+      display: inline-block;
+      margin-top: 0.85rem;
+      padding: 0.75rem 1.5rem;
+      background: #16a34a;
+      color: white;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 14px;
+      border-radius: 9999px;
+      box-shadow: 0 4px 0 #15803d;
+    }
+  </style>
+</head>
+<body>
+  <img src="${blobUrl}" alt="Diploma English Up SENA">
+  <div class="box">
+    <p>👆 Mantén presionada la imagen para "Guardar en Fotos" o haz clic derecho para guardar</p>
+    <span>Diploma oficial válido para reclamar tu punto positivo en el área de inglés.</span>
+    <div>
+      <a class="btn-save" href="${blobUrl}" download="${fileName}">Descargar Archivo</a>
+    </div>
+  </div>
+</body>
+</html>`);
+      win.document.close();
+      showFloatingReactionToast("👁️ Diploma abierto en pantalla completa.");
+    } else {
+      const fallbackA = document.createElement("a");
+      fallbackA.href = blobUrl;
+      fallbackA.target = "_blank";
+      fallbackA.download = fileName;
+      document.body.appendChild(fallbackA);
+      fallbackA.click();
+      document.body.removeChild(fallbackA);
+    }
+  } catch (err) {
+    console.error("openCertificateInNewTab error:", err);
   }
 }
 
@@ -2631,6 +2778,31 @@ function sharePodiumAction(btnSharePodium) {
 _Plataforma de Gamificación Bilingüe SENA ADSO._`;
 
   if (navigator.share) {
+    try {
+      const canvas = generateCertificateCanvas(details);
+      const dataUrl = canvas ? canvas.toDataURL("image/png") : "";
+      const safeNick = (details.nickname || "Aprendiz").replace(/[^a-zA-Z0-9_\-]/g, "_");
+      const fileName = `Diploma_EnglishUp_${safeNick}_PuntoPositivo.png`;
+      const file = dataUrl ? dataUrlToFile(dataUrl, fileName) : null;
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: "Diploma English Up SENA 2026",
+          text: text
+        }).then(() => {
+          showFloatingReactionToast("✔ ¡Diploma compartido con éxito!");
+        }).catch((err) => {
+          if (err.name !== "AbortError") {
+            navigator.share({ title: "Diploma English Up SENA 2026", text: text }).catch(() => {});
+          }
+        });
+        openCertificateModal();
+        return;
+      }
+    } catch (e) {
+      console.warn("navigator.share with files error:", e);
+    }
+
     navigator.share({
       title: "Certificado English Up 2026",
       text: text,
