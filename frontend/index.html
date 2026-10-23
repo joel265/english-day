@@ -871,10 +871,10 @@
                     </button>
                   </div>
                   <div class="text-center pt-1">
-                    <a class="text-xs text-secondary hover:underline inline-flex items-center gap-1 font-bold" href="#">
+                    <button id="btnPedagogicalFeedback" type="button" class="text-xs text-secondary hover:underline inline-flex items-center gap-1 font-bold cursor-pointer bg-transparent border-0 p-0">
                       <span>Ver desglose pedagógico y retroalimentación técnica</span>
                       <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -885,6 +885,165 @@
           </div>
         </div>
       </section>
+
+      <!-- ================================================================= -->
+      <!-- MODAL: CERTIFICADO & ACREDITACIÓN DE PUNTO POSITIVO (BILINGÜISMO)   -->
+      <!-- ================================================================= -->
+      <div id="certificateModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-md overflow-y-auto" hidden aria-modal="true" role="dialog" aria-labelledby="certificateModalTitle">
+        <div class="bg-surface-container-lowest rounded-2xl shadow-2xl max-w-2xl w-full p-4 sm:p-6 max-h-[95vh] overflow-y-auto border-2 border-surface-container-high flex flex-col gap-4 my-auto">
+          <!-- Modal Top Bar -->
+          <div class="flex items-center justify-between border-b pb-3 border-surface-container-high">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-2xl">workspace_premium</span>
+              <div>
+                <h3 id="certificateModalTitle" class="font-headline-sm text-base sm:text-lg text-on-surface font-black leading-tight">Diploma Bilingüe · English Up SENA</h3>
+                <p class="text-[11px] sm:text-xs text-on-surface-variant font-medium">Acreditación válida para reclamar 1 punto positivo en inglés</p>
+              </div>
+            </div>
+            <button id="btnCloseCertModal" type="button" class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:bg-error-container hover:text-on-error-container font-bold cursor-pointer transition-colors" aria-label="Cerrar certificado">
+              ✕
+            </button>
+          </div>
+
+          <!-- Diploma Visual Parchment Preview -->
+          <div class="relative bg-[#fdfbf7] text-[#111d22] p-4 sm:p-6 rounded-xl border-4 border-[#2b6c00] shadow-inner flex flex-col items-center text-center gap-2.5 sm:gap-3 overflow-hidden" style="box-shadow: 0 0 0 2px #d97706, inset 0 0 16px rgba(43,108,0,0.08);">
+            <!-- Decorative Corner Accents -->
+            <div class="absolute top-1.5 left-1.5 w-4 h-4 border-t-2 border-l-2 border-[#d97706]"></div>
+            <div class="absolute top-1.5 right-1.5 w-4 h-4 border-t-2 border-r-2 border-[#d97706]"></div>
+            <div class="absolute bottom-1.5 left-1.5 w-4 h-4 border-b-2 border-l-2 border-[#d97706]"></div>
+            <div class="absolute bottom-1.5 right-1.5 w-4 h-4 border-b-2 border-r-2 border-[#d97706]"></div>
+
+            <!-- Institutional Header -->
+            <div class="flex flex-col items-center leading-tight">
+              <span class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#2b6c00]">SERVICIO NACIONAL DE APRENDIZAJE · SENA</span>
+              <span class="text-[9px] sm:text-[10px] font-bold text-[#6f7b64] uppercase tracking-wide">DIRECCIÓN DE FORMACIÓN PROFESIONAL · ÁREA DE BILINGÜISMO</span>
+              <span class="text-[9px] sm:text-[10px] font-bold text-[#d97706] uppercase tracking-widest mt-0.5">PROGRAMA ADSO · ENGLISH UP 2026</span>
+            </div>
+
+            <!-- Main Title -->
+            <div class="my-0.5">
+              <h4 class="text-sm sm:text-lg font-black uppercase tracking-wide text-[#111d22]">CERTIFICADO DE ACREDITACIÓN &amp; MÉRITO BILINGÜE</h4>
+              <span class="text-[10px] sm:text-xs text-[#2b6c00] font-bold">Nivel B1 (MCER) · Gamified Language Challenge</span>
+            </div>
+
+            <!-- Learner Attribution -->
+            <div class="w-full py-1">
+              <span class="text-[10px] sm:text-xs text-[#3f4a36] block font-medium">Hace constar que el (la) aprendiz:</span>
+              <div id="certModalName" class="text-lg sm:text-2xl font-black text-[#2b6c00] uppercase tracking-wider my-0.5 font-mono">APRENDIZ ADSO</div>
+              <p class="text-[10px] sm:text-xs text-[#3f4a36] max-w-lg mx-auto leading-relaxed">
+                Demostró excelencia y dominio en las pruebas interactivas de gramática técnica, vocabulario de desarrollo de software y expresión comunicativa en idioma inglés.
+              </p>
+            </div>
+
+            <!-- Golden Academic Bonus Box -->
+            <div class="w-full bg-[#f4fbf0] border-2 border-[#58cc02] rounded-xl p-2.5 sm:p-3 text-center my-0.5 shadow-sm">
+              <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#2b6c00] text-white text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                ⭐ ACREDITACIÓN ACADÉMICA OFICIAL ⭐
+              </span>
+              <p class="text-xs sm:text-sm font-black text-[#1e5000] mt-1 mb-0.5">
+                +1 PUNTO POSITIVO EN EL ÁREA DE INGLÉS TÉCNICO
+              </p>
+              <p class="text-[10px] sm:text-[11px] text-[#3f4a36]">
+                Válido ante el instructor(a) de bilingüismo para la ponderación y evaluación del trimestre académico.
+              </p>
+            </div>
+
+            <!-- Verification Details Grid -->
+            <div class="w-full grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 text-left bg-white p-2 sm:p-2.5 rounded-lg border border-[#ddeaf1] text-[10px] sm:text-xs">
+              <div>
+                <span class="block text-[#6f7b64] font-bold text-[9px] sm:text-[10px] uppercase">Posición</span>
+                <strong id="certModalRank" class="text-[#111d22] font-black">Top Finisher</strong>
+              </div>
+              <div>
+                <span class="block text-[#6f7b64] font-bold text-[9px] sm:text-[10px] uppercase">Puntaje</span>
+                <strong id="certModalXP" class="text-[#2b6c00] font-black">2,850 XP</strong>
+              </div>
+              <div class="col-span-2 sm:col-span-2">
+                <span class="block text-[#6f7b64] font-bold text-[9px] sm:text-[10px] uppercase">Código de Verificación</span>
+                <strong id="certModalCode" class="text-[#006590] font-mono font-bold tracking-wider break-all">SENA-B1-ENGUP-2026-08492</strong>
+              </div>
+            </div>
+
+            <!-- Seal and Signature -->
+            <div class="w-full flex items-center justify-between text-[9px] sm:text-[10px] text-[#6f7b64] pt-1.5 border-t border-[#ddeaf1]">
+              <span id="certModalDate">Fecha de Expedición: 23 de octubre de 2026</span>
+              <span class="font-bold text-[#2b6c00] flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px]">verified</span>
+                Firma Digital SENA ADSO
+              </span>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-col gap-2 pt-1">
+            <button id="btnDownloadCertPng" type="button" class="w-full py-3 px-4 rounded-full bg-primary-container text-on-primary-container text-sm sm:text-base font-black uppercase tracking-wider shadow-[0_4px_0_#46a302] hover:bg-opacity-95 active:translate-y-1 active:shadow-[0_0_0_#46a302] transition-all flex items-center justify-center gap-2 cursor-pointer">
+              <span class="material-symbols-outlined text-[20px]">download</span>
+              DESCARGAR DIPLOMA (IMAGEN PNG)
+            </button>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button id="btnOpenCertNewTab" type="button" class="py-2.5 px-3 rounded-full bg-surface-container-high text-on-surface text-xs sm:text-sm font-black uppercase tracking-wide border border-surface-container-highest hover:bg-surface-container-highest transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+                VER IMAGEN
+              </button>
+              <button id="btnCertShareWhatsApp" type="button" class="py-2.5 px-3 rounded-full bg-[#25D366] text-white text-xs sm:text-sm font-black uppercase tracking-wide shadow-[0_4px_0_#128C7E] hover:opacity-95 active:translate-y-1 active:shadow-[0_0_0_#128C7E] transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                <span class="material-symbols-outlined text-[18px]">chat</span>
+                WHATSAPP
+              </button>
+              <button id="btnCertCopyProof" type="button" class="py-2.5 px-3 rounded-full bg-secondary-container text-on-secondary-container text-xs sm:text-sm font-black uppercase tracking-wide shadow-[0_4px_0_#0084c7] hover:bg-opacity-95 active:translate-y-1 active:shadow-[0_0_0_#0084c7] transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                <span class="material-symbols-outlined text-[18px]">content_copy</span>
+                COPIAR
+              </button>
+            </div>
+            <p class="text-[11px] text-on-surface-variant text-center font-medium mt-0.5">
+              💡 <strong>Tip en móvil:</strong> Si la descarga automática no inicia, pulsa <strong>"VER IMAGEN"</strong> y mantén presionada la pantalla para <strong>"Guardar en Fotos"</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- MODAL: DESGLOSE PEDAGÓGICO & GUÍA DE RECLAMO                       -->
+      <!-- ================================================================= -->
+      <div id="pedagogicalModal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-md overflow-y-auto" hidden aria-modal="true" role="dialog" aria-labelledby="pedagogicalModalTitle">
+        <div class="bg-surface-container-lowest rounded-2xl shadow-2xl max-w-xl w-full p-5 sm:p-6 max-h-[92vh] overflow-y-auto border-2 border-surface-container-high flex flex-col gap-4 my-auto">
+          <div class="flex items-center justify-between border-b pb-3 border-surface-container-high">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-secondary text-2xl">school</span>
+              <h3 id="pedagogicalModalTitle" class="font-headline-sm text-base sm:text-lg text-on-surface font-black leading-tight">Desglose Pedagógico &amp; Rúbrica</h3>
+            </div>
+            <button id="btnClosePedagogicalModal" type="button" class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-container-high font-bold cursor-pointer transition-colors" aria-label="Cerrar desglose">
+              ✕
+            </button>
+          </div>
+
+          <div class="flex flex-col gap-3 text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+            <div class="bg-primary/10 border border-primary/30 rounded-xl p-3">
+              <h5 class="text-xs font-black uppercase text-primary mb-1">🎯 Competencias Lingüísticas Evaluadas</h5>
+              <ul class="list-disc list-inside space-y-1 text-on-surface text-[12px] sm:text-xs">
+                <li><strong>Grammar &amp; Syntax:</strong> Manejo de Present Continuous vs Simple Present en contextos técnicos.</li>
+                <li><strong>Technical Vocabulary:</strong> Terminología esencial para la industria del software.</li>
+                <li><strong>Reading &amp; Speed Comprehension:</strong> Agilidad de lectura y toma de decisiones bajo tiempo.</li>
+                <li><strong>Voice &amp; Pronunciation:</strong> Expresión oral y fonética guiada por IA en inglés.</li>
+              </ul>
+            </div>
+
+            <div class="bg-surface-container-low border border-surface-container-high rounded-xl p-3">
+              <h5 class="text-xs font-black uppercase text-secondary mb-1">📋 Pasos para reclamar tu punto positivo</h5>
+              <ol class="list-decimal list-inside space-y-1 text-on-surface text-[12px] sm:text-xs">
+                <li>Pulsa <strong>RECLAMAR PREMIOS &amp; CERTIFICADO</strong> y descarga tu diploma oficial en imagen PNG.</li>
+                <li>Envía la imagen o el comprobante por WhatsApp o correo a tu instructor(a) de inglés.</li>
+                <li>Tu instructor cotejará el código <span id="pedagogicalCodeSnippet" class="font-mono text-primary font-bold">SENA-B1-ENGUP-2026-XXXXXX</span> para registrar el punto en el sistema evaluativo del trimestre.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-surface-container-high flex justify-end">
+            <button id="btnDismissPedagogicalModal" type="button" class="px-5 py-2.5 rounded-full bg-surface-container-highest text-on-surface font-bold text-xs sm:text-sm hover:bg-surface-container cursor-pointer transition-colors">
+              Entendido
+            </button>
+          </div>
+        </div>
+      </div>
     </main>
 
     <!-- Institutional Footer -->

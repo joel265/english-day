@@ -34,6 +34,7 @@ const modPinValue = document.querySelector("#modPinValue");
 const modJoinUrl = document.querySelector("#modJoinUrl");
 const modQrBox = document.querySelector("#modQrBox");
 const modQrCanvas = document.querySelector("#modQrCanvas");
+const btnExpandModQr = document.querySelector("#btnExpandModQr");
 const btnCopyJoinUrl = document.querySelector("#btnCopyJoinUrl");
 const modFeedback = document.querySelector("#modFeedback");
 
@@ -69,8 +70,19 @@ const stageMainHeading = document.querySelector("#stageMainHeading");
 const stageWelcomeSubtext = document.querySelector("#stageWelcomeSubtext");
 const stageQrBox = document.querySelector("#stageQrBox");
 const stageQrCanvas = document.querySelector("#stageQrCanvas");
+const btnExpandStageQr = document.querySelector("#btnExpandStageQr");
+const btnOpenQrModal = document.querySelector("#btnOpenQrModal");
 const stageQrUrl = document.querySelector("#stageQrUrl");
 const stageQrPinPill = document.querySelector("#stageQrPinPill");
+
+const qrModalOverlay = document.querySelector("#qrModalOverlay");
+const qrModalCard = document.querySelector("#qrModalCard");
+const qrModalCanvas = document.querySelector("#qrModalCanvas");
+const qrModalPinValue = document.querySelector("#qrModalPinValue");
+const qrModalUrlText = document.querySelector("#qrModalUrlText");
+const btnCloseQrModal = document.querySelector("#btnCloseQrModal");
+const btnDismissQrModal = document.querySelector("#btnDismissQrModal");
+const btnCopyQrModalUrl = document.querySelector("#btnCopyQrModalUrl");
 
 const stageTransitionView = document.querySelector("#stageTransitionView");
 const stageTransitionBadge = document.querySelector("#stageTransitionBadge");
@@ -917,11 +929,111 @@ function renderRoomQrCodes(joinUrl, pin) {
         lightColor: "#ffffff",
       });
     }
+    if (qrModalCanvas) {
+      qrApi.renderToCanvas(qrModalCanvas, joinUrl, {
+        size: 440,
+        quietZone: 4,
+        darkColor: "#000000",
+        lightColor: "#ffffff",
+      });
+    }
   }
   if (modQrBox) modQrBox.hidden = false;
   if (stageQrBox) stageQrBox.hidden = false;
   if (stageQrUrl) stageQrUrl.textContent = joinUrl;
   if (stageQrPinPill) stageQrPinPill.textContent = `PIN: ${pin}`;
+  if (qrModalPinValue) qrModalPinValue.textContent = pin;
+  if (qrModalUrlText) qrModalUrlText.textContent = joinUrl;
+}
+
+let lastFocusedElementBeforeModal = null;
+
+function openQrModal() {
+  if (!qrModalOverlay) return;
+  if (!currentRoom?.pin) {
+    setFeedback("Crea o reconecta una sala para generar el código QR ampliado.", "warn");
+    return;
+  }
+
+  const joinUrl = buildPlayerJoinUrl(currentRoom.pin, currentRoom.lanIp);
+  const qrApi = window.EnglishUpQR || window.EnglishDayQR;
+  if (qrModalCanvas && qrApi && typeof qrApi.renderToCanvas === "function") {
+    qrApi.renderToCanvas(qrModalCanvas, joinUrl, {
+      size: 440,
+      quietZone: 4,
+      darkColor: "#000000",
+      lightColor: "#ffffff",
+    });
+  }
+  if (qrModalPinValue) qrModalPinValue.textContent = currentRoom.pin;
+  if (qrModalUrlText) qrModalUrlText.textContent = joinUrl;
+
+  lastFocusedElementBeforeModal = document.activeElement;
+  qrModalOverlay.hidden = false;
+  document.body.style.overflow = "hidden";
+
+  window.requestAnimationFrame(() => {
+    qrModalOverlay.classList.add("is-open");
+    if (btnCloseQrModal) {
+      btnCloseQrModal.focus();
+    }
+  });
+}
+
+function closeQrModal() {
+  if (!qrModalOverlay || qrModalOverlay.hidden) return;
+  qrModalOverlay.classList.remove("is-open");
+  document.body.style.overflow = "";
+
+  window.setTimeout(() => {
+    qrModalOverlay.hidden = true;
+    if (lastFocusedElementBeforeModal && typeof lastFocusedElementBeforeModal.focus === "function") {
+      lastFocusedElementBeforeModal.focus();
+    }
+  }, 220);
+}
+
+// Interacción para expandir el código QR al hacer clic en el proyector o en el panel
+[modQrCanvas, btnExpandStageQr, stageQrCanvas].forEach((trigger) => {
+  if (!trigger) return;
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openQrModal();
+  });
+  trigger.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openQrModal();
+    }
+  });
+});
+
+if (btnCloseQrModal) {
+  btnCloseQrModal.addEventListener("click", closeQrModal);
+}
+
+if (btnDismissQrModal) {
+  btnDismissQrModal.addEventListener("click", closeQrModal);
+}
+
+if (qrModalOverlay) {
+  qrModalOverlay.addEventListener("click", (e) => {
+    if (e.target === qrModalOverlay) {
+      closeQrModal();
+    }
+  });
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && qrModalOverlay && !qrModalOverlay.hidden) {
+    closeQrModal();
+  }
+});
+
+if (btnCopyQrModalUrl) {
+  btnCopyQrModalUrl.addEventListener("click", () => {
+    copyRoomJoinUrl(btnCopyQrModalUrl);
+  });
 }
 
 async function copyRoomJoinUrl(buttonEl) {

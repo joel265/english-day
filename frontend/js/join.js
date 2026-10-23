@@ -112,6 +112,7 @@ let latestInterimText = "";
 let knownRoomPlayers = [];
 let playerRouletteWheel = null;
 let isLeavingIntentionally = false;
+let lastPodiumPayload = null;
 
 function escapeHtml(str) {
   return String(str ?? "")
@@ -588,7 +589,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Acciones en Podio
+  // Acciones en Podio y Acreditación de Certificado
   const btnClaimPrizes = document.querySelector("#btnClaimPrizes");
   if (btnClaimPrizes) {
     btnClaimPrizes.addEventListener("click", () => {
@@ -608,26 +609,83 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         console.warn("Audio/confetti podio claim no bloqueante:", err);
       }
-      btnClaimPrizes.textContent = "¡PREMIOS DESBLOQUEADOS!";
+      btnClaimPrizes.innerHTML = '<span class="material-symbols-outlined text-[20px]">verified</span> ¡PREMIOS DESBLOQUEADOS!';
       btnClaimPrizes.classList.add("bg-primary", "text-on-primary");
+      openCertificateModal();
+      downloadCertificatePng();
     });
   }
+
   const btnSharePodium = document.querySelector("#btnSharePodium");
   if (btnSharePodium) {
     btnSharePodium.addEventListener("click", () => {
-      const text = "¡Competí en English Up SENA 2026 y alcancé el podio con honores bilingües! 🇨🇴🦉";
-      if (navigator.share) {
-        navigator.share({ title: "English Up SENA 2026", text, url: window.location.href }).catch(() => {});
-      } else if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-          btnSharePodium.textContent = "¡COPIADO!";
-          setTimeout(() => {
-            btnSharePodium.textContent = "COMPARTIR";
-          }, 1500);
-        }).catch(() => {});
-      }
+      sharePodiumAction(btnSharePodium);
     });
   }
+
+  const btnCloseCertModal = document.querySelector("#btnCloseCertModal");
+  if (btnCloseCertModal) {
+    btnCloseCertModal.addEventListener("click", closeCertificateModal);
+  }
+
+  const btnDownloadCertPng = document.querySelector("#btnDownloadCertPng");
+  if (btnDownloadCertPng) {
+    btnDownloadCertPng.addEventListener("click", downloadCertificatePng);
+  }
+
+  const btnOpenCertNewTab = document.querySelector("#btnOpenCertNewTab");
+  if (btnOpenCertNewTab) {
+    btnOpenCertNewTab.addEventListener("click", openCertificateInNewTab);
+  }
+
+  const btnCertShareWhatsApp = document.querySelector("#btnCertShareWhatsApp");
+  if (btnCertShareWhatsApp) {
+    btnCertShareWhatsApp.addEventListener("click", shareCertificateViaWhatsApp);
+  }
+
+  const btnCertCopyProof = document.querySelector("#btnCertCopyProof");
+  if (btnCertCopyProof) {
+    btnCertCopyProof.addEventListener("click", () => copyCertificateProof(btnCertCopyProof));
+  }
+
+  const btnPedagogicalFeedback = document.querySelector("#btnPedagogicalFeedback");
+  if (btnPedagogicalFeedback) {
+    btnPedagogicalFeedback.addEventListener("click", (e) => {
+      e.preventDefault();
+      openPedagogicalModal();
+    });
+  }
+
+  const btnClosePedagogicalModal = document.querySelector("#btnClosePedagogicalModal");
+  if (btnClosePedagogicalModal) {
+    btnClosePedagogicalModal.addEventListener("click", closePedagogicalModal);
+  }
+
+  const btnDismissPedagogicalModal = document.querySelector("#btnDismissPedagogicalModal");
+  if (btnDismissPedagogicalModal) {
+    btnDismissPedagogicalModal.addEventListener("click", closePedagogicalModal);
+  }
+
+  const certificateModal = document.querySelector("#certificateModal");
+  if (certificateModal) {
+    certificateModal.addEventListener("click", (e) => {
+      if (e.target === certificateModal) closeCertificateModal();
+    });
+  }
+
+  const pedagogicalModal = document.querySelector("#pedagogicalModal");
+  if (pedagogicalModal) {
+    pedagogicalModal.addEventListener("click", (e) => {
+      if (e.target === pedagogicalModal) closePedagogicalModal();
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeCertificateModal();
+      closePedagogicalModal();
+    }
+  });
 
   if (window.ActiveFeedbackRoulette) {
     playerRouletteWheel = new window.ActiveFeedbackRoulette("playerRouletteCanvas");
@@ -1906,6 +1964,11 @@ function renderPodiumScreen(payload) {
     throw new Error("El servidor envió un podio final inválido.");
   }
 
+  lastPodiumPayload = payload;
+  try {
+    sessionStorage.setItem("englishUpLastPodium", JSON.stringify(payload));
+  } catch {}
+
   window.clearInterval(timerInterval);
   window.clearTimeout(autoCloseTimeout);
   window.clearTimeout(transitionTimeout);
@@ -2141,6 +2204,632 @@ function renderPodiumScreen(payload) {
   showOnlyCard(podiumCard);
   document.title = "¡Podio Final! | English Up";
   podiumTitle?.focus();
+}
+
+// =============================================================================
+// GESTIÓN DE DIPLOMA, CERTIFICACIÓN Y RECLAMO DE PUNTO POSITIVO (BILINGÜISMO)
+// =============================================================================
+
+function getPodiumCertificateDetails() {
+  if (!lastPodiumPayload) {
+    try {
+      lastPodiumPayload = JSON.parse(sessionStorage.getItem("englishUpLastPodium") || "null");
+    } catch {}
+  }
+
+  const userNick = (currentPlayer?.nickname || "APRENDIZ").trim();
+  const top3 = lastPodiumPayload?.top3 || lastPodiumPayload?.podium || [];
+  const userRankIndex = top3.findIndex((p) => p && p.nickname === userNick);
+  const userRank = userRankIndex !== -1 ? userRankIndex + 1 : null;
+  const rankText = userRank === 1
+    ? "1.° Lugar (Medalla de Oro)"
+    : userRank === 2
+    ? "2.° Lugar (Medalla de Plata)"
+    : userRank === 3
+    ? "3.° Lugar (Medalla de Bronce)"
+    : "Top Finisher Bilingüe";
+
+  const rawScore = userRankIndex !== -1 ? top3[userRankIndex]?.score : (top3[0]?.score || 2850);
+  const xpVal = Number(rawScore) || 2850;
+  const codeEl = document.querySelector("#podiumValidationCode");
+  const fallbackCode = `SENA-B1-ENGUP-2026-${String(lastPodiumPayload?.roomId || "08492").slice(0, 6).toUpperCase()}`;
+  const validationCode = codeEl?.textContent?.trim() || fallbackCode;
+
+  let formattedDate = "";
+  try {
+    formattedDate = new Intl.DateTimeFormat("es-CO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    }).format(new Date());
+  } catch {
+    try {
+      formattedDate = new Date().toLocaleDateString("es-CO", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+    } catch {
+      const today = new Date();
+      formattedDate = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+    }
+  }
+
+  return {
+    nickname: userNick || "APRENDIZ ADSO",
+    rank: userRank,
+    rankText,
+    xp: xpVal.toLocaleString("en-US"),
+    validationCode,
+    date: formattedDate
+  };
+}
+
+function openCertificateModal() {
+  const details = getPodiumCertificateDetails();
+  const certModal = document.querySelector("#certificateModal");
+  if (!certModal) return;
+
+  const certModalName = document.querySelector("#certModalName");
+  const certModalRank = document.querySelector("#certModalRank");
+  const certModalXP = document.querySelector("#certModalXP");
+  const certModalCode = document.querySelector("#certModalCode");
+  const certModalDate = document.querySelector("#certModalDate");
+
+  if (certModalName) certModalName.textContent = details.nickname;
+  if (certModalRank) certModalRank.textContent = details.rankText;
+  if (certModalXP) certModalXP.textContent = `${details.xp} XP`;
+  if (certModalCode) certModalCode.textContent = details.validationCode;
+  if (certModalDate) certModalDate.textContent = `Fecha de Expedición: ${details.date}`;
+
+  certModal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeCertificateModal() {
+  const certModal = document.querySelector("#certificateModal");
+  if (certModal) {
+    certModal.hidden = true;
+    document.body.style.overflow = "";
+  }
+}
+
+function drawSafeRoundRect(ctx, x, y, width, height, radius) {
+  if (typeof ctx.roundRect === "function") {
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, radius);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function generateCertificateCanvas(details) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1600;
+  canvas.height = 1100;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  // Fondo pergamino limpio
+  ctx.fillStyle = "#fdfbf7";
+  ctx.fillRect(0, 0, 1600, 1100);
+
+  // Marco exterior SENA Verde
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = "#2b6c00";
+  ctx.strokeRect(32, 32, 1536, 1036);
+
+  // Marco interior Dorado
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#d97706";
+  ctx.strokeRect(50, 50, 1500, 1000);
+
+  // Esquineros decorativos dorados
+  const cSize = 42;
+  ctx.fillStyle = "#d97706";
+  [[54, 54], [1546 - cSize, 54], [54, 1046 - cSize], [1546 - cSize, 1046 - cSize]].forEach(([x, y]) => {
+    ctx.fillRect(x, y, cSize, 6);
+    ctx.fillRect(x, y, 6, cSize);
+  });
+
+  // Cabecera institucional
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#2b6c00";
+  ctx.font = "bold 26px Rubik, sans-serif";
+  ctx.fillText("SERVICIO NACIONAL DE APRENDIZAJE · SENA", 800, 110);
+
+  ctx.fillStyle = "#6f7b64";
+  ctx.font = "600 17px Rubik, sans-serif";
+  ctx.fillText("DIRECCIÓN DE FORMACIÓN PROFESIONAL · ÁREA DE BILINGÜISMO", 800, 142);
+  ctx.fillText("PROGRAMA ADSO (ANÁLISIS Y DESARROLLO DE SOFTWARE)", 800, 168);
+
+  // Título del Certificado
+  ctx.fillStyle = "#d97706";
+  ctx.font = "bold 18px Rubik, sans-serif";
+  ctx.fillText("✦ ENGLISH UP 2026 · GAMIFIED CHALLENGE ✦", 800, 222);
+
+  ctx.fillStyle = "#111d22";
+  ctx.font = "900 42px Rubik, sans-serif";
+  ctx.fillText("CERTIFICADO DE ACREDITACIÓN BILINGÜE", 800, 276);
+
+  ctx.fillStyle = "#3f4a36";
+  ctx.font = "500 20px Rubik, sans-serif";
+  ctx.fillText("Otorga el presente reconocimiento y constancia académica a:", 800, 335);
+
+  // Nombre del Aprendiz
+  ctx.fillStyle = "#1e5000";
+  const nameToRender = (details.nickname || "APRENDIZ ADSO").toUpperCase();
+  if (nameToRender.length > 24) {
+    ctx.font = "900 36px Rubik, sans-serif";
+  } else if (nameToRender.length > 18) {
+    ctx.font = "900 42px Rubik, sans-serif";
+  } else {
+    ctx.font = "900 48px Rubik, sans-serif";
+  }
+  ctx.fillText(nameToRender, 800, 405);
+
+  // Línea decorativa bajo el nombre
+  ctx.strokeStyle = "#2b6c00";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(350, 425);
+  ctx.lineTo(1250, 425);
+  ctx.stroke();
+
+  // Descripción del mérito
+  ctx.fillStyle = "#3f4a36";
+  ctx.font = "500 19px Rubik, sans-serif";
+  ctx.fillText("Por su destacada participación en el reto interactivo de gamificación en idioma inglés,", 800, 465);
+  ctx.fillText("demostrando competencias comunicativas en gramática, vocabulario técnico y pronunciación (Nivel B1).", 800, 495);
+
+  // Caja Destacada: Reconocimiento Académico / Punto Positivo
+  ctx.fillStyle = "#f4fbf0";
+  ctx.fillRect(250, 535, 1100, 150);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#58cc02";
+  ctx.strokeRect(250, 535, 1100, 150);
+
+  // Píldora de acreditación
+  ctx.fillStyle = "#2b6c00";
+  drawSafeRoundRect(ctx, 610, 550, 380, 34, 17);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 15px Rubik, sans-serif";
+  ctx.fillText("⭐ ACREDITACIÓN ACADÉMICA OFICIAL ⭐", 800, 573);
+
+  ctx.fillStyle = "#1e5000";
+  ctx.font = "900 30px Rubik, sans-serif";
+  ctx.fillText("+1 PUNTO POSITIVO EN EL ÁREA DE INGLÉS TÉCNICO", 800, 625);
+
+  ctx.fillStyle = "#3f4a36";
+  ctx.font = "600 16px Rubik, sans-serif";
+  ctx.fillText("Válido ante el instructor(a) de bilingüismo para la ponderación del trimestre académico.", 800, 660);
+
+  // Rejilla de Verificación
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(160, 715, 1280, 110);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#cfdce3";
+  ctx.strokeRect(160, 715, 1280, 110);
+
+  ctx.textAlign = "left";
+  // Col 1: Posición
+  ctx.fillStyle = "#6f7b64";
+  ctx.font = "bold 14px Rubik, sans-serif";
+  ctx.fillText("POSICIÓN OFICIAL", 200, 750);
+  ctx.fillStyle = "#111d22";
+  ctx.font = "900 22px Rubik, sans-serif";
+  ctx.fillText(details.rankText || "Top Finisher", 200, 790);
+
+  // Col 2: Puntaje
+  ctx.fillStyle = "#6f7b64";
+  ctx.font = "bold 14px Rubik, sans-serif";
+  ctx.fillText("PUNTAJE OBTENIDO", 520, 750);
+  ctx.fillStyle = "#2b6c00";
+  ctx.font = "900 22px Rubik, sans-serif";
+  ctx.fillText(`${details.xp} XP`, 520, 790);
+
+  // Col 3: Código de Validación
+  ctx.fillStyle = "#6f7b64";
+  ctx.font = "bold 14px Rubik, sans-serif";
+  ctx.fillText("CÓDIGO ÚNICO DE VALIDACIÓN", 830, 750);
+  ctx.fillStyle = "#006590";
+  ctx.font = "bold 20px monospace";
+  ctx.fillText(details.validationCode || "SENA-B1-ENGUP-2026", 830, 790);
+
+  // Firmas y Sellos
+  ctx.textAlign = "center";
+  // Firma Izquierda: Bilingüismo
+  ctx.strokeStyle = "#3f4a36";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(250, 960);
+  ctx.lineTo(600, 960);
+  ctx.stroke();
+
+  ctx.fillStyle = "#111d22";
+  ctx.font = "bold 17px Rubik, sans-serif";
+  ctx.fillText("Coordinación de Bilingüismo", 425, 985);
+  ctx.fillStyle = "#6f7b64";
+  ctx.font = "14px Rubik, sans-serif";
+  ctx.fillText("Formación Profesional Integral SENA", 425, 1007);
+
+  // Sello Central: Sello Digital
+  ctx.fillStyle = "#2b6c00";
+  ctx.beginPath();
+  ctx.arc(800, 940, 36, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 18px Rubik, sans-serif";
+  ctx.fillText("SENA", 800, 938);
+  ctx.font = "9px Rubik, sans-serif";
+  ctx.fillText("VERIFICADO", 800, 952);
+
+  // Firma Derecha: Instructor
+  ctx.beginPath();
+  ctx.moveTo(1000, 960);
+  ctx.lineTo(1350, 960);
+  ctx.stroke();
+
+  ctx.fillStyle = "#111d22";
+  ctx.font = "bold 17px Rubik, sans-serif";
+  ctx.fillText("Instructor(a) de Inglés Técnico", 1175, 985);
+  ctx.fillStyle = "#6f7b64";
+  ctx.font = "14px Rubik, sans-serif";
+  ctx.fillText(`Expedido: ${details.date}`, 1175, 1007);
+
+  return canvas;
+}
+
+function dataUrlToBlob(dataUrl) {
+  try {
+    const parts = dataUrl.split(",");
+    const mime = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+    const byteString = atob(parts[1]);
+    const u8arr = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) {
+      u8arr[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (err) {
+    console.warn("dataUrlToBlob error:", err);
+    return null;
+  }
+}
+
+function dataUrlToFile(dataUrl, fileName) {
+  try {
+    const arr = dataUrl.split(",");
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "image/png";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], fileName, { type: mime });
+  } catch {
+    return null;
+  }
+}
+
+function downloadCertificatePng() {
+  try {
+    const details = getPodiumCertificateDetails();
+    const canvas = generateCertificateCanvas(details);
+    if (!canvas) {
+      showFloatingReactionToast("⚠️ No se pudo generar el diploma.");
+      return;
+    }
+
+    const safeNick = (details.nickname || "Aprendiz").replace(/[^a-zA-Z0-9_\-]/g, "_");
+    const fileName = `Diploma_EnglishUp_${safeNick}_PuntoPositivo.png`;
+
+    // 1. Obtener Data URL de alta resolución
+    let dataUrl = "";
+    try {
+      dataUrl = canvas.toDataURL("image/png");
+    } catch (err) {
+      console.warn("toDataURL error:", err);
+    }
+
+    // 2. Método principal: Convertir a Blob síncrono y forzar descarga nativa
+    if (dataUrl) {
+      const blob = dataUrlToBlob(dataUrl);
+      if (blob && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = blobUrl;
+        a.download = fileName;
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          try {
+            if (a.parentNode) document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          } catch {}
+        }, 3000);
+        showFloatingReactionToast("📥 ¡Descarga iniciada! Revisa tus descargas.");
+        return;
+      }
+    }
+
+    // 3. Fallback: canvas.toBlob nativo
+    if (typeof canvas.toBlob === "function") {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          openCertificateInNewTab();
+          return;
+        }
+        try {
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = blobUrl;
+          a.download = fileName;
+          a.rel = "noopener";
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            try {
+              if (a.parentNode) document.body.removeChild(a);
+              URL.revokeObjectURL(blobUrl);
+            } catch {}
+          }, 3000);
+          showFloatingReactionToast("📥 ¡Descarga iniciada! Revisa tus descargas.");
+        } catch (e) {
+          console.warn("toBlob URL download error:", e);
+          openCertificateInNewTab();
+        }
+      }, "image/png");
+      return;
+    }
+
+    // 4. Último recurso: abrir en visor directo
+    openCertificateInNewTab();
+  } catch (err) {
+    console.error("downloadCertificatePng error:", err);
+    showFloatingReactionToast("⚠️ Error en descarga. Pulsa 'VER IMAGEN'.");
+  }
+}
+
+function openCertificateInNewTab() {
+  try {
+    const details = getPodiumCertificateDetails();
+    const canvas = generateCertificateCanvas(details);
+    if (!canvas) {
+      showFloatingReactionToast("⚠️ No se pudo generar el diploma.");
+      return;
+    }
+
+    const safeNick = (details.nickname || "Aprendiz").replace(/[^a-zA-Z0-9_\-]/g, "_");
+    const fileName = `Diploma_EnglishUp_${safeNick}_PuntoPositivo.png`;
+
+    let dataUrl = "";
+    try {
+      dataUrl = canvas.toDataURL("image/png");
+    } catch (err) {
+      console.warn("toDataURL error:", err);
+    }
+
+    if (!dataUrl) {
+      showFloatingReactionToast("⚠️ No se pudo generar la imagen del diploma.");
+      return;
+    }
+
+    const blob = dataUrlToBlob(dataUrl);
+    const blobUrl = (blob && typeof URL !== "undefined" && typeof URL.createObjectURL === "function")
+      ? URL.createObjectURL(blob)
+      : dataUrl;
+
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(`<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${fileName}</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1.25rem;
+      box-sizing: border-box;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+      text-align: center;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+      border: 2px solid #334155;
+    }
+    .box {
+      margin-top: 1.25rem;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid #475569;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      max-width: 600px;
+    }
+    .box p {
+      margin: 0 0 0.35rem;
+      font-size: 15px;
+      font-weight: 700;
+      color: #4ade80;
+    }
+    .box span {
+      display: block;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .btn-save {
+      display: inline-block;
+      margin-top: 0.85rem;
+      padding: 0.75rem 1.5rem;
+      background: #16a34a;
+      color: white;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 14px;
+      border-radius: 9999px;
+      box-shadow: 0 4px 0 #15803d;
+    }
+  </style>
+</head>
+<body>
+  <img src="${blobUrl}" alt="Diploma English Up SENA">
+  <div class="box">
+    <p>👆 Mantén presionada la imagen para "Guardar en Fotos" o haz clic derecho para guardar</p>
+    <span>Diploma oficial válido para reclamar tu punto positivo en el área de inglés.</span>
+    <div>
+      <a class="btn-save" href="${blobUrl}" download="${fileName}">Descargar Archivo</a>
+    </div>
+  </div>
+</body>
+</html>`);
+      win.document.close();
+      showFloatingReactionToast("👁️ Diploma abierto en pantalla completa.");
+    } else {
+      const fallbackA = document.createElement("a");
+      fallbackA.href = blobUrl;
+      fallbackA.target = "_blank";
+      fallbackA.download = fileName;
+      document.body.appendChild(fallbackA);
+      fallbackA.click();
+      document.body.removeChild(fallbackA);
+    }
+  } catch (err) {
+    console.error("openCertificateInNewTab error:", err);
+  }
+}
+
+function shareCertificateViaWhatsApp() {
+  const details = getPodiumCertificateDetails();
+  const shareText = `🏆 *CERTIFICADO DE ACREDITACIÓN BILINGÜE - ENGLISH UP SENA 2026* 🇨🇴🦉
+
+Hola Instructor(a), comparto mi comprobante oficial de participación en el English Day:
+
+👤 *Aprendiz:* ${details.nickname}
+🏅 *Posición:* ${details.rankText}
+⚡ *Puntaje Oficial:* ${details.xp} XP
+🔑 *Código de Verificación:* ${details.validationCode}
+⭐ *Acreditación Académica:* +1 Punto Positivo en el Área de Inglés Técnico
+
+_Constancia digital verificada por la plataforma interactiva English Up SENA ADSO._`;
+
+  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+  window.open(url, "_blank");
+}
+
+function copyCertificateProof(btnEl) {
+  const details = getPodiumCertificateDetails();
+  const proofText = `🏆 CERTIFICADO DE ACREDITACIÓN BILINGÜE - ENGLISH UP SENA 2026 🇨🇴🦉
+Aprendiz: ${details.nickname}
+Posición: ${details.rankText}
+Puntaje: ${details.xp} XP
+Código de Verificación: ${details.validationCode}
+⭐ Acreditación: +1 Punto Positivo en el Componente de Inglés Técnico (SENA ADSO)
+Fecha: ${details.date}`;
+
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(proofText).then(() => {
+      if (btnEl) {
+        const prev = btnEl.innerHTML;
+        btnEl.innerHTML = '<span class="material-symbols-outlined text-[18px]">check</span> ¡COPIADO!';
+        setTimeout(() => { btnEl.innerHTML = prev; }, 2200);
+      }
+      showFloatingReactionToast("📋 Comprobante copiado al portapapeles");
+    }).catch(() => {});
+  }
+}
+
+function sharePodiumAction(btnSharePodium) {
+  const details = getPodiumCertificateDetails();
+  const text = `🏆 *CERTIFICADO DE ACREDITACIÓN BILINGÜE - ENGLISH UP SENA 2026* 🇨🇴🦉
+
+👤 *Aprendiz:* ${details.nickname}
+🏅 *Posición:* ${details.rankText} · ${details.xp} XP
+🔑 *Código de Validación:* ${details.validationCode}
+⭐ *Acreditación:* +1 Punto Positivo para el área de Inglés Técnico
+
+_Plataforma de Gamificación Bilingüe SENA ADSO._`;
+
+  if (navigator.share) {
+    try {
+      const canvas = generateCertificateCanvas(details);
+      const dataUrl = canvas ? canvas.toDataURL("image/png") : "";
+      const safeNick = (details.nickname || "Aprendiz").replace(/[^a-zA-Z0-9_\-]/g, "_");
+      const fileName = `Diploma_EnglishUp_${safeNick}_PuntoPositivo.png`;
+      const file = dataUrl ? dataUrlToFile(dataUrl, fileName) : null;
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: "Diploma English Up SENA 2026",
+          text: text
+        }).then(() => {
+          showFloatingReactionToast("✔ ¡Diploma compartido con éxito!");
+        }).catch((err) => {
+          if (err.name !== "AbortError") {
+            navigator.share({ title: "Diploma English Up SENA 2026", text: text }).catch(() => {});
+          }
+        });
+        openCertificateModal();
+        return;
+      }
+    } catch (e) {
+      console.warn("navigator.share with files error:", e);
+    }
+
+    navigator.share({
+      title: "Certificado English Up 2026",
+      text: text,
+      url: window.location.href
+    }).catch(() => {});
+  } else {
+    copyCertificateProof(btnSharePodium);
+  }
+  openCertificateModal();
+}
+
+function openPedagogicalModal() {
+  const pedModal = document.querySelector("#pedagogicalModal");
+  if (!pedModal) return;
+  const details = getPodiumCertificateDetails();
+  const codeSnippet = document.querySelector("#pedagogicalCodeSnippet");
+  if (codeSnippet) codeSnippet.textContent = details.validationCode;
+  pedModal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closePedagogicalModal() {
+  const pedModal = document.querySelector("#pedagogicalModal");
+  if (pedModal) {
+    pedModal.hidden = true;
+    document.body.style.overflow = "";
+  }
 }
 
 function parseStompMessage(frame) {
