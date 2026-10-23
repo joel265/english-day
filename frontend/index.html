@@ -98,10 +98,35 @@
         }
       };
     </script>
-    <link rel="stylesheet" href="./css/styles.css">
-    <link rel="stylesheet" href="./css/avatars.css">
+    <link rel="stylesheet" href="./css/styles.css?v=2.1">
+    <link rel="stylesheet" href="./css/avatars.css?v=2.1">
+    <style>
+      body.app-park-bg {
+        min-height: 100vh;
+        min-height: 100svh;
+        color: var(--text, #111d22);
+        font-family: "Rubik", sans-serif;
+        background-color: #5d8e42;
+        background-image:
+          linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
+          url('./assets/backgrounds/city-park-bg.jpg');
+        background-image:
+          linear-gradient(180deg, rgba(243, 250, 255, 0.12) 0%, rgba(243, 250, 255, 0.22) 100%),
+          url('./assets/backgrounds/city-park-bg.webp');
+        background-size: cover !important;
+        background-position: center bottom !important;
+        background-attachment: fixed !important;
+        background-repeat: no-repeat !important;
+      }
+
+      @supports (-webkit-touch-callout: none) {
+        body.app-park-bg {
+          background-attachment: scroll !important;
+        }
+      }
+    </style>
   </head>
-  <body class="bg-surface font-body-md text-on-surface">
+  <body class="app-park-bg font-body-md text-on-surface">
     <!-- Top Persistent Arcade HUD Header -->
     <header class="fixed top-0 w-full z-40 bg-surface/90 backdrop-blur-xl shadow-[0_4px_0_rgba(215,229,235,0.7)] border-b border-surface-container-high">
       <div class="h-16 w-full max-w-[1400px] mx-auto px-margin flex items-center justify-between gap-gutter">
