@@ -5,7 +5,7 @@ Plataforma web multijugador en tiempo real desarrollada para el evento instituci
 ---
 
 <p align="center">
-  <img src="docs/assets/sena-adso-team-pixelart.jpg" alt="Equipo SENA ADSO - English Up" width="100%">
+  <img src="docs/assets/sena-adso-team.jpg" alt="Equipo SENA ADSO - English Up" width="100%">
 </p>
 
 ## 🤖 Creación del Proyecto & Uso Responsable de la Inteligencia Artificial
